@@ -1,0 +1,124 @@
+.token-validator {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.validator-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.validator-header h4 {
+  margin: 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.validate-button {
+  background: #17a2b8;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.validate-button:hover:not(:disabled) {
+  background: #138496;
+}
+
+.validate-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.validation-result {
+  border-radius: 6px;
+  padding: 15px;
+  margin-top: 15px;
+}
+
+.validation-result.valid {
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+}
+
+.validation-result.invalid {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+}
+
+.success-info h5,
+.error-info h5 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.success-info p,
+.error-info p {
+  margin: 5px 0;
+  font-size: 13px;
+}
+
+.scope-check {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+.scope-check ul {
+  margin: 5px 0 0 20px;
+  padding: 0;
+}
+
+.scope-check li {
+  font-size: 12px;
+  margin-bottom: 3px;
+}
+
+.scope-check li.scope-ok {
+  color: #28a745;
+}
+
+.scope-check li.scope-missing {
+  color: #dc3545;
+  font-weight: 500;
+}
+
+.scope-warning {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  color: #856404;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.troubleshooting {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+.troubleshooting ul {
+  margin: 5px 0 0 20px;
+  padding: 0;
+}
+
+.troubleshooting li {
+  font-size: 12px;
+  margin-bottom: 3px;
+  line-height: 1.4;
+}

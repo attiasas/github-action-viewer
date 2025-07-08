@@ -1,0 +1,266 @@
+.repository-list {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.repository-list.empty {
+  padding: 40px;
+  text-align: center;
+  color: #666;
+}
+
+.repository-item {
+  border-bottom: 1px solid #e1e5e9;
+}
+
+.repository-item:last-child {
+  border-bottom: none;
+}
+
+.repository-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.repository-header:hover {
+  background-color: #f8f9fa;
+}
+
+.repo-info {
+  flex: 1;
+}
+
+.repo-info h4 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+}
+
+.repo-info a {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.repo-info a:hover {
+  text-decoration: underline;
+}
+
+.repo-config {
+  display: flex;
+  gap: 15px;
+  font-size: 12px;
+  color: #666;
+}
+
+.repo-stats-summary {
+  margin: 0 20px;
+}
+
+.stats-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.stat {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  min-width: 24px;
+  text-align: center;
+}
+
+.stat.success { background: #28a745; }
+.stat.failure { background: #dc3545; }
+.stat.pending { background: #ffc107; }
+.stat.cancelled { background: #6c757d; }
+
+.repo-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.expand-button, .remove-button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.expand-button:hover {
+  background-color: #e9ecef;
+}
+
+.remove-button {
+  color: #dc3545;
+}
+
+.remove-button:hover:not(:disabled) {
+  background-color: #f8d7da;
+}
+
+.remove-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.repository-details {
+  padding: 0 20px 20px 20px;
+  background-color: #f8f9fa;
+  border-top: 1px solid #e1e5e9;
+}
+
+.details-section {
+  margin-bottom: 20px;
+}
+
+.details-section:last-child {
+  margin-bottom: 0;
+}
+
+.details-section h5 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 16px;
+  border-bottom: 1px solid #dee2e6;
+  padding-bottom: 8px;
+}
+
+.config-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.config-item {
+  font-size: 14px;
+}
+
+.config-item strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+.config-item ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #666;
+}
+
+.config-item li {
+  margin-bottom: 2px;
+}
+
+.branch-details {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.branch-detail {
+  background: white;
+  border-radius: 6px;
+  padding: 15px;
+  border: 1px solid #dee2e6;
+}
+
+.branch-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.branch-header h6 {
+  margin: 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.branch-stats {
+  display: flex;
+  gap: 6px;
+}
+
+.branch-error {
+  color: #dc3545;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.latest-run {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: #666;
+}
+
+.run-label {
+  font-weight: 500;
+}
+
+.run-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.run-time {
+  margin-left: auto;
+  font-family: monospace;
+}
+
+/* Error message styles */
+.repository-list .error-message {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+  padding: 12px 15px;
+  margin: 15px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.repository-list .error-message p {
+  margin: 0;
+  font-weight: 500;
+  flex: 1;
+}
+
+.repository-list .dismiss-error {
+  background: none;
+  border: none;
+  color: #721c24;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 10px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.repository-list .dismiss-error:hover {
+  background: rgba(114, 28, 36, 0.1);
+}
