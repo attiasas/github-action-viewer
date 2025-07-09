@@ -189,21 +189,20 @@
   border-radius: 4px;
   font-size: 14px;
   transition: all 0.2s;
-  color: transparent;
-  text-shadow: 0 0 0 #f8f9fa;
-  filter: opacity(0.5);
+  color: #6c757d;
+  opacity: 0.7;
 }
 
 .refresh-button:hover:not(:disabled) {
   background-color: #e9ecef;
-  text-shadow: 0 0 0 #f1f3f4;
-  filter: opacity(0.7);
+  color: #495057;
+  opacity: 1;
 }
 
 .refresh-button:disabled {
   opacity: 0.3;
   cursor: not-allowed;
-  text-shadow: 0 0 0 #f8f9fa;
+  color: #6c757d;
 }
 
 .status-indicator {
@@ -449,8 +448,8 @@
   .refresh-button {
     font-size: 12px;
     padding: 6px;
-    text-shadow: 0 0 0 #f8f9fa;
-    filter: opacity(0.5);
+    color: #6c757d;
+    opacity: 0.7;
   }
   
   .repo-content {
