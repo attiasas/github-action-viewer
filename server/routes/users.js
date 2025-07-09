@@ -20,15 +20,14 @@ router.get('/settings/:userId', (req, res) => {
         // Create default settings
         const defaultSettings = {
           user_id: userId,
-          default_refresh_interval: 300,
           theme: 'light',
           notifications_enabled: true
         };
         
         db.run(
-          `INSERT INTO user_settings (user_id, default_refresh_interval, theme, notifications_enabled) 
-           VALUES (?, ?, ?, ?)`,
-          [userId, 300, 'light', 1],
+          `INSERT INTO user_settings (user_id, theme, notifications_enabled) 
+           VALUES (?, ?, ?)`,
+          [userId, 'light', 1],
           function(err) {
             if (err) {
               console.error('Database error:', err);
@@ -50,13 +49,13 @@ router.get('/settings/:userId', (req, res) => {
 // Update user settings
 router.put('/settings/:userId', (req, res) => {
   const { userId } = req.params;
-  const { default_refresh_interval, theme, notifications_enabled } = req.body;
+  const { theme, notifications_enabled } = req.body;
 
   db.run(
     `UPDATE user_settings 
-     SET default_refresh_interval = ?, theme = ?, notifications_enabled = ?, updated_at = CURRENT_TIMESTAMP
+     SET theme = ?, notifications_enabled = ?, updated_at = CURRENT_TIMESTAMP
      WHERE user_id = ?`,
-    [default_refresh_interval, theme, notifications_enabled ? 1 : 0, userId],
+    [theme, notifications_enabled ? 1 : 0, userId],
     function(err) {
       if (err) {
         console.error('Database error:', err);

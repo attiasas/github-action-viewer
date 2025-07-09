@@ -3,8 +3,6 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import RepositorySearch from '../components/RepositorySearch';
 import RepositoryList from '../components/RepositoryList';
-import ActionStats from '../components/ActionStats';
-import TokenValidator from '../components/TokenValidator';
 import './DashboardPage.css';
 
 interface Repository {
@@ -14,19 +12,6 @@ interface Repository {
   tracked_branches: string[];
   tracked_workflows: string[];
   auto_refresh_interval: number;
-}
-
-interface ActionStatistics {
-  repository: string;
-  repositoryUrl: string;
-  repoId: number;
-  branches: Record<string, BranchStats>;
-  overall: {
-    success: number;
-    failure: number;
-    pending: number;
-    cancelled: number;
-  };
 }
 
 interface BranchStats {
@@ -44,14 +29,25 @@ interface BranchStats {
   error?: string;
 }
 
+interface ActionStatistics {
+  repository: string;
+  repositoryUrl: string;
+  repoId: number;
+  branches: Record<string, BranchStats>;
+  overall: {
+    success: number;
+    failure: number;
+    pending: number;
+    cancelled: number;
+  };
+}
+
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [actionStats, setActionStats] = useState<ActionStatistics[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [refreshInterval, setRefreshInterval] = useState(300); // 5 minutes default
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showAddRepoModal, setShowAddRepoModal] = useState(false);
 
   // Load tracked repositories
   const loadRepositories = useCallback(async () => {
@@ -77,60 +73,28 @@ export default function DashboardPage() {
   const loadActionStats = useCallback(async () => {
     if (!user) return;
     
-    setIsLoading(true);
     try {
       const response = await fetch(`/api/actions/stats/${user.id}`);
       if (response.ok) {
         const stats = await response.json();
         setActionStats(stats);
-        setLastRefresh(new Date());
-        setError(null);
       } else {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        setError(`Failed to load action statistics: ${errorData.error || 'Please check your connection'}`);
+        console.error('Failed to load action statistics');
       }
     } catch (error) {
-      console.error('Error loading action stats:', error);
-      setError('Network error occurred while loading action statistics');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user]);
-
-  // Load user settings
-  const loadSettings = useCallback(async () => {
-    if (!user) return;
-    
-    try {
-      const response = await fetch(`/api/users/settings/${user.id}`);
-      if (response.ok) {
-        const settings = await response.json();
-        setRefreshInterval(settings.default_refresh_interval);
-      }
-    } catch (error) {
-      console.error('Error loading settings:', error);
+      console.error('Error loading action statistics:', error);
     }
   }, [user]);
 
   useEffect(() => {
     loadRepositories();
-    loadSettings();
-  }, [loadRepositories, loadSettings]);
-
-  useEffect(() => {
     loadActionStats();
-  }, [repositories, loadActionStats]);
-
-  // Auto-refresh
-  useEffect(() => {
-    if (refreshInterval > 0 && repositories.length > 0) {
-      const interval = setInterval(loadActionStats, refreshInterval * 1000);
-      return () => clearInterval(interval);
-    }
-  }, [refreshInterval, repositories.length, loadActionStats]);
+  }, [loadRepositories, loadActionStats]);
 
   const handleRepositoryAdded = () => {
     loadRepositories();
+    loadActionStats();
+    setShowAddRepoModal(false);
   };
 
   const handleRepositoryRemoved = (repoId: number) => {
@@ -138,36 +102,37 @@ export default function DashboardPage() {
     setActionStats(stats => stats.filter(stat => stat.repoId !== repoId));
   };
 
+  const handleActionStatsUpdate = (stats: ActionStatistics[]) => {
+    setActionStats(stats);
+  };
+
   return (
     <div className="dashboard-page">
       <header className="dashboard-header">
         <div className="header-content">
-          <h1>GitHub Actions Dashboard</h1>
-          <div className="header-info">
-            <span className="user-info">
-              Logged in as: <strong>{user?.id}</strong>
-            </span>
-            <div className="header-actions">
-              <Link to="/settings" className="settings-link">
-                Settings
-              </Link>
+          <div className="header-left">
+            <h1>GitHub Actions Dashboard</h1>
+          </div>
+          
+          <div className="header-right">
+            <button 
+              onClick={() => setShowAddRepoModal(true)} 
+              className="add-repo-button"
+            >
+              + Add Repository
+            </button>
+            <Link to="/settings" className="settings-link">
+              Settings
+            </Link>
+            <div className="user-info-group">
+              <span className="user-info">
+                Logged in as: <strong>{user?.id}</strong>
+              </span>
               <button onClick={logout} className="logout-button">
                 Logout
               </button>
             </div>
           </div>
-        </div>
-        
-        <div className="dashboard-controls">
-          <div className="refresh-info">
-            {lastRefresh && (
-              <span>Last updated: {lastRefresh.toLocaleTimeString()}</span>
-            )}
-            <span>Auto-refresh: {refreshInterval}s</span>
-          </div>
-          <button onClick={loadActionStats} disabled={isLoading} className="refresh-button">
-            {isLoading ? 'Refreshing...' : 'Refresh Now'}
-          </button>
         </div>
       </header>
 
@@ -179,41 +144,44 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <div className="dashboard-section">
-          <h2>GitHub Token Status</h2>
-          <TokenValidator />
-        </div>
-
-        <div className="dashboard-section">
-          <h2>Add Repository</h2>
-          <RepositorySearch onRepositoryAdded={handleRepositoryAdded} />
-        </div>
-
-        {repositories.length > 0 && (
-          <>
-            <div className="dashboard-section">
-              <h2>Action Statistics Overview</h2>
-              <ActionStats stats={actionStats} isLoading={isLoading} />
+        <div className="repositories-grid-section">
+          <h2>Tracked Repositories</h2>
+          {repositories.length > 0 ? (
+            <RepositoryList 
+              repositories={repositories}
+              actionStats={actionStats}
+              onRepositoryRemoved={handleRepositoryRemoved}
+              onActionStatsUpdate={handleActionStatsUpdate}
+              gridView={true}
+            />
+          ) : (
+            <div className="empty-state">
+              <h3>No repositories tracked yet</h3>
+              <p>Click the "Add Repository" button in the header to start monitoring GitHub Actions.</p>
             </div>
-
-            <div className="dashboard-section">
-              <h2>Tracked Repositories</h2>
-              <RepositoryList 
-                repositories={repositories}
-                actionStats={actionStats}
-                onRepositoryRemoved={handleRepositoryRemoved}
-              />
-            </div>
-          </>
-        )}
-
-        {repositories.length === 0 && (
-          <div className="empty-state">
-            <h3>No repositories tracked yet</h3>
-            <p>Use the search above to add repositories and start monitoring their GitHub Actions.</p>
-          </div>
-        )}
+          )}
+        </div>
       </main>
+
+      {/* Add Repository Modal */}
+      {showAddRepoModal && (
+        <div className="modal-overlay" onClick={() => setShowAddRepoModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Add Repository</h2>
+              <button 
+                className="modal-close-button"
+                onClick={() => setShowAddRepoModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <RepositorySearch onRepositoryAdded={handleRepositoryAdded} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

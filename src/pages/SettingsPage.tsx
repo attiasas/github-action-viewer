@@ -5,7 +5,6 @@ import GitHubServerManager from '../components/GitHubServerManager';
 import './SettingsPage.css';
 
 interface UserSettings {
-  default_refresh_interval: number;
   theme: string;
   notifications_enabled: boolean;
 }
@@ -13,7 +12,6 @@ interface UserSettings {
 export default function SettingsPage() {
   const { user, logout } = useAuth();
   const [settings, setSettings] = useState<UserSettings>({
-    default_refresh_interval: 300,
     theme: 'light',
     notifications_enabled: true
   });
@@ -127,21 +125,6 @@ export default function SettingsPage() {
             <h2>Preferences</h2>
             <form onSubmit={saveSettings} className="settings-form">
               <div className="form-group">
-                <label htmlFor="default_refresh_interval">Default Refresh Interval (seconds)</label>
-                <input
-                  type="number"
-                  id="default_refresh_interval"
-                  name="default_refresh_interval"
-                  value={settings.default_refresh_interval}
-                  onChange={handleInputChange}
-                  min="30"
-                  max="3600"
-                  required
-                />
-                <small>How often to refresh action statistics (30-3600 seconds)</small>
-              </div>
-
-              <div className="form-group">
                 <label htmlFor="theme">Theme</label>
                 <select
                   id="theme"
@@ -194,7 +177,7 @@ export default function SettingsPage() {
                 <li>Multi-repository action monitoring</li>
                 <li>Branch-specific tracking</li>
                 <li>Workflow filtering</li>
-                <li>Auto-refresh functionality</li>
+                <li>Per-repository refresh settings</li>
                 <li>Persistent user configurations</li>
               </ul>
             </div>
