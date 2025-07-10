@@ -196,6 +196,7 @@
 .repo-title-section h4 a {
   color: #667eea;
   text-decoration: none;
+  font-weight: bold;
 }
 
 .repo-title-section h4 a:hover {
