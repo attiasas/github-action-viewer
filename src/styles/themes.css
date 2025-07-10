@@ -9,7 +9,7 @@
   --bg-header: #ffffff;
   --bg-input: #ffffff;
   --bg-button: #28a745;
-  --bg-button-secondary: #667eea;
+  --bg-button-secondary: #ffffff;
   --bg-button-danger: #dc3545;
   --bg-modal: rgba(0, 0, 0, 0.5);
   --bg-modal-content: #ffffff;
@@ -29,7 +29,7 @@
   --shadow-modal: 0 4px 20px rgba(0, 0, 0, 0.15);
   --shadow-button: 0 2px 4px rgba(0, 0, 0, 0.1);
 
-  --accent-primary: #667eea;
+  --accent-primary: #333333;
   --accent-success: #28a745;
   --accent-danger: #dc3545;
   --accent-warning: #ffc107;
