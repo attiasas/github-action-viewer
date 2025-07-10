@@ -49,6 +49,7 @@ export default function DashboardPage() {
   const [actionStats, setActionStats] = useState<ActionStatistics[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showAddRepoModal, setShowAddRepoModal] = useState(false);
+  const [isLoadingStats, setIsLoadingStats] = useState(true); // Start as true for initial loading
 
   // Load tracked repositories
   const loadRepositories = useCallback(async () => {
@@ -74,6 +75,7 @@ export default function DashboardPage() {
   const loadActionStats = useCallback(async () => {
     if (!user) return;
     
+    setIsLoadingStats(true);
     try {
       const response = await fetch(`/api/actions/stats/${user.id}`);
       if (response.ok) {
@@ -84,6 +86,8 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error('Error loading action statistics:', error);
+    } finally {
+      setIsLoadingStats(false);
     }
   }, [user]);
 
@@ -93,6 +97,7 @@ export default function DashboardPage() {
   }, [loadRepositories, loadActionStats]);
 
   const handleRepositoryAdded = () => {
+    setIsLoadingStats(true); // Set loading state when new repository is added
     loadRepositories();
     loadActionStats();
     setShowAddRepoModal(false);
@@ -105,6 +110,7 @@ export default function DashboardPage() {
 
   const handleActionStatsUpdate = (stats: ActionStatistics[]) => {
     setActionStats(stats);
+    setIsLoadingStats(false); // Ensure loading state is cleared when stats are updated
   };
 
   return (
@@ -154,6 +160,7 @@ export default function DashboardPage() {
               onRepositoryRemoved={handleRepositoryRemoved}
               onActionStatsUpdate={handleActionStatsUpdate}
               gridView={true}
+              isInitialLoading={isLoadingStats}
             />
           ) : (
             <div className="empty-state">

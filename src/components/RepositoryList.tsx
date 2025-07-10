@@ -70,11 +70,13 @@ interface RepositoryListProps {
   onRepositoryRemoved: (repoId: number) => void;
   onActionStatsUpdate: (stats: ActionStatistics[]) => void;
   gridView?: boolean;
+  isInitialLoading?: boolean; // New prop to indicate initial loading state
 }
 
 interface RepositoryTimer {
   timeLeft: number;
   intervalId: NodeJS.Timeout | null;
+  isActive: boolean; // New field to track if timer should be active
 }
 
 export default function RepositoryList({ 
@@ -82,7 +84,8 @@ export default function RepositoryList({
   actionStats, 
   onRepositoryRemoved, 
   onActionStatsUpdate,
-  gridView = false 
+  gridView = false,
+  isInitialLoading = false
 }: RepositoryListProps) {
   const { user } = useAuth();
   const [showConfigModal, setShowConfigModal] = useState<number | null>(null);
@@ -104,6 +107,20 @@ export default function RepositoryList({
       if (response.ok) {
         const stats = await response.json();
         onActionStatsUpdate(stats);
+        
+        // Activate timers for repositories that now have stats
+        setRepositoryTimers(prev => {
+          const updated = { ...prev };
+          stats.forEach((stat: ActionStatistics) => {
+            if (updated[stat.repoId] && !updated[stat.repoId].isActive) {
+              updated[stat.repoId] = {
+                ...updated[stat.repoId],
+                isActive: true
+              };
+            }
+          });
+          return updated;
+        });
       }
     } catch (error) {
       console.error('Error refreshing repository stats:', error);
@@ -146,12 +163,35 @@ export default function RepositoryList({
     repositories.forEach(repo => {
       newTimers[repo.id] = {
         timeLeft: repo.auto_refresh_interval,
-        intervalId: null
+        intervalId: null,
+        isActive: false // Start inactive until first stats are loaded
       };
     });
     
     setRepositoryTimers(newTimers);
   }, [repositories]);
+
+  // Activate timers when actionStats are updated from parent
+  useEffect(() => {
+    if (actionStats.length > 0) {
+      setRepositoryTimers(prev => {
+        const updated = { ...prev };
+        let hasChanges = false;
+        
+        actionStats.forEach(stat => {
+          if (updated[stat.repoId] && !updated[stat.repoId].isActive) {
+            updated[stat.repoId] = {
+              ...updated[stat.repoId],
+              isActive: true
+            };
+            hasChanges = true;
+          }
+        });
+        
+        return hasChanges ? updated : prev;
+      });
+    }
+  }, [actionStats]);
 
   // Single timer that runs every second and updates all repository timers
   useEffect(() => {
@@ -161,7 +201,7 @@ export default function RepositoryList({
         let hasChanges = false;
         
         repositories.forEach(repo => {
-          if (updated[repo.id]) {
+          if (updated[repo.id] && updated[repo.id].isActive) {
             const newTimeLeft = updated[repo.id].timeLeft - 1;
             
             if (newTimeLeft <= 0) {
@@ -462,16 +502,22 @@ export default function RepositoryList({
                     e.stopPropagation();
                     manualRefreshRepository(repo.id);
                   }}
-                  disabled={isRefreshing === repo.id}
-                  title="Refresh this repository"
+                  disabled={isRefreshing === repo.id || !repositoryTimers[repo.id]?.isActive || isInitialLoading}
+                  title={!repositoryTimers[repo.id]?.isActive || isInitialLoading
+                    ? "Loading repository data..." 
+                    : "Refresh this repository"}
                 >
-                  {isRefreshing === repo.id ? '⏳' : '🔄'}
+                  {isRefreshing === repo.id || !repositoryTimers[repo.id]?.isActive || isInitialLoading ? '⏳' : '🔄'}
                 </button>
                 {repo.tracked_workflows.length > 0 && (
                   <span>Workflows: {repo.tracked_workflows.length}</span>
                 )}
                 <span>
-                  Refresh: {repositoryTimers[repo.id] ? formatTimeLeft(repositoryTimers[repo.id].timeLeft) : repo.auto_refresh_interval + 's'}
+                  Refresh: {repositoryTimers[repo.id] 
+                    ? (repositoryTimers[repo.id].isActive 
+                        ? formatTimeLeft(repositoryTimers[repo.id].timeLeft) 
+                        : 'Loading...')
+                    : repo.auto_refresh_interval + 's'}
                 </span>
               </div>
               
