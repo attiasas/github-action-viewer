@@ -291,7 +291,14 @@ export default function SettingsPage() {
                 <div className="about-info">
                   <div className="app-version">
                     <h3>GitHub Actions Viewer</h3>
-                    <span className="version-badge">v1.0.0</span>
+                    <a 
+                      href="https://github.com/attiasas/github-action-viewer/releases"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="version-badge-link"
+                    >
+                      <span className="version-badge">v{import.meta.env.PACKAGE_VERSION || '1.0.0'}</span>
+                    </a>
                   </div>
                   <p>A modern tool for monitoring GitHub Actions across multiple repositories.</p>
                   
@@ -321,6 +328,34 @@ export default function SettingsPage() {
                       <div className="feature-item">
                         <span className="feature-icon">🔄</span>
                         <span>Auto-refresh capabilities</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="support-section">
+                    <h4>Support & Issues</h4>
+                    <div className="support-content">
+                      <p>Found a bug or have a feature request?</p>
+                      <a 
+                        href="https://github.com/attiasas/github-action-viewer/issues"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="issues-link"
+                      >
+                        <span className="link-icon">🐛</span>
+                        Report Issues on GitHub
+                      </a>
+                      <div className="repository-info">
+                        <p>View the source code and contribute:</p>
+                        <a 
+                          href="https://github.com/attiasas/github-action-viewer"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="repo-link"
+                        >
+                          <span className="link-icon">📂</span>
+                          GitHub Repository
+                        </a>
                       </div>
                     </div>
                   </div>
