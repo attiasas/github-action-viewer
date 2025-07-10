@@ -37,7 +37,7 @@
 }
 
 /* Light theme background */
-.theme-light body {
+body.theme-light {
   background: #f5f6fa !important;
   color: #333333;
 }
@@ -78,7 +78,7 @@
 }
 
 /* Dark theme background - applied directly */
-.theme-dark body {
+body.theme-dark {
   background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #21262d 100%) !important;
   color: #ffffff;
 }
