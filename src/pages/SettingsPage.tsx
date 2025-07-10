@@ -179,17 +179,21 @@ export default function SettingsPage() {
         <header className="settings-header">
           <div className="header-content">
             <div className="header-left">
-              <h1>Settings</h1>
-              <p>Manage your preferences and configurations</p>
+              <div className="title-section">
+                <button 
+                  onClick={() => setShowAboutModal(true)} 
+                  className="about-button"
+                  title="About GitHub Actions Viewer"
+                >
+                  ℹ️
+                </button>
+                <h1>Settings</h1>
+              </div>
+            </div>
+            <div className="header-center">
+              <p className="subtitle">Manage your preferences and configurations</p>
             </div>
             <div className="header-actions">
-              <button 
-                onClick={() => setShowAboutModal(true)} 
-                className="about-button"
-                title="About GitHub Actions Viewer"
-              >
-                ℹ️
-              </button>
               <Link to="/dashboard" className="back-link">
                 ← Dashboard
               </Link>

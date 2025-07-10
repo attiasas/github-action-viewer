@@ -29,26 +29,67 @@
 .header-content {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  gap: 20px;
+}
+
+.header-left {
+  flex: 0 0 auto;
+}
+
+.header-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.header-actions {
+  flex: 0 0 auto;
+}
+
+.title-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 0;
 }
 
 .header-left h1 {
-  margin: 0 0 24px 0;
+  margin: 0;
   color: var(--text-primary);
   font-size: 28px;
   font-weight: 600;
 }
 
-.header-left p {
+.header-center .subtitle {
   margin: 0;
   color: var(--text-secondary);
   font-size: 14px;
+  text-align: center;
 }
 
-.header-actions {
+.about-button {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text-secondary);
   display: flex;
-  gap: 12px;
   align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+}
+
+.about-button:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-primary);
+  color: var(--text-primary);
+  transform: translateY(-1px);
 }
 
 .back-link {
@@ -62,26 +103,6 @@
 
 .back-link:hover {
   background: var(--bg-tertiary);
-}
-
-.about-button {
-  background: var(--bg-button-secondary);
-  color: var(--text-inverse);
-  border: none;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  cursor: pointer;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.about-button:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
 }
 
 .logout-button {
@@ -587,5 +608,31 @@
   .header-actions {
     flex-wrap: wrap;
     gap: 8px;
+  }
+  
+  .header-content {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    text-align: center;
+  }
+  
+  .header-center {
+    order: 2;
+  }
+  
+  .header-actions {
+    order: 3;
+  }
+}
+
+/* Additional responsive styles for smaller screens */
+@media (max-width: 600px) {
+  .header-center .subtitle {
+    font-size: 13px;
+  }
+  
+  .title-section {
+    justify-content: center;
   }
 }
