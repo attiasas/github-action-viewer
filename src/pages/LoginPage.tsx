@@ -4,13 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import './LoginPage.css';
 
 export default function LoginPage() {
-  const { user, login, register, isLoading } = useAuth();
+  const { user, login, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [isRegistering, setIsRegistering] = useState(false);
   const [formData, setFormData] = useState({
-    userId: '',
-    password: '',
-    confirmPassword: ''
+    userId: ''
   });
   const [error, setError] = useState('');
 
@@ -25,41 +22,26 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
 
-    if (!formData.userId || !formData.password) {
-      setError('Please fill in all required fields');
+    if (!formData.userId) {
+      setError('Please enter a User ID');
       return;
     }
 
-    if (isRegistering && formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+    if (formData.userId.length < 3) {
+      setError('User ID must be at least 3 characters long');
       return;
     }
 
-    if (isRegistering && formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return;
-    }
+    const success = await login(formData.userId);
 
-    const success = isRegistering 
-      ? await register(formData.userId, formData.password)
-      : await login(formData.userId, formData.password);
-
-    if (success) {
-      // Redirect will happen automatically due to useEffect above
-    } else {
-      setError(isRegistering ? 'Registration failed. User ID may already exist.' : 'Invalid credentials');
+    if (!success) {
+      setError('Failed to login. Please try again.');
     }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const toggleMode = () => {
-    setIsRegistering(!isRegistering);
-    setError('');
-    setFormData({ userId: '', password: '', confirmPassword: '' });
   };
 
   return (
@@ -71,7 +53,7 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
-          <h2>{isRegistering ? 'Create Account' : 'Sign In'}</h2>
+          <h2>Sign In</h2>
           
           {error && <div className="error-message">{error}</div>}
           
@@ -87,57 +69,29 @@ export default function LoginPage() {
               disabled={isLoading}
               required
             />
+            <small className="form-help">
+              Enter any unique identifier (3+ characters). If it doesn't exist, we'll create it for you.
+            </small>
           </div>
-
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleInputChange}
-              placeholder="Enter your password"
-              disabled={isLoading}
-              required
-            />
-          </div>
-
-          {isRegistering && (
-            <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm Password</label>
-              <input
-                type="password"
-                id="confirmPassword"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleInputChange}
-                placeholder="Confirm your password"
-                disabled={isLoading}
-                required
-              />
-            </div>
-          )}
 
           <button 
             type="submit" 
             className="login-button"
             disabled={isLoading}
           >
-            {isLoading ? 'Processing...' : (isRegistering ? 'Create Account' : 'Sign In')}
+            {isLoading ? 'Processing...' : 'Sign In'}
           </button>
-
-          <div className="auth-toggle">
-            <p>
-              {isRegistering ? 'Already have an account?' : "Don't have an account?"}{' '}
-              <button type="button" onClick={toggleMode} className="toggle-button">
-                {isRegistering ? 'Sign In' : 'Create Account'}
-              </button>
-            </p>
-          </div>
         </form>
 
         <div className="login-info">
+          <h3>How it works:</h3>
+          <ul>
+            <li>Enter any unique User ID (3+ characters)</li>
+            <li>If the ID exists, you'll be signed in</li>
+            <li>If it's new, we'll create it for you automatically</li>
+            <li>No passwords needed - just remember your User ID!</li>
+          </ul>
+          
           <h3>After signing in:</h3>
           <ul>
             <li>Add your GitHub servers and API tokens</li>

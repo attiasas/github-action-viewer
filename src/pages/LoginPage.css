@@ -70,6 +70,13 @@
   font-size: 12px;
 }
 
+.form-help {
+  color: #666;
+  font-size: 12px;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
 .error-message {
   background: #fee;
   color: #c33;
