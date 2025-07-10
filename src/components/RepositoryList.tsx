@@ -560,6 +560,31 @@ export default function RepositoryList({
     return 'unknown';
   };
 
+  // Get the base status of a repository (ignoring refreshing state) for sorting purposes
+  const getBaseRepositoryStatus = (repoId: number): string => {
+    const stat = actionStats.find(s => s.repoId === repoId);
+    if (!stat) return 'unknown';
+    
+    // Use the backend-calculated status if available (but not refreshing)
+    if (stat.status && stat.status !== 'refreshing') {
+      return stat.status;
+    }
+    
+    // Fallback to legacy calculation
+    const branchStatuses = Object.values(stat.branches)
+      .filter(branch => branch.latestRun && !branch.error)
+      .map(branch => branch.latestRun?.conclusion || branch.latestRun?.status || 'unknown');
+    
+    if (branchStatuses.length === 0) return 'unknown';
+    
+    // Priority: failure > pending/cancelled > success
+    if (branchStatuses.some(status => status === 'failure')) return 'failure';
+    if (branchStatuses.some(status => status === 'pending' || status === 'in_progress' || status === 'cancelled')) return 'pending';
+    if (branchStatuses.every(status => status === 'success')) return 'success';
+    
+    return 'unknown';
+  };
+
   const removeRepository = async (repoId: number) => {
     if (!user) return;
 
@@ -794,21 +819,26 @@ export default function RepositoryList({
   };
 
   // Sort repositories by status priority (failure first, then pending, success, unknown)
+  // but preserve order during refresh to prevent jumping
   const getSortedRepositories = () => {
     const statusPriority: Record<string, number> = {
       'failure': 1,
-      'refreshing': 2,
-      'pending': 3,
-      'success': 4,
-      'unknown': 5
+      'pending': 2,
+      'success': 3,
+      'unknown': 4
     };
     
     return [...repositories].sort((a, b) => {
-      const statusA = getRepositoryStatus(a.id);
-      const statusB = getRepositoryStatus(b.id);
+      // Get the actual status, but use non-refreshing status for sorting to prevent jumping
+      const rawStatusA = getRepositoryStatus(a.id);
+      const rawStatusB = getRepositoryStatus(b.id);
       
-      const priorityA = statusPriority[statusA] || 5;
-      const priorityB = statusPriority[statusB] || 5;
+      // Use the underlying status for sorting (ignore refreshing state)
+      const statusA = rawStatusA === 'refreshing' ? getBaseRepositoryStatus(a.id) : rawStatusA;
+      const statusB = rawStatusB === 'refreshing' ? getBaseRepositoryStatus(b.id) : rawStatusB;
+      
+      const priorityA = statusPriority[statusA] || 4;
+      const priorityB = statusPriority[statusB] || 4;
       
       if (priorityA !== priorityB) {
         return priorityA - priorityB;

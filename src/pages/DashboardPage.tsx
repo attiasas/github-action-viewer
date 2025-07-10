@@ -41,6 +41,9 @@ interface ActionStatistics {
     cancelled: number;
   };
   status: string; // New field for overall repository status
+  isRefreshing?: boolean; // Optional field for tracking refresh state
+  hasError?: boolean; // Optional field for error state
+  error?: string; // Optional field for error message
 }
 
 export default function DashboardPage() {
@@ -72,17 +75,29 @@ export default function DashboardPage() {
       
       console.log(`📊 [Dashboard] Starting individual refresh for ${reposToRefresh.length} repositories`);
       
-      // Mark all repositories as refreshing in the UI
-      const initialStats = reposToRefresh.map(repo => ({
-        repository: repo.repository_name,
-        repositoryUrl: repo.repository_url,
-        repoId: repo.id,
-        branches: {},
-        overall: { success: 0, failure: 0, pending: 0, cancelled: 0 },
-        status: 'refreshing',
-        isRefreshing: true
-      }));
-      setActionStats(initialStats as ActionStatistics[]);
+      // Mark all repositories as refreshing in the UI without changing their position
+      setActionStats(prevStats => {
+        const updatedStats = [...prevStats];
+        
+        // Only update existing repositories to refreshing state
+        // New repositories will be added when their refresh completes
+        reposToRefresh.forEach(repo => {
+          const existingIndex = updatedStats.findIndex(stat => stat.repoId === repo.id);
+          
+          if (existingIndex >= 0) {
+            // Update existing repository to refreshing state without changing position
+            updatedStats[existingIndex] = {
+              ...updatedStats[existingIndex],
+              status: 'refreshing',
+              isRefreshing: true
+            };
+          }
+          // Don't add new repositories here - wait for refresh completion
+          // This prevents position changes during bulk refresh operations
+        });
+        
+        return updatedStats;
+      });
       
       const startTime = Date.now();
       let completedCount = 0;
@@ -113,8 +128,10 @@ export default function DashboardPage() {
               const repoIndex = updatedStats.findIndex(stat => stat.repoId === repo.id);
               
               if (repoIndex >= 0) {
+                // Update existing repository in place
                 updatedStats[repoIndex] = { ...repoStats, isRefreshing: false };
               } else {
+                // Add new repository at the end (only when refresh completes)
                 updatedStats.push({ ...repoStats, isRefreshing: false });
               }
               
@@ -197,6 +214,19 @@ export default function DashboardPage() {
           if (repos.length > 0 && !hasInitiallyLoaded.current) {
             console.log(`🔄 [Dashboard] Found ${repos.length} repositories, starting initial stats load`);
             hasInitiallyLoaded.current = true;
+            
+            // Create initial actionStats entries with refreshing state for all repositories
+            const initialStats: ActionStatistics[] = repos.map((repo: Repository) => ({
+              repository: repo.repository_name,
+              repositoryUrl: repo.repository_url,
+              repoId: repo.id,
+              branches: {},
+              overall: { success: 0, failure: 0, pending: 0, cancelled: 0 },
+              status: 'refreshing',
+              isRefreshing: true
+            }));
+            setActionStats(initialStats);
+            
             await loadActionStats(true, repos);
           } else {
             setIsLoadingStats(false);
@@ -225,6 +255,30 @@ export default function DashboardPage() {
       if (response.ok) {
         const repos = await response.json();
         setRepositories(repos);
+        
+        // Create initial refreshing states for any new repositories
+        setActionStats(prevStats => {
+          const updatedStats = [...prevStats];
+          
+          repos.forEach((repo: Repository) => {
+            const existingIndex = updatedStats.findIndex(stat => stat.repoId === repo.id);
+            
+            if (existingIndex < 0) {
+              // Add new repository with refreshing state
+              updatedStats.push({
+                repository: repo.repository_name,
+                repositoryUrl: repo.repository_url,
+                repoId: repo.id,
+                branches: {},
+                overall: { success: 0, failure: 0, pending: 0, cancelled: 0 },
+                status: 'refreshing',
+                isRefreshing: true
+              });
+            }
+          });
+          
+          return updatedStats;
+        });
         
         // Load stats for the updated repositories
         if (repos.length > 0) {
