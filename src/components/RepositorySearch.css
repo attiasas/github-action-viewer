@@ -490,11 +490,27 @@
   color: var(--accent-danger);
 }
 
-.fallback-message {
+/* Required field indicator */
+.required {
+  color: var(--accent-danger);
+  font-weight: 600;
+  margin-left: 2px;
+}
+
+/* Validation message */
+.validation-message {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--accent-danger);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 15px;
+}
+
+.validation-message .error-text {
   margin: 0;
-  font-style: italic;
-  color: var(--text-secondary);
-  font-size: 13px;
+  color: var(--accent-danger);
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .display-name-input {

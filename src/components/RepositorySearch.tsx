@@ -175,7 +175,19 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
   };
 
   const addRepository = async () => {
-    if (!selectedRepo || !user || !selectedServer || selectedBranches.length === 0) return;
+    if (!selectedRepo || !user || !selectedServer) return;
+    
+    // Require at least one branch
+    if (selectedBranches.length === 0) {
+      alert('Please select at least one branch to track.');
+      return;
+    }
+    
+    // Require at least one workflow when workflows are available
+    if (workflows.length > 0 && selectedWorkflows.length === 0) {
+      alert('Please select at least one workflow to track.');
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -301,7 +313,33 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
           <h4>Configure: {selectedRepo.full_name}</h4>
           
           <div className="config-section">
-            <h5>Select Branches to Track:</h5>
+            <h5>Display Name (optional):</h5>
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Custom name for this repository"
+              className="display-name-input"
+            />
+            <small className="input-help">
+              Leave empty to use the repository name ({selectedRepo?.full_name})
+            </small>
+          </div>
+
+          <div className="config-section">
+            <h5>Auto-refresh Interval (seconds):</h5>
+            <input
+              type="number"
+              value={refreshInterval}
+              onChange={(e) => setRefreshInterval(Number(e.target.value))}
+              min="30"
+              max="3600"
+              className="interval-input"
+            />
+          </div>
+          
+          <div className="config-section">
+            <h5>Select Branches to Track: <span className="required">*</span></h5>
             {isLoading ? (
               <p>Loading branches...</p>
             ) : branchError ? (
@@ -408,7 +446,7 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
           </div>
 
           <div className="config-section">
-            <h5>Select Workflows to Track (optional):</h5>
+            <h5>Select Workflows to Track: <span className="required">*</span></h5>
             {isLoading ? (
               <p>Loading workflows...</p>
             ) : workflowError ? (
@@ -453,7 +491,7 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
                       );
                     })}
                     {selectedWorkflows.length === 0 && (
-                      <span className="placeholder">All workflows will be tracked (or select specific ones)</span>
+                      <span className="placeholder">Select at least one workflow</span>
                     )}
                   </div>
                   <div className="available-items">
@@ -477,36 +515,26 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
             )}
           </div>
 
-          <div className="config-section">
-            <h5>Auto-refresh Interval (seconds):</h5>
-            <input
-              type="number"
-              value={refreshInterval}
-              onChange={(e) => setRefreshInterval(Number(e.target.value))}
-              min="30"
-              max="3600"
-              className="interval-input"
-            />
-          </div>
-
-          <div className="config-section">
-            <h5>Display Name (optional):</h5>
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Custom name for this repository"
-              className="display-name-input"
-            />
-            <small className="input-help">
-              Leave empty to use the repository name ({selectedRepo?.full_name})
-            </small>
-          </div>
-
           <div className="config-actions">
-            <button onClick={addRepository} disabled={isLoading || selectedBranches.length === 0} className="add-button">
-              {isLoading ? 'Adding...' : 'Add Repository'}
-            </button>
+            {(selectedBranches.length === 0 || (workflows.length > 0 && selectedWorkflows.length === 0) || branchError || workflowError) && (
+              <div className="validation-message">
+                <p className="error-text">
+                  {branchError && 'Error loading branches. Please try again or add branches manually.'}
+                  {workflowError && !branchError && 'Error loading workflows. Please try again.'}
+                  {!branchError && !workflowError && selectedBranches.length === 0 && 'Please select at least one branch to track.'}
+                  {!branchError && !workflowError && selectedBranches.length > 0 && workflows.length > 0 && selectedWorkflows.length === 0 && 'Please select at least one workflow to track.'}
+                </p>
+              </div>
+            )}
+            {!(branchError || workflowError || selectedBranches.length === 0 || (workflows.length > 0 && selectedWorkflows.length === 0)) && (
+              <button 
+                onClick={addRepository} 
+                disabled={isLoading} 
+                className="add-button"
+              >
+                {isLoading ? 'Adding...' : 'Add Repository'}
+              </button>
+            )}
             <button onClick={() => {
               setSelectedRepo(null);
               setDisplayName('');
