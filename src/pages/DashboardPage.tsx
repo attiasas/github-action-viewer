@@ -376,7 +376,7 @@ export default function DashboardPage() {
             </Link>
             <div className="user-info-group">
               <span className="user-info">
-                Logged in as: <strong>{user?.id}</strong>
+                Logged in as:<br /><strong>{user?.id}</strong>
               </span>
               <button onClick={logout} className="logout-button">
                 Logout
