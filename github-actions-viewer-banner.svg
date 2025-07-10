@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="200" viewBox="0 0 800 200">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d1117;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#161b22;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#21262d;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="iconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#24292f;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#656d76;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="successGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#238636;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2ea043;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="errorGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#cf222e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#da3633;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f6f8fa;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="800" height="200" fill="url(#bgGrad)" rx="10"/>
+  
+  <!-- Subtle decorative elements in background -->
+  <g opacity="0.05">
+    <circle cx="120" cy="40" r="2" fill="#f6f8fa"/>
+    <circle cx="680" cy="160" r="2" fill="#f6f8fa"/>
+    <circle cx="750" cy="40" r="1" fill="#f6f8fa"/>
+    <circle cx="720" cy="170" r="1" fill="#f6f8fa"/>
+  </g>
+  
+  <!-- Main GitHub Actions icon -->
+  <g transform="translate(40, 50)">
+    <circle cx="50" cy="50" r="45" fill="none" stroke="#58a6ff" stroke-width="3" opacity="0.8"/>
+    <circle cx="50" cy="50" r="20" fill="#58a6ff" opacity="0.9"/>
+    <!-- Gear teeth -->
+    <g fill="#58a6ff" opacity="0.9">
+      <rect x="47" y="5" width="6" height="20" rx="3"/>
+      <rect x="47" y="75" width="6" height="20" rx="3"/>
+      <rect x="5" y="47" width="20" height="6" rx="3"/>
+      <rect x="75" y="47" width="20" height="6" rx="3"/>
+      <rect x="18" y="18" width="6" height="20" rx="3" transform="rotate(45 21 28)"/>
+      <rect x="76" y="18" width="6" height="20" rx="3" transform="rotate(-45 79 28)"/>
+      <rect x="18" y="76" width="6" height="20" rx="3" transform="rotate(-45 21 86)"/>
+      <rect x="76" y="76" width="6" height="20" rx="3" transform="rotate(45 79 86)"/>
+    </g>
+  </g>
+  
+  <!-- Status indicators (left side) -->
+  <!-- Success -->
+  <g transform="translate(180, 70)">
+    <circle cx="15" cy="15" r="12" fill="url(#successGrad)" opacity="0.9"/>
+    <path d="M8 15l4 4 8-8" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  
+  <!-- Error -->
+  <g transform="translate(180, 110)">
+    <circle cx="15" cy="15" r="12" fill="url(#errorGrad)" opacity="0.9"/>
+    <path d="M8 8l14 14M22 8l-14 14" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Running indicator -->
+  <g transform="translate(220, 70)">
+    <circle cx="15" cy="15" r="12" fill="#fd7e14" opacity="0.9"/>
+    <circle cx="15" cy="15" r="5" fill="#ffffff">
+      <animateTransform attributeName="transform" type="rotate" values="0 15 15;360 15 15" dur="2s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+  
+  <!-- Pending -->
+  <g transform="translate(220, 110)">
+    <circle cx="15" cy="15" r="12" fill="#656d76" opacity="0.9"/>
+    <circle cx="15" cy="15" r="2" fill="#ffffff"/>
+    <circle cx="15" cy="15" r="6" fill="none" stroke="#ffffff" stroke-width="2" stroke-dasharray="2,2">
+      <animateTransform attributeName="transform" type="rotate" values="0 15 15;360 15 15" dur="3s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+  
+  <!-- Main Title with better positioning and contrast -->
+  <text x="300" y="85" font-family="'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif" 
+        font-size="38" font-weight="700" fill="url(#textGrad)" letter-spacing="-0.5px">
+    GitHub Actions Viewer
+  </text>
+  
+  <!-- Subtitle with better contrast -->
+  <text x="300" y="115" font-family="'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif" 
+        font-size="16" font-weight="400" fill="#e6edf3" opacity="0.9">
+    Monitor and track CI/CD workflows across multiple repositories
+  </text>
+  
+  <!-- Feature highlights -->
+  <g font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="#e6edf3" opacity="0.8">
+    <text x="300" y="145">✓ Multi-Repository Dashboard</text>
+    <text x="300" y="165">✓ Real-time Status Updates</text>
+    <text x="500" y="145">✓ Branch-specific Monitoring</text>
+    <text x="500" y="165">✓ Workflow History Tracking</text>
+  </g>
+</svg>

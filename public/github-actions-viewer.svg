@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#24292f;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#656d76;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#238636;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2ea043;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#cf222e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#da3633;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="16" cy="16" r="15" fill="url(#grad1)" stroke="#f6f8fa" stroke-width="2"/>
+  
+  <!-- GitHub logo inspired shape -->
+  <path d="M16 3C9.3 3 4 8.3 4 15c0 5.3 3.4 9.8 8.2 11.4.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2 1-.3 2-.4 3-.4s2 .1 3 .4c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.7-2.9 5.7-5.6 6 .4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6C24.6 24.8 28 20.3 28 15c0-6.7-5.3-12-12-12z" fill="#f6f8fa" opacity="0.9"/>
+  
+  <!-- Actions/workflow indicators -->
+  <!-- Success indicator -->
+  <circle cx="9" cy="9" r="2.5" fill="url(#grad2)" opacity="0.8"/>
+  <path d="M7.5 9l1 1 2-2" stroke="#f6f8fa" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Running indicator -->
+  <circle cx="23" cy="9" r="2.5" fill="#fd7e14" opacity="0.8"/>
+  <circle cx="23" cy="9" r="1" fill="#f6f8fa"/>
+  
+  <!-- Error indicator -->
+  <circle cx="9" cy="23" r="2.5" fill="url(#grad3)" opacity="0.8"/>
+  <path d="M7.5 21.5l3 3M10.5 21.5l-3 3" stroke="#f6f8fa" stroke-width="1.5" stroke-linecap="round"/>
+  
+  <!-- Pending indicator -->
+  <circle cx="23" cy="23" r="2.5" fill="#656d76" opacity="0.8"/>
+  <path d="M23 21v2h2" stroke="#f6f8fa" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
