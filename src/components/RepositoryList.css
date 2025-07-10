@@ -1,12 +1,18 @@
 .repository-list {
-  background: white;
+  background: var(--bg-card);
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  transition: all 0.3s ease;
+}
+
+.theme-dark .repository-list {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .repository-list.grid-view {
@@ -35,12 +41,12 @@
 .repository-list.empty {
   padding: 40px;
   text-align: center;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .repository-item {
-  border-bottom: 1px solid #e1e5e9;
-  background: white;
+  border-bottom: 1px solid var(--border-secondary);
+  background: var(--bg-card);
   border-radius: 0;
   transition: all 0.3s ease;
   display: flex;
@@ -50,27 +56,27 @@
 }
 
 .repository-item.status-success {
-  border-left-color: #28a745;
+  border-left-color: var(--accent-success);
   background: rgba(40, 167, 69, 0.05);
 }
 
 .repository-item.status-failure {
-  border-left-color: #dc3545;
+  border-left-color: var(--accent-danger);
   background: rgba(220, 53, 69, 0.05);
 }
 
 .repository-item.status-pending {
-  border-left-color: #ffc107;
+  border-left-color: var(--accent-warning);
   background: rgba(255, 193, 7, 0.05);
 }
 
 .repository-item.status-unknown {
-  border-left-color: #6c757d;
+  border-left-color: var(--text-secondary);
   background: rgba(108, 117, 125, 0.05);
 }
 
 .repository-item.status-refreshing {
-  border-left-color: #17a2b8;
+  border-left-color: var(--accent-info);
   background: rgba(23, 162, 184, 0.05);
   animation: pulse 2s infinite;
 }
@@ -91,9 +97,9 @@
 }
 
 .grid-view .repository-item {
-  background: white;
+  background: var(--bg-card);
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
   border: none;
   border-bottom: none;
   overflow: hidden;
@@ -104,27 +110,27 @@
 }
 
 .grid-view .repository-item.status-success {
-  border-left-color: #28a745;
+  border-left-color: var(--accent-success);
   background: rgba(40, 167, 69, 0.05);
 }
 
 .grid-view .repository-item.status-failure {
-  border-left-color: #dc3545;
+  border-left-color: var(--accent-danger);
   background: rgba(220, 53, 69, 0.05);
 }
 
 .grid-view .repository-item.status-pending {
-  border-left-color: #ffc107;
+  border-left-color: var(--accent-warning);
   background: rgba(255, 193, 7, 0.05);
 }
 
 .grid-view .repository-item.status-unknown {
-  border-left-color: #6c757d;
+  border-left-color: var(--text-secondary);
   background: rgba(108, 117, 125, 0.05);
 }
 
 .grid-view .repository-item.status-refreshing {
-  border-left-color: #17a2b8;
+  border-left-color: var(--accent-info);
   background: rgba(23, 162, 184, 0.05);
   animation: pulse 2s infinite;
 }
@@ -143,18 +149,20 @@
   justify-content: space-between;
   padding: 15px 20px;
   flex-shrink: 0;
-  border-bottom: 1px solid #e1e5e9;
-  background: rgba(255, 255, 255, 0.8);
+  border-bottom: 1px solid var(--border-secondary);
+  background: var(--bg-header);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
 }
 
 .grid-view .repository-header-full {
   padding: 15px 15px;
-  border-bottom: 1px solid #e1e5e9;
+  border-bottom: 1px solid var(--border-secondary);
 }
 
 .repository-header-full:hover {
-  background-color: rgba(248, 249, 250, 0.9);
+  background-color: var(--bg-tertiary);
 }
 
 .repo-actions-left {
@@ -167,7 +175,7 @@
 
 .repo-actions-left span {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 
@@ -191,12 +199,18 @@
   font-size: 20px;
   font-weight: 600;
   text-align: center;
+  color: var(--text-primary);
 }
 
 .repo-title-section h4 a {
-  color: #667eea;
+  color: var(--accent-primary);
   text-decoration: none;
   font-weight: bold;
+  transition: color 0.2s ease;
+}
+
+.repo-title-section h4 a:hover {
+  opacity: 0.8;
 }
 
 .repo-title-section h4 a:hover {
@@ -217,20 +231,20 @@
   border-radius: 4px;
   font-size: 14px;
   transition: all 0.2s;
-  color: #6c757d;
+  color: var(--text-secondary);
   opacity: 0.7;
 }
 
 .refresh-button:hover:not(:disabled) {
-  background-color: #e9ecef;
-  color: #495057;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
   opacity: 1;
 }
 
 .refresh-button:disabled {
   opacity: 0.3;
   cursor: not-allowed;
-  color: #6c757d;
+  color: var(--text-secondary);
 }
 
 .status-indicator {
@@ -241,27 +255,27 @@
 }
 
 .status-indicator.status-success {
-  background: #28a745;
+  background: var(--accent-success);
   box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.2);
 }
 
 .status-indicator.status-failure {
-  background: #dc3545;
+  background: var(--accent-danger);
   box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.2);
 }
 
 .status-indicator.status-pending {
-  background: #ffc107;
+  background: var(--accent-warning);
   box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.2);
 }
 
 .status-indicator.status-unknown {
-  background: #6c757d;
+  background: var(--text-secondary);
   box-shadow: 0 0 0 2px rgba(108, 117, 125, 0.2);
 }
 
 .status-indicator.status-refreshing {
-  background: #17a2b8;
+  background: var(--accent-info);
   box-shadow: 0 0 0 2px rgba(23, 162, 184, 0.2);
   animation: spin 1s linear infinite;
 }
@@ -286,15 +300,15 @@
   border-radius: 4px;
   font-size: 12px;
   font-weight: bold;
-  color: white;
+  color: var(--text-inverse);
   min-width: 24px;
   text-align: center;
 }
 
-.stat.success { background: #28a745; }
-.stat.failure { background: #dc3545; }
-.stat.pending { background: #ffc107; }
-.stat.cancelled { background: #6c757d; }
+.stat.success { background: var(--accent-success); }
+.stat.failure { background: var(--accent-danger); }
+.stat.pending { background: var(--accent-warning); }
+.stat.cancelled { background: var(--text-secondary); }
 
 .remove-button, .config-button {
   border: none;
@@ -307,22 +321,22 @@
 }
 
 .config-button {
-  color: #6c757d;
+  color: var(--text-secondary);
   font-size: 16px;
   padding: 6px 8px;
 }
 
 .config-button:hover {
-  background-color: #e9ecef;
-  color: #495057;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 .remove-button {
-  color: #dc3545;
+  color: var(--accent-danger);
 }
 
 .remove-button:hover:not(:disabled) {
-  background-color: #f8d7da;
+  background-color: var(--bg-tertiary);
 }
 
 .remove-button:disabled {
@@ -340,9 +354,9 @@
 
 .details-section h5 {
   margin: 0 0 15px 0;
-  color: #333;
+  color: var(--text-primary);
   font-size: 16px;
-  border-bottom: 1px solid #dee2e6;
+  border-bottom: 1px solid var(--border-secondary);
   padding-bottom: 8px;
 }
 
@@ -352,7 +366,7 @@
   align-items: center;
   cursor: pointer;
   padding: 8px 0;
-  border-bottom: 1px solid #e1e5e9;
+  border-bottom: 1px solid var(--border-secondary);
   margin-bottom: 10px;
   transition: background-color 0.2s;
 }
@@ -376,24 +390,24 @@
 
 .config-item {
   font-size: 14px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .config-item strong {
   display: block;
   margin-bottom: 4px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .config-item p {
   margin: 0;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .config-item ul {
   margin: 0;
   padding-left: 20px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .config-item li {
@@ -403,11 +417,11 @@
 .config-item .default-config {
   margin: 0;
   padding: 8px 12px;
-  background: #f8f9fa;
+  background: var(--bg-tertiary);
   border-radius: 4px;
   font-style: italic;
-  color: #6c757d;
-  border-left: 3px solid #007bff;
+  color: var(--text-secondary);
+  border-left: 3px solid var(--accent-primary);
 }
 
 /* Branch Details styles removed */
@@ -416,9 +430,9 @@
 
 /* Error message styles */
 .repository-list .error-message {
-  background: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent-danger);
+  color: var(--text-primary);
   padding: 12px 15px;
   margin: 15px;
   border-radius: 6px;
@@ -431,12 +445,13 @@
   margin: 0;
   font-weight: 500;
   flex: 1;
+  color: var(--accent-danger);
 }
 
 .repository-list .dismiss-error {
   background: none;
   border: none;
-  color: #721c24;
+  color: var(--accent-danger);
   font-size: 18px;
   font-weight: bold;
   cursor: pointer;
@@ -452,7 +467,7 @@
 }
 
 .repository-list .dismiss-error:hover {
-  background: rgba(114, 28, 36, 0.1);
+  background: var(--bg-secondary);
 }
 
 /* Cache indicator */
@@ -497,7 +512,7 @@
   .refresh-button {
     font-size: 12px;
     padding: 6px;
-    color: #6c757d;
+    color: var(--text-secondary);
     opacity: 0.7;
   }
   
@@ -587,7 +602,9 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--bg-modal);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -595,13 +612,20 @@
 }
 
 .modal-content {
-  background: white;
+  background: var(--bg-modal-content);
+  border: 1px solid var(--border-card);
   border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-modal);
   width: 90%;
   max-width: 500px;
   max-height: 80vh;
   overflow-y: auto;
+  color: var(--text-primary);
+}
+
+.theme-dark .modal-content {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .modal-header {
@@ -609,12 +633,13 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px;
-  border-bottom: 1px solid #e1e5e9;
+  border-bottom: 1px solid var(--border-secondary);
+  background: var(--bg-header);
 }
 
 .modal-header h3 {
   margin: 0;
-  color: #333;
+  color: var(--text-primary);
   flex: 1;
   display: flex;
   align-items: center;
@@ -629,10 +654,10 @@
 
 .modal-header .refresh-button {
   background: none;
-  border: 1px solid #e1e5e9;
+  border: 1px solid var(--border-secondary);
   font-size: 16px;
   cursor: pointer;
-  color: #666;
+  color: var(--text-secondary);
   padding: 6px 8px;
   border-radius: 4px;
   display: flex;
@@ -642,9 +667,9 @@
 }
 
 .modal-header .refresh-button:hover {
-  background-color: #f8f9fa;
-  color: #333;
-  border-color: #d1d5db;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-primary);
 }
 
 .modal-header .refresh-button:active {
@@ -656,7 +681,7 @@
   border: none;
   font-size: 24px;
   cursor: pointer;
-  color: #666;
+  color: var(--text-secondary);
   padding: 0;
   width: 30px;
   height: 30px;
@@ -664,11 +689,12 @@
   align-items: center;
   justify-content: center;
   border-radius: 4px;
+  transition: all 0.2s ease;
 }
 
 .modal-close-button:hover {
-  background-color: #f8f9fa;
-  color: #333;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 .modal-body {
@@ -687,7 +713,7 @@
 
 /* Better hover effect for non-expanded items */
 .repository-item:not(.branch-details-expanded):hover {
-  background-color: #f8f9fa;
+  background-color: var(--bg-tertiary);
   transition: background-color 0.2s ease;
 }
 
@@ -718,10 +744,10 @@
 }
 
 .branch-group {
-  border: 1px solid #e1e5e9;
+  border: 1px solid var(--border-secondary);
   border-radius: 8px;
   overflow: hidden;
-  background: #f8f9fa;
+  background: var(--bg-tertiary);
 }
 
 .branch-header {
@@ -729,14 +755,14 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: #f8f9fa;
+  background: var(--bg-tertiary);
   cursor: pointer;
   user-select: none;
   transition: background-color 0.2s ease;
 }
 
 .branch-header:hover {
-  background: #e9ecef;
+  background: var(--bg-secondary);
 }
 
 .branch-title {
@@ -753,44 +779,59 @@
 }
 
 .branch-status-circle.status-success {
-  background-color: #28a745;
+  background-color: var(--accent-success);
 }
 
 .branch-status-circle.status-failure {
-  background-color: #dc3545;
+  background-color: var(--accent-danger);
 }
 
 .branch-status-circle.status-action_required {
-  background-color: #ffc107;
+  background-color: var(--accent-warning);
 }
 
 .branch-status-circle.status-pending {
-  background-color: #ffc107;
+  background-color: var(--accent-warning);
 }
 
 .branch-status-circle.status-cancelled {
-  background-color: #6c757d;
+  background-color: var(--text-secondary);
 }
 
 .branch-status-circle.status-no_runs {
-  background-color: #6c757d;
+  background-color: var(--text-secondary);
   opacity: 0.5;
 }
 
 .branch-status-circle.status-error {
-  background-color: #dc3545;
+  background-color: var(--accent-danger);
 }
 
 .branch-status-circle.status-unknown {
-  background-color: #6c757d;
+  background-color: var(--text-secondary);
   opacity: 0.3;
 }
 
 .branch-name {
   margin: 0;
-  color: #0366d6;
+  color: var(--accent-primary);
   font-weight: 600;
   font-size: 16px;
+}
+
+.branch-toggle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+}
+
+.branch-toggle.expanded {
+  transform: rotate(180deg);
+}
+
+.branch-content {
+  padding: 16px;
+  background: var(--bg-card);
 }
 
 .workflow-list {
@@ -800,42 +841,42 @@
 }
 
 .workflow-item {
-  background: white;
-  border: 1px solid #e1e5e9;
+  background: var(--bg-card);
+  border: 1px solid var(--border-secondary);
   border-radius: 6px;
   padding: 12px;
-  border-left: 4px solid #6c757d;
+  border-left: 4px solid var(--text-secondary);
   transition: all 0.2s ease;
 }
 
 .workflow-item:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
 }
 
 .workflow-item.status-success {
-  border-left-color: #28a745;
+  border-left-color: var(--accent-success);
 }
 
 .workflow-item.status-failure {
-  border-left-color: #dc3545;
+  border-left-color: var(--accent-danger);
 }
 
 .workflow-item.status-cancelled {
-  border-left-color: #6c757d;
+  border-left-color: var(--text-secondary);
 }
 
 .workflow-item.status-in_progress,
 .workflow-item.status-pending {
-  border-left-color: #ffc107;
+  border-left-color: var(--accent-warning);
 }
 
 .workflow-item.status-no_runs {
-  border-left-color: #6c757d;
+  border-left-color: var(--text-secondary);
   opacity: 0.7;
 }
 
 .workflow-item.status-action_required {
-  border-left-color: #ffc107;
+  border-left-color: var(--accent-warning);
 }
 
 .workflow-header {
@@ -847,7 +888,7 @@
 
 .workflow-name {
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   font-size: 14px;
 }
 
@@ -864,33 +905,33 @@
 
 .status-badge.status-success {
   background: rgba(40, 167, 69, 0.1);
-  color: #28a745;
+  color: var(--accent-success);
 }
 
 .status-badge.status-failure {
   background: rgba(220, 53, 69, 0.1);
-  color: #dc3545;
+  color: var(--accent-danger);
 }
 
 .status-badge.status-cancelled {
   background: rgba(108, 117, 125, 0.1);
-  color: #6c757d;
+  color: var(--text-secondary);
 }
 
 .status-badge.status-in_progress,
 .status-badge.status-pending {
   background: rgba(255, 193, 7, 0.1);
-  color: #856404;
+  color: var(--accent-warning);
 }
 
 .status-badge.status-no_runs {
   background: rgba(108, 117, 125, 0.1);
-  color: #6c757d;
+  color: var(--text-secondary);
 }
 
 .status-badge.status-action_required {
   background: rgba(255, 193, 7, 0.1);
-  color: #856404;
+  color: var(--accent-warning);
 }
 
 .workflow-details {
@@ -907,36 +948,38 @@
 }
 
 .info-label {
-  color: #666;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
 .info-value {
-  color: #333;
+  color: var(--text-primary);
 }
 
 .info-value.sha {
   font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-  background: #f6f8fa;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
   padding: 2px 4px;
   border-radius: 3px;
   font-size: 12px;
 }
 
 .run-link {
-  color: #0366d6;
+  color: var(--accent-primary);
   text-decoration: none;
   font-weight: 500;
+  transition: opacity 0.2s ease;
 }
 
 .run-link:hover {
-  text-decoration: underline;
+  opacity: 0.8;
 }
 
 .loading-indicator {
   text-align: center;
   padding: 40px 20px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .repo-content {
@@ -984,7 +1027,7 @@
 /* Refreshing indicator in modal headers */
 .refreshing-indicator {
   margin-left: 8px;
-  color: #17a2b8;
+  color: var(--accent-info);
   animation: spin 1s linear infinite;
   display: inline-block;
 }
