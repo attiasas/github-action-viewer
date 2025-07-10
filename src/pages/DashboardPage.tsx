@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import RepositorySearch from '../components/RepositorySearch';
 import RepositoryList from '../components/RepositoryList';
@@ -48,6 +48,7 @@ interface ActionStatistics {
 
 export default function DashboardPage() {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [actionStats, setActionStats] = useState<ActionStatistics[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -196,6 +197,30 @@ export default function DashboardPage() {
     }
   }, [user]); // Only depend on user since repositories are passed as parameter
 
+  // Load cached action statistics (used when coming from Settings page)
+  const loadCachedActionStats = useCallback(async (repositories: Repository[]) => {
+    if (!user || repositories.length === 0) return;
+    
+    console.log(`🔄 [Dashboard] Loading cached stats for ${repositories.length} repositories from Settings navigation`);
+    
+    try {
+      const response = await fetch(`/api/actions/stats/${encodeURIComponent(user.id)}`);
+      if (response.ok) {
+        const cachedStats = await response.json();
+        console.log(`📊 [Dashboard] Loaded ${cachedStats.length} cached repository stats`);
+        setActionStats(cachedStats);
+        setIsLoadingStats(false);
+        return true; // Successfully loaded cached data
+      } else {
+        console.warn(`⚠️ [Dashboard] Failed to load cached stats: ${response.status}`);
+        return false; // Failed to load cached data
+      }
+    } catch (error) {
+      console.error('💥 [Dashboard] Error loading cached stats:', error);
+      return false; // Failed to load cached data
+    }
+  }, [user]);
+
   useEffect(() => {
     if (!user) return;
     
@@ -212,22 +237,45 @@ export default function DashboardPage() {
           
           // Only load stats if we have repositories and haven't loaded yet
           if (repos.length > 0 && !hasInitiallyLoaded.current) {
-            console.log(`🔄 [Dashboard] Found ${repos.length} repositories, starting initial stats load`);
+            console.log(`🔄 [Dashboard] Found ${repos.length} repositories, checking if coming from Settings`);
             hasInitiallyLoaded.current = true;
             
-            // Create initial actionStats entries with refreshing state for all repositories
-            const initialStats: ActionStatistics[] = repos.map((repo: Repository) => ({
-              repository: repo.repository_name,
-              repositoryUrl: repo.repository_url,
-              repoId: repo.id,
-              branches: {},
-              overall: { success: 0, failure: 0, pending: 0, cancelled: 0 },
-              status: 'refreshing',
-              isRefreshing: true
-            }));
-            setActionStats(initialStats);
+            // Check if coming from Settings page to use cached data
+            const isFromSettings = location.state?.fromSettings === true;
             
-            await loadActionStats(true, repos);
+            if (isFromSettings) {
+              console.log(`🔄 [Dashboard] Coming from Settings, attempting to load cached stats`);
+              const cachedLoaded = await loadCachedActionStats(repos);
+              if (!cachedLoaded) {
+                console.log(`🔄 [Dashboard] Failed to load cached stats, falling back to fresh data`);
+                // Fallback to fresh data if cached loading fails
+                const initialStats: ActionStatistics[] = repos.map((repo: Repository) => ({
+                  repository: repo.repository_name,
+                  repositoryUrl: repo.repository_url,
+                  repoId: repo.id,
+                  branches: {},
+                  overall: { success: 0, failure: 0, pending: 0, cancelled: 0 },
+                  status: 'refreshing',
+                  isRefreshing: true
+                }));
+                setActionStats(initialStats);
+                await loadActionStats(true, repos);
+              }
+            } else {
+              console.log(`🔄 [Dashboard] Normal navigation, loading fresh stats`);
+              // Normal initialization with fresh data
+              const initialStats: ActionStatistics[] = repos.map((repo: Repository) => ({
+                repository: repo.repository_name,
+                repositoryUrl: repo.repository_url,
+                repoId: repo.id,
+                branches: {},
+                overall: { success: 0, failure: 0, pending: 0, cancelled: 0 },
+                status: 'refreshing',
+                isRefreshing: true
+              }));
+              setActionStats(initialStats);
+              await loadActionStats(true, repos);
+            }
           } else {
             setIsLoadingStats(false);
           }
@@ -244,7 +292,7 @@ export default function DashboardPage() {
     };
     
     initializeData();
-  }, [user, loadActionStats]); // Include loadActionStats dependency
+  }, [user, loadActionStats, loadCachedActionStats, location.state?.fromSettings]); // Include all dependencies
 
   const handleRepositoryAdded = async () => {
     setIsLoadingStats(true); // Set loading state when new repository is added

@@ -135,7 +135,11 @@ export default function SettingsPage() {
               <p className="subtitle">Manage your preferences and configurations</p>
             </div>
             <div className="header-actions">
-              <Link to="/dashboard" className="back-link">
+              <Link 
+                to="/dashboard" 
+                className="back-link"
+                state={{ fromSettings: true }}
+              >
                 ← Dashboard
               </Link>
               <button onClick={logout} className="logout-button">
