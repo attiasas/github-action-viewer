@@ -39,6 +39,7 @@ export default function RepositorySearch({ onRepositoryAdded, existingRepositori
   const [refreshInterval, setRefreshInterval] = useState(300);
   const [isLoading, setIsLoading] = useState(false);
   const [customBranch, setCustomBranch] = useState('');
+  const [customWorkflow, setCustomWorkflow] = useState('');
   const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [branchError, setBranchError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState('');
@@ -262,6 +263,19 @@ export default function RepositorySearch({ onRepositoryAdded, existingRepositori
       setBranches(prev => [...prev, newBranch]);
       setSelectedBranches(prev => [...prev, customBranch.trim()]);
       setCustomBranch('');
+    }
+  };
+
+  const addCustomWorkflow = () => {
+    if (customWorkflow.trim() && !selectedWorkflows.includes(customWorkflow.trim())) {
+      const newWorkflow = { 
+        id: Date.now(), // Generate a temporary ID
+        name: customWorkflow.trim(), 
+        path: customWorkflow.trim() 
+      };
+      setWorkflows(prev => [...prev, newWorkflow]);
+      setSelectedWorkflows(prev => [...prev, customWorkflow.trim()]);
+      setCustomWorkflow('');
     }
   };
 
@@ -553,9 +567,52 @@ export default function RepositorySearch({ onRepositoryAdded, existingRepositori
                       ))}
                   </div>
                 </div>
+                
+                <div className="custom-workflow-input">
+                  <input
+                    type="text"
+                    value={customWorkflow}
+                    onChange={(e) => setCustomWorkflow(e.target.value)}
+                    placeholder="Add workflow manually (e.g., .github/workflows/ci.yml)"
+                    onKeyPress={(e) => e.key === 'Enter' && addCustomWorkflow()}
+                  />
+                  <button type="button" onClick={addCustomWorkflow} className="add-workflow-button">
+                    Add Workflow
+                  </button>
+                </div>
+              </div>
+            ) : workflowError ? (
+              <div className="error-message">
+                <p className="error-text">{workflowError}</p>
+                <div className="custom-workflow-input">
+                  <input
+                    type="text"
+                    value={customWorkflow}
+                    onChange={(e) => setCustomWorkflow(e.target.value)}
+                    placeholder="Enter workflow path manually (e.g., .github/workflows/ci.yml)"
+                    onKeyPress={(e) => e.key === 'Enter' && addCustomWorkflow()}
+                  />
+                  <button type="button" onClick={addCustomWorkflow} className="add-workflow-button">
+                    Add Workflow
+                  </button>
+                </div>
               </div>
             ) : (
-              <p>No workflows found (all actions will be tracked)</p>
+              <div>
+                <p>No workflows found (all actions will be tracked)</p>
+                <div className="custom-workflow-input">
+                  <input
+                    type="text"
+                    value={customWorkflow}
+                    onChange={(e) => setCustomWorkflow(e.target.value)}
+                    placeholder="Add workflow manually (e.g., .github/workflows/ci.yml)"
+                    onKeyPress={(e) => e.key === 'Enter' && addCustomWorkflow()}
+                  />
+                  <button type="button" onClick={addCustomWorkflow} className="add-workflow-button">
+                    Add Workflow
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 

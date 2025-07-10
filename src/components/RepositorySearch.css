@@ -607,3 +607,61 @@
 .theme-dark .back-to-search-button:focus {
   box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
 }
+
+/* Custom workflow input */
+.custom-workflow-input {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  align-items: center;
+}
+
+.custom-workflow-input input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  font-size: 14px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+}
+
+.custom-workflow-input input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
+}
+
+.theme-dark .custom-workflow-input input:focus {
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+.custom-workflow-input input::placeholder {
+  color: var(--text-muted);
+}
+
+.add-workflow-button {
+  background: var(--accent-info);
+  color: var(--text-inverse);
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.add-workflow-button:hover {
+  opacity: 0.9;
+}
+
+.add-workflow-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
+}
+
+.theme-dark .add-workflow-button:focus {
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
