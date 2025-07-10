@@ -130,15 +130,15 @@
 .no-servers {
   text-align: center;
   padding: 40px;
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
   border-radius: 8px;
-  color: #6c757d;
+  color: var(--text-secondary);
 }
 
 .server-card {
-  background: white;
-  border: 1px solid #dee2e6;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
   border-radius: 8px;
   padding: 20px;
   display: flex;
@@ -147,13 +147,13 @@
 }
 
 .server-card.default {
-  border-color: #28a745;
-  background: #f8fff9;
+  border-color: var(--accent-success);
+  background: var(--bg-tertiary);
 }
 
 .server-info h4 {
   margin: 0 0 8px 0;
-  color: #333;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -169,13 +169,13 @@
 }
 
 .server-url {
-  color: #007bff;
+  color: var(--accent-primary);
   margin: 4px 0;
   word-break: break-all;
 }
 
 .server-date {
-  color: #6c757d;
+  color: var(--text-secondary);
   font-size: 12px;
   margin: 4px 0 0 0;
 }
@@ -242,15 +242,15 @@
 }
 
 .test-result.valid {
-  background: #d4edda;
-  border: 1px solid #c3e6cb;
-  color: #155724;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent-success);
+  color: var(--accent-success);
 }
 
 .test-result.invalid {
-  background: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent-danger);
+  color: var(--accent-danger);
 }
 
 .test-result p {
@@ -258,18 +258,18 @@
 }
 
 .error-message {
-  background: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent-danger);
+  color: var(--accent-danger);
   padding: 10px;
   border-radius: 4px;
   margin-bottom: 15px;
 }
 
 .success-message {
-  background: #d4edda;
-  border: 1px solid #c3e6cb;
-  color: #155724;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent-success);
+  color: var(--accent-success);
   padding: 10px;
   border-radius: 4px;
   margin-bottom: 15px;
@@ -313,7 +313,7 @@
 
 .modal-header h2 {
   margin: 0;
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 20px;
   font-weight: 600;
 }
@@ -332,7 +332,7 @@
 
 .modal-close-button:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .modal-body {
@@ -353,17 +353,17 @@
 
 .server-form .form-group label {
   font-weight: 500;
-  color: #8b949e;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
 .server-form .form-group input {
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-input);
+  border: 1px solid var(--border-input);
   border-radius: 8px;
   font-size: 14px;
-  color: #ffffff;
+  color: var(--text-primary);
   transition: all 0.2s ease;
 }
 
@@ -395,7 +395,7 @@
 
 .server-form .checkbox-text {
   font-size: 14px;
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .server-form .form-actions {
@@ -423,9 +423,9 @@
 }
 
 .server-form .cancel-button {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
   padding: 12px 24px;
   border-radius: 8px;
   cursor: pointer;
@@ -435,7 +435,7 @@
 }
 
 .server-form .cancel-button:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--bg-secondary);
 }
 
 /* Responsive Design for Modal */

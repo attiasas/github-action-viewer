@@ -47,10 +47,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // Apply theme class to body
   useEffect(() => {
-    const className = `theme-${effectiveTheme}`;
-    console.log('Applying theme class:', className); // Debug log
-    document.body.className = className;
-    console.log('Body class now:', document.body.className); // Debug log
+    document.body.className = `theme-${effectiveTheme}`;
   }, [effectiveTheme]);
 
   return (

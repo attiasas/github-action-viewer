@@ -103,31 +103,84 @@
   margin-bottom: 4px;
 }
 
-.form-group input {
+.login-form .form-group input {
   padding: 16px 20px;
   border: 2px solid var(--border-input);
   border-radius: 12px;
   font-size: 16px;
   font-weight: 400;
   transition: all 0.2s ease;
-  background: var(--bg-input);
+  background: var(--bg-input) !important;
   backdrop-filter: blur(10px);
-  color: var(--text-primary);
+  color: var(--text-primary) !important;
+  caret-color: var(--text-primary);
 }
 
-.form-group input:focus {
+/* Handle browser autofill styles */
+.login-form .form-group input:-webkit-autofill,
+.login-form .form-group input:-webkit-autofill:hover,
+.login-form .form-group input:-webkit-autofill:focus,
+.login-form .form-group input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--bg-input) inset !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  color: var(--text-primary) !important;
+  caret-color: var(--text-primary) !important;
+}
+
+/* Firefox autofill */
+.login-form .form-group input:-moz-autofill {
+  background: var(--bg-input) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Placeholder text styling */
+.login-form .form-group input::placeholder {
+  color: var(--text-tertiary) !important;
+  opacity: 1;
+}
+
+.login-form .form-group input::-webkit-input-placeholder {
+  color: var(--text-tertiary) !important;
+}
+
+.login-form .form-group input::-moz-placeholder {
+  color: var(--text-tertiary) !important;
+  opacity: 1;
+}
+
+.login-form .form-group input:-ms-input-placeholder {
+  color: var(--text-tertiary) !important;
+}
+
+/* Text selection and cursor */
+.login-form .form-group input::selection {
+  background: var(--accent-primary);
+  color: var(--text-inverse);
+}
+
+.login-form .form-group input::-moz-selection {
+  background: var(--accent-primary);
+  color: var(--text-inverse);
+}
+
+.login-form .form-group input:focus {
   outline: none;
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+  background: var(--bg-input) !important;
+  color: var(--text-primary) !important;
+  caret-color: var(--text-primary);
 }
 
 .theme-dark .form-group input:focus {
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
 }
 
-.form-group input:disabled {
+.login-form .form-group input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  background: var(--bg-input) !important;
+  color: var(--text-primary) !important;
 }
 
 .form-help {
@@ -247,39 +300,4 @@
   }
 }
 
-/* Dark mode support (if needed in the future) */
-@media (prefers-color-scheme: dark) {
-  .login-container {
-    background: rgba(26, 32, 44, 0.95);
-  }
-  
-  .login-header h1 {
-    color: #f7fafc;
-  }
-  
-  .login-header p {
-    color: #a0aec0;
-  }
-  
-  .login-form h2 {
-    color: #e2e8f0;
-  }
-  
-  .form-group label {
-    color: #e2e8f0;
-  }
-  
-  .form-group input {
-    background: rgba(45, 55, 72, 0.8);
-    border-color: #4a5568;
-    color: #f7fafc;
-  }
-  
-  .form-group input:focus {
-    background: rgba(45, 55, 72, 0.95);
-  }
-  
-  .form-help {
-    color: #a0aec0;
-  }
-}
+/* Removed conflicting dark mode media query - theme is handled by our theme system */
