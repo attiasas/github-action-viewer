@@ -50,7 +50,7 @@ body.theme-light {
   --bg-header: rgba(255, 255, 255, 0.05);
   --bg-input: rgba(255, 255, 255, 0.1);
   --bg-button: #7c3aed;
-  --bg-button-secondary: #8b5cf6;
+  --bg-button-secondary: #ffffff;
   --bg-button-danger: #ef4444;
   --bg-modal: rgba(0, 0, 0, 0.7);
   --bg-modal-content: rgba(30, 41, 59, 0.95);
