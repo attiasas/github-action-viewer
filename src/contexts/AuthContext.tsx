@@ -17,6 +17,7 @@ interface AuthContextType {
   user: User | null;
   githubServers: GitHubServer[];
   login: (userId: string) => Promise<boolean>;
+  createUser: (userId: string) => Promise<boolean>;
   logout: () => void;
   loadGitHubServers: () => Promise<void>;
   addGitHubServer: (serverName: string, serverUrl: string, apiToken: string, isDefault?: boolean) => Promise<boolean>;
@@ -95,6 +96,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Login error:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const createUser = async (userId: string): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      
+      const response = await fetch('/api/auth/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+        }),
+      });
+
+      if (response.ok) {
+        const userData = { id: userId };
+        setUser(userData);
+        localStorage.setItem('github-actions-user', JSON.stringify(userData));
+        await loadGitHubServers();
+        return true;
+      } else {
+        const error = await response.json();
+        console.error('User creation failed:', error);
+        return false;
+      }
+    } catch (error) {
+      console.error('User creation error:', error);
       return false;
     } finally {
       setIsLoading(false);
@@ -209,6 +243,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       addGitHubServer, 
       updateGitHubServer, 
       deleteGitHubServer, 
+      createUser,
       isLoading 
     }}>
       {children}

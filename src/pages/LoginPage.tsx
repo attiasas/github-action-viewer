@@ -4,12 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import './LoginPage.css';
 
 export default function LoginPage() {
-  const { user, login, isLoading } = useAuth();
+  const { user, login, createUser, isLoading } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     userId: ''
   });
   const [error, setError] = useState('');
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   // Redirect to dashboard if user is already logged in
   useEffect(() => {
@@ -35,8 +36,34 @@ export default function LoginPage() {
     const success = await login(formData.userId);
 
     if (!success) {
-      setError('Failed to login. Please try again.');
+      setError('User ID not found. Please create a new account or check your User ID.');
     }
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsCreatingUser(true);
+
+    if (!formData.userId) {
+      setError('Please enter a User ID');
+      setIsCreatingUser(false);
+      return;
+    }
+
+    if (formData.userId.length < 3) {
+      setError('User ID must be at least 3 characters long');
+      setIsCreatingUser(false);
+      return;
+    }
+
+    const success = await createUser(formData.userId);
+
+    if (!success) {
+      setError('Failed to create user. User ID may already exist.');
+    }
+    
+    setIsCreatingUser(false);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,17 +158,28 @@ export default function LoginPage() {
               required
             />
             <small className="form-help">
-              New users will be created automatically - no passwords needed!
+              Enter your existing User ID to sign in, or create a new account with the Create User button.
             </small>
           </div>
 
-          <button 
-            type="submit" 
-            className="login-button"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Processing...' : 'Sign In'}
-          </button>
+          <div className="form-buttons">
+            <button 
+              type="submit" 
+              className="login-button"
+              disabled={isLoading || isCreatingUser}
+            >
+              {isLoading ? 'Signing In...' : 'Sign In'}
+            </button>
+            
+            <button 
+              type="button" 
+              className="create-user-button"
+              onClick={handleCreateUser}
+              disabled={isLoading || isCreatingUser}
+            >
+              {isCreatingUser ? 'Creating...' : 'Create User'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

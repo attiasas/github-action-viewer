@@ -4,7 +4,7 @@ import axios from 'axios';
 
 const router = express.Router();
 
-// Login or create user (simplified)
+// Login existing user only
 router.post('/login', async (req, res) => {
   const { userId } = req.body;
 
@@ -26,39 +26,73 @@ router.post('/login', async (req, res) => {
     });
 
     if (!existingUser) {
-      // Create new user
-      await new Promise((resolve, reject) => {
-        db.run(
-          'INSERT INTO users (id) VALUES (?)',
-          [userId],
-          function(err) {
-            if (err) reject(err);
-            else resolve(this);
-          }
-        );
-      });
-
-      // Create default settings
-      await new Promise((resolve, reject) => {
-        db.run(
-          'INSERT INTO user_settings (user_id) VALUES (?)',
-          [userId],
-          (err) => {
-            if (err) reject(err);
-            else resolve(this);
-          }
-        );
-      });
+      return res.status(404).json({ error: 'User ID not found. Please create a new account.' });
     }
 
     res.json({ 
       success: true, 
-      message: existingUser ? 'Login successful' : 'User created and logged in',
+      message: 'Login successful',
       userId 
     });
   } catch (error) {
-    console.error('Login/registration error:', error);
+    console.error('Login error:', error);
     res.status(500).json({ error: 'Server error during login' });
+  }
+});
+
+// Create new user endpoint
+router.post('/create-user', async (req, res) => {
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required' });
+  }
+
+  if (userId.length < 3) {
+    return res.status(400).json({ error: 'User ID must be at least 3 characters long' });
+  }
+
+  try {
+    // Check if user already exists
+    const existingUser = await new Promise((resolve, reject) => {
+      db.get('SELECT id FROM users WHERE id = ?', [userId], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (existingUser) {
+      return res.status(409).json({ error: 'User ID already exists' });
+    }
+
+    // Create new user
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO users (id) VALUES (?)',
+        [userId],
+        function(err) {
+          if (err) reject(err);
+          else resolve(this);
+        }
+      );
+    });
+
+    // Create default settings
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO user_settings (user_id) VALUES (?)',
+        [userId],
+        (err) => {
+          if (err) reject(err);
+          else resolve(this);
+        }
+      );
+    });
+
+    res.json({ success: true, message: 'User created successfully' });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
