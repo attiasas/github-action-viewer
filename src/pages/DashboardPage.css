@@ -109,16 +109,25 @@
   color: var(--accent-primary);
   text-decoration: none;
   font-weight: 500;
-  padding: 6px 12px;
+  padding: 8px;
   border-radius: 4px;
   transition: all 0.2s ease;
-  font-size: 13px;
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .settings-link:hover {
   background: var(--bg-tertiary);
   text-decoration: none;
+}
+
+.settings-icon {
+  transition: transform 0.2s ease;
+}
+
+.settings-link:hover .settings-icon {
+  transform: rotate(15deg);
 }
 
 .logout-button {
