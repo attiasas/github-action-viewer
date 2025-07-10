@@ -69,6 +69,27 @@
   background: rgba(108, 117, 125, 0.05);
 }
 
+.repository-item.status-refreshing {
+  border-left-color: #17a2b8;
+  background: rgba(23, 162, 184, 0.05);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { 
+    opacity: 1; 
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.8; 
+    transform: scale(1.02);
+  }
+  100% { 
+    opacity: 1; 
+    transform: scale(1);
+  }
+}
+
 .grid-view .repository-item {
   background: white;
   border-radius: 8px;
@@ -100,6 +121,12 @@
 .grid-view .repository-item.status-unknown {
   border-left-color: #6c757d;
   background: rgba(108, 117, 125, 0.05);
+}
+
+.grid-view .repository-item.status-refreshing {
+  border-left-color: #17a2b8;
+  background: rgba(23, 162, 184, 0.05);
+  animation: pulse 2s infinite;
 }
 
 .repository-item:last-child {
@@ -232,7 +259,16 @@
   box-shadow: 0 0 0 2px rgba(108, 117, 125, 0.2);
 }
 
+.status-indicator.status-refreshing {
+  background: #17a2b8;
+  box-shadow: 0 0 0 2px rgba(23, 162, 184, 0.2);
+  animation: spin 1s linear infinite;
+}
 
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 
 .repo-stats-summary {
   margin: 0 20px;
@@ -942,6 +978,14 @@
   .workflow-item {
     padding: 10px;
   }
+}
+
+/* Refreshing indicator in modal headers */
+.refreshing-indicator {
+  margin-left: 8px;
+  color: #17a2b8;
+  animation: spin 1s linear infinite;
+  display: inline-block;
 }
 
 

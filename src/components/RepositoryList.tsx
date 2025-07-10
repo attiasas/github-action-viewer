@@ -43,6 +43,7 @@ interface ActionStatistics {
   hasError?: boolean;
   error?: string;
   isCached?: boolean;
+  isRefreshing?: boolean; // New field to track if repository is being refreshed
 }
 
 interface WorkflowRun {
@@ -63,6 +64,7 @@ interface DetailedWorkflowStatus {
   repository: string;
   repositoryUrl: string;
   repoId: number;
+  isRefreshing?: boolean; // New field to track if data is being refreshed
   branches: Record<string, {
     workflows: Record<string, WorkflowRun | { status: 'no_runs'; conclusion: null; name: string; workflow_id: number; }>;
     error: string | null;
@@ -103,38 +105,63 @@ export default function RepositoryList({
   const [error, setError] = useState<string | null>(null);
   const [repositoryTimers, setRepositoryTimers] = useState<Record<number, RepositoryTimer>>({});
 
-  // Function to refresh stats for all repositories
-  const refreshRepositoryStats = useCallback(async (force = false) => {
+  // Function to refresh a single repository
+  const refreshSingleRepository = useCallback(async (repoId: number, force = false) => {
     if (!user) return;
+    
+    const repo = repositories.find(r => r.id === repoId);
+    const repoName = repo?.repository_name || `repo-${repoId}`;
+    
+    console.log(`🎯 [Frontend] SINGLE REFRESH CALL STARTING for repository: ${repoName} (ID: ${repoId}, force: ${force})`);
     
     try {
       const encodedUserId = encodeURIComponent(user.id);
       const url = force 
-        ? `/api/actions/stats/${encodedUserId}?force=true`
-        : `/api/actions/stats/${encodedUserId}`;
-      const response = await fetch(url);
+        ? `/api/actions/refresh/${encodedUserId}/${repoId}?force=true`
+        : `/api/actions/refresh/${encodedUserId}/${repoId}`;
+      
+      const startTime = Date.now();
+      const response = await fetch(url, { method: 'POST' });
+      const endTime = Date.now();
+      
       if (response.ok) {
-        const stats = await response.json();
-        onActionStatsUpdate(stats);
+        const updatedRepoStats = await response.json();
         
-        // Activate timers for repositories that now have stats
+        console.log(`🏁 [Frontend] SINGLE REFRESH CALL COMPLETED for repository: ${repoName} (total call duration: ${endTime - startTime}ms)`);
+        
+        // Ensure refreshing state is cleared
+        updatedRepoStats.isRefreshing = false;
+        
+        // Update the specific repository in actionStats
+        const currentStats = [...actionStats];
+        const repoIndex = currentStats.findIndex(stat => stat.repoId === repoId);
+        
+        if (repoIndex >= 0) {
+          currentStats[repoIndex] = updatedRepoStats;
+        } else {
+          currentStats.push(updatedRepoStats);
+        }
+        
+        onActionStatsUpdate(currentStats);
+        
+        // Activate timer for this repository
         setRepositoryTimers(prev => {
           const updated = { ...prev };
-          stats.forEach((stat: ActionStatistics) => {
-            if (updated[stat.repoId] && !updated[stat.repoId].isActive) {
-              updated[stat.repoId] = {
-                ...updated[stat.repoId],
-                isActive: true
-              };
-            }
-          });
+          if (updated[repoId] && !updated[repoId].isActive) {
+            updated[repoId] = {
+              ...updated[repoId],
+              isActive: true
+            };
+          }
           return updated;
         });
+      } else {
+        console.error(`💥 [Frontend] SINGLE REFRESH CALL FAILED for repository: ${repoName} (${response.status}: ${response.statusText})`);
       }
     } catch (error) {
-      console.error('Error refreshing repository stats:', error);
+      console.error(`💥 [Frontend] SINGLE REFRESH CALL ERROR for repository: ${repoName}:`, error);
     }
-  }, [user, onActionStatsUpdate]);
+  }, [user, actionStats, onActionStatsUpdate, repositories]);
 
   // Reset timer for a specific repository (after manual refresh)
   const resetRepositoryTimer = useCallback((repoId: number) => {
@@ -155,20 +182,48 @@ export default function RepositoryList({
 
   // Function to manually refresh a specific repository
   const manualRefreshRepository = useCallback(async (repoId: number) => {
+    const repo = repositories.find(r => r.id === repoId);
+    const repoName = repo?.repository_name || `repo-${repoId}`;
+    
+    console.log(`🔄 [Frontend] MANUAL REFRESH triggered for repository: ${repoName} (ID: ${repoId})`);
     setIsRefreshing(repoId);
     
     try {
       // Reset the timer for this repository
       resetRepositoryTimer(repoId);
       
-      // Trigger a force refresh to bypass cache
-      await refreshRepositoryStats(true);
+      // Mark the repository as refreshing in the UI immediately
+      const currentStats = [...actionStats];
+      const repoIndex = currentStats.findIndex(stat => stat.repoId === repoId);
+      if (repoIndex >= 0) {
+        currentStats[repoIndex] = {
+          ...currentStats[repoIndex],
+          isRefreshing: true
+        };
+        onActionStatsUpdate(currentStats);
+      }
+      
+      // Trigger a force refresh for only this repository
+      await refreshSingleRepository(repoId, true);
+      
+      console.log(`✅ [Frontend] MANUAL REFRESH completed for repository: ${repoName}`);
     } catch (error) {
-      console.error('Error manually refreshing repository:', error);
+      console.error(`💥 [Frontend] MANUAL REFRESH error for repository: ${repoName}:`, error);
+      
+      // Clear refreshing state on error
+      const currentStats = [...actionStats];
+      const repoIndex = currentStats.findIndex(stat => stat.repoId === repoId);
+      if (repoIndex >= 0) {
+        currentStats[repoIndex] = {
+          ...currentStats[repoIndex],
+          isRefreshing: false
+        };
+        onActionStatsUpdate(currentStats);
+      }
     } finally {
       setIsRefreshing(null);
     }
-  }, [resetRepositoryTimer, refreshRepositoryStats]);
+  }, [resetRepositoryTimer, refreshSingleRepository, actionStats, onActionStatsUpdate, repositories]);
 
   // Initialize timers when repositories change
   useEffect(() => {
@@ -219,12 +274,15 @@ export default function RepositoryList({
             const newTimeLeft = updated[repo.id].timeLeft - 1;
             
             if (newTimeLeft <= 0) {
-              // Time to refresh - reset timer and trigger refresh
+              // Time to refresh - reset timer and trigger refresh for this specific repository
               updated[repo.id] = {
                 ...updated[repo.id],
                 timeLeft: repo.auto_refresh_interval
               };
-              refreshRepositoryStats();
+              
+              // Trigger automatic refresh for only this repository (force refresh)
+              console.log(`⏰ [Frontend] TIMER REFRESH triggered for repository: ${repo.repository_name} (ID: ${repo.id}), starting single refresh call`);
+              refreshSingleRepository(repo.id, true);
               hasChanges = true;
             } else {
               updated[repo.id] = {
@@ -241,7 +299,7 @@ export default function RepositoryList({
     }, 1000);
     
     return () => clearInterval(globalInterval);
-  }, [repositories, refreshRepositoryStats]);
+  }, [repositories, refreshSingleRepository]);
 
   // Format time left display
   const formatTimeLeft = (seconds: number): string => {
@@ -260,6 +318,9 @@ export default function RepositoryList({
   const getRepositoryStatus = (repoId: number): string => {
     const stat = actionStats.find(s => s.repoId === repoId);
     if (!stat) return 'unknown';
+    
+    // If repository is being manually refreshed (local state) or backend shows refreshing, show refreshing status
+    if (isRefreshing === repoId || stat.isRefreshing) return 'refreshing';
     
     // Use the backend-calculated status if available
     if (stat.status) {
@@ -339,6 +400,12 @@ export default function RepositoryList({
           initialExpandedState[branchName] = branchNames.length === 1;
         });
         setExpandedBranches(initialExpandedState);
+        
+        // If the data shows it's still refreshing, poll for updates
+        if (data.isRefreshing) {
+          console.log('🔄 Repository is refreshing, will poll for updates');
+          pollForWorkflowStatusUpdates(repoId);
+        }
       } else {
         console.error('Failed to fetch workflow status');
       }
@@ -349,8 +416,38 @@ export default function RepositoryList({
     }
   };
 
+  // Poll for workflow status updates when repository is refreshing
+  const pollForWorkflowStatusUpdates = async (repoId: number) => {
+    if (!user || showWorkflowStatus !== repoId) return;
+    
+    try {
+      const encodedUserId = encodeURIComponent(user.id);
+      const response = await fetch(`/api/actions/workflow-status/${encodedUserId}/${repoId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setWorkflowStatusData(data);
+        
+        // If still refreshing, continue polling
+        if (data.isRefreshing) {
+          setTimeout(() => pollForWorkflowStatusUpdates(repoId), 2000); // Poll every 2 seconds
+        } else {
+          // Refresh completed, also update this specific repository stats
+          console.log('🔄 Repository refresh completed, updating repository stats');
+          await refreshSingleRepository(repoId);
+        }
+      }
+    } catch (error) {
+      console.error('Error polling for workflow status updates:', error);
+    }
+  };
+
   const refreshWorkflowStatus = async (repoId: number) => {
     if (!user) return;
+    
+    const repo = repositories.find(r => r.id === repoId);
+    const repoName = repo?.repository_name || `repo-${repoId}`;
+    
+    console.log(`🔄 [Frontend] POPUP REFRESH triggered for repository: ${repoName} (ID: ${repoId})`);
     
     setIsLoadingWorkflowStatus(true);
     try {
@@ -360,19 +457,24 @@ export default function RepositoryList({
         const data = await response.json();
         setWorkflowStatusData(data);
         
-        // After force refreshing workflow status, also refresh the main repository stats
-        // to ensure the repository list UI and timers are updated with the same data
-        console.log('🔄 Refreshing main repository stats after workflow status force refresh');
-        await refreshRepositoryStats(true);
-        
-        // Reset the timer for this specific repository
-        resetRepositoryTimer(repoId);
+        // If the data shows it's refreshing, start polling for updates
+        if (data.isRefreshing) {
+          console.log(`🔄 [Frontend] Repository ${repoName} refresh started via POPUP, will poll for updates`);
+          pollForWorkflowStatusUpdates(repoId);
+        } else {
+          // Refresh completed immediately, also update this specific repository stats
+          console.log(`🔄 [Frontend] Repository ${repoName} refresh completed via POPUP, updating repository stats`);
+          await refreshSingleRepository(repoId);
+          
+          // Reset the timer for this specific repository
+          resetRepositoryTimer(repoId);
+        }
         
       } else {
-        console.error('Failed to refresh workflow status');
+        console.error(`💥 [Frontend] Failed to refresh workflow status for ${repoName}: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
-      console.error('Error refreshing workflow status:', error);
+      console.error(`💥 [Frontend] Error refreshing workflow status for ${repoName}:`, error);
     } finally {
       setIsLoadingWorkflowStatus(false);
     }
@@ -477,17 +579,18 @@ export default function RepositoryList({
   const getSortedRepositories = () => {
     const statusPriority: Record<string, number> = {
       'failure': 1,
-      'pending': 2,
-      'success': 3,
-      'unknown': 4
+      'refreshing': 2,
+      'pending': 3,
+      'success': 4,
+      'unknown': 5
     };
     
     return [...repositories].sort((a, b) => {
       const statusA = getRepositoryStatus(a.id);
       const statusB = getRepositoryStatus(b.id);
       
-      const priorityA = statusPriority[statusA] || 4;
-      const priorityB = statusPriority[statusB] || 4;
+      const priorityA = statusPriority[statusA] || 5;
+      const priorityB = statusPriority[statusB] || 5;
       
       if (priorityA !== priorityB) {
         return priorityA - priorityB;
@@ -551,19 +654,21 @@ export default function RepositoryList({
                     e.stopPropagation();
                     manualRefreshRepository(repo.id);
                   }}
-                  disabled={isRefreshing === repo.id || !repositoryTimers[repo.id]?.isActive || isInitialLoading}
+                  disabled={isRefreshing === repo.id || status === 'refreshing' || !repositoryTimers[repo.id]?.isActive || isInitialLoading}
                   title={!repositoryTimers[repo.id]?.isActive || isInitialLoading
                     ? "Loading repository data..." 
+                    : status === 'refreshing' || isRefreshing === repo.id
+                    ? "Repository is being refreshed..."
                     : "Refresh this repository"}
                 >
-                  {isRefreshing === repo.id || !repositoryTimers[repo.id]?.isActive || isInitialLoading ? '⏳' : '🔄'}
+                  {isRefreshing === repo.id || status === 'refreshing' || !repositoryTimers[repo.id]?.isActive || isInitialLoading ? '⏳' : '🔄'}
                 </button>
                 {repo.tracked_workflows.length > 0 && (
                   <span>Workflows: {repo.tracked_workflows.length}</span>
                 )}
                 <span>
-                  Refresh: {isRefreshing === repo.id 
-                    ? 'Loading...'
+                  Refresh: {isRefreshing === repo.id || status === 'refreshing'
+                    ? 'Refreshing...'
                     : (repositoryTimers[repo.id] 
                         ? (repositoryTimers[repo.id].isActive 
                             ? formatTimeLeft(repositoryTimers[repo.id].timeLeft) 
@@ -665,7 +770,11 @@ export default function RepositoryList({
                 {workflowStatusData ? (
                   <>
                     {workflowStatusData.repository} - Workflow Status
-                    <span className="cache-indicator" title="Data from cache">📋</span>
+                    {workflowStatusData.isRefreshing ? (
+                      <span className="refreshing-indicator" title="Refreshing workflow data...">🔄</span>
+                    ) : (
+                      <span className="cache-indicator" title="Data from cache">📋</span>
+                    )}
                   </>
                 ) : 'Workflow Status'}
               </h3>
@@ -674,9 +783,10 @@ export default function RepositoryList({
                   <button 
                     className="refresh-button"
                     onClick={() => refreshWorkflowStatus(showWorkflowStatus)}
-                    title="Force refresh workflow status"
+                    disabled={workflowStatusData?.isRefreshing}
+                    title={workflowStatusData?.isRefreshing ? "Repository is being refreshed..." : "Force refresh workflow status"}
                   >
-                    🔄
+                    {workflowStatusData?.isRefreshing ? '⏳' : '🔄'}
                   </button>
                 )}
                 <button 

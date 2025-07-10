@@ -72,20 +72,29 @@ export default function DashboardPage() {
   }, [user]);
 
   // Load action statistics
-  const loadActionStats = useCallback(async () => {
+  const loadActionStats = useCallback(async (forceRefresh = false) => {
     if (!user) return;
+    
+    console.log(`� [Dashboard] BULK REFRESH CALL STARTING ${forceRefresh ? '(FORCE) ' : ''}for all repositories (user: ${user.id})`);
     
     setIsLoadingStats(true);
     try {
-      const response = await fetch(`/api/actions/stats/${encodeURIComponent(user.id)}`);
+      const startTime = Date.now();
+      const url = forceRefresh 
+        ? `/api/actions/stats/${encodeURIComponent(user.id)}?force=true`
+        : `/api/actions/stats/${encodeURIComponent(user.id)}`;
+      const response = await fetch(url);
+      const endTime = Date.now();
+      
       if (response.ok) {
         const stats = await response.json();
         setActionStats(stats);
+        console.log(`🏁 [Dashboard] BULK REFRESH CALL COMPLETED for ${stats.length} repositories (total call duration: ${endTime - startTime}ms)`);
       } else {
-        console.error('Failed to load action statistics');
+        console.error(`💥 [Dashboard] BULK REFRESH CALL FAILED: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
-      console.error('Error loading action statistics:', error);
+      console.error('💥 [Dashboard] BULK REFRESH CALL ERROR:', error);
     } finally {
       setIsLoadingStats(false);
     }
@@ -93,13 +102,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadRepositories();
-    loadActionStats();
+    loadActionStats(true); // Force refresh on initial load
   }, [loadRepositories, loadActionStats]);
 
   const handleRepositoryAdded = () => {
     setIsLoadingStats(true); // Set loading state when new repository is added
     loadRepositories();
-    loadActionStats();
+    loadActionStats(true); // Force refresh when new repository is added
     setShowAddRepoModal(false);
   };
 
