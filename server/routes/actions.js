@@ -158,4 +158,145 @@ router.get('/stats/:userId', async (req, res) => {
   }
 });
 
+// Get detailed workflow status for a specific repository
+router.get('/workflow-status/:userId/:repoId', async (req, res) => {
+  const { userId, repoId } = req.params;
+
+  try {
+    // Get repository information
+    const repository = await new Promise((resolve, reject) => {
+      db.get(
+        `SELECT ur.*, gs.server_url, gs.api_token 
+         FROM user_repositories ur 
+         JOIN github_servers gs ON ur.github_server_id = gs.id 
+         WHERE ur.user_id = ? AND ur.id = ?`,
+        [userId, repoId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    if (!repository) {
+      return res.status(404).json({ error: 'Repository not found' });
+    }
+
+    const [owner, repoName] = repository.repository_name.split('/');
+    const trackedBranches = JSON.parse(repository.tracked_branches);
+    const trackedWorkflows = JSON.parse(repository.tracked_workflows);
+
+    const baseUrl = repository.server_url.replace(/\/$/, '');
+    const apiUrl = baseUrl.includes('github.com') 
+      ? 'https://api.github.com' 
+      : `${baseUrl}/api/v3`;
+
+    const detailedStatus = {
+      repository: repository.repository_name,
+      repositoryUrl: repository.repository_url,
+      repoId: repository.id,
+      branches: {}
+    };
+
+    // Get all workflows for the repository first
+    let allWorkflows = [];
+    try {
+      const workflowsResponse = await axios.get(`${apiUrl}/repos/${owner}/${repoName}/actions/workflows`, {
+        headers: {
+          'Authorization': `token ${repository.api_token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+      allWorkflows = workflowsResponse.data.workflows;
+    } catch (error) {
+      console.error('Error fetching workflows:', error.message);
+    }
+
+    // Filter workflows if tracking specific ones
+    if (trackedWorkflows.length > 0) {
+      allWorkflows = allWorkflows.filter(workflow => 
+        trackedWorkflows.some(tracked => 
+          workflow.path.includes(tracked) || workflow.name === tracked
+        )
+      );
+    }
+
+    // For each branch, get the latest run for each workflow
+    for (const branch of trackedBranches) {
+      detailedStatus.branches[branch] = {
+        workflows: {},
+        error: null
+      };
+
+      try {
+        // Get recent runs for this branch
+        const runsResponse = await axios.get(`${apiUrl}/repos/${owner}/${repoName}/actions/runs`, {
+          params: { branch, per_page: 100 },
+          headers: {
+            'Authorization': `token ${repository.api_token}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        });
+
+        const runs = runsResponse.data.workflow_runs;
+
+        // Group runs by workflow
+        const workflowRuns = {};
+        runs.forEach(run => {
+          if (!workflowRuns[run.workflow_id]) {
+            workflowRuns[run.workflow_id] = [];
+          }
+          workflowRuns[run.workflow_id].push(run);
+        });
+
+        // For each workflow, get the latest run
+        for (const workflow of allWorkflows) {
+          const workflowName = workflow.name;
+          const latestRuns = workflowRuns[workflow.id] || [];
+          
+          if (latestRuns.length > 0) {
+            // Sort by created_at to get the latest
+            latestRuns.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            const latestRun = latestRuns[0];
+            
+            detailedStatus.branches[branch].workflows[workflowName] = {
+              id: latestRun.id,
+              name: latestRun.name,
+              status: latestRun.status,
+              conclusion: latestRun.conclusion,
+              created_at: latestRun.created_at,
+              updated_at: latestRun.updated_at,
+              html_url: latestRun.html_url,
+              head_branch: latestRun.head_branch,
+              head_sha: latestRun.head_sha,
+              workflow_id: latestRun.workflow_id,
+              run_number: latestRun.run_number
+            };
+          } else {
+            // No runs found for this workflow on this branch
+            detailedStatus.branches[branch].workflows[workflowName] = {
+              status: 'no_runs',
+              conclusion: null,
+              name: workflowName,
+              workflow_id: workflow.id
+            };
+          }
+        }
+
+      } catch (error) {
+        console.error(`Error fetching detailed runs for ${repository.repository_name}/${branch}:`, error.message);
+        detailedStatus.branches[branch].error = error.message;
+      }
+    }
+
+    res.json(detailedStatus);
+  } catch (error) {
+    console.error('Error fetching detailed workflow status:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch detailed workflow status',
+      details: error.message 
+    });
+  }
+});
+
 export default router;

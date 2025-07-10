@@ -39,6 +39,30 @@ interface ActionStatistics {
   };
 }
 
+interface WorkflowRun {
+  id: number;
+  name: string;
+  status: string;
+  conclusion: string | null;
+  created_at: string;
+  updated_at: string;
+  html_url: string;
+  head_branch: string;
+  head_sha: string;
+  workflow_id: number;
+  run_number: number;
+}
+
+interface DetailedWorkflowStatus {
+  repository: string;
+  repositoryUrl: string;
+  repoId: number;
+  branches: Record<string, {
+    workflows: Record<string, WorkflowRun | { status: 'no_runs'; conclusion: null; name: string; workflow_id: number; }>;
+    error: string | null;
+  }>;
+}
+
 interface RepositoryListProps {
   repositories: Repository[];
   actionStats: ActionStatistics[];
@@ -61,6 +85,10 @@ export default function RepositoryList({
 }: RepositoryListProps) {
   const { user } = useAuth();
   const [showConfigModal, setShowConfigModal] = useState<number | null>(null);
+  const [showWorkflowStatus, setShowWorkflowStatus] = useState<number | null>(null);
+  const [workflowStatusData, setWorkflowStatusData] = useState<DetailedWorkflowStatus | null>(null);
+  const [isLoadingWorkflowStatus, setIsLoadingWorkflowStatus] = useState(false);
+  const [expandedBranches, setExpandedBranches] = useState<Record<string, boolean>>({});
   const [isRemoving, setIsRemoving] = useState<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -225,6 +253,50 @@ export default function RepositoryList({
     setShowConfigModal(null);
   };
 
+  const openWorkflowStatus = async (repoId: number) => {
+    setShowWorkflowStatus(repoId);
+    setIsLoadingWorkflowStatus(true);
+    setWorkflowStatusData(null);
+    setExpandedBranches({});
+    
+    if (!user) return;
+    
+    try {
+      const response = await fetch(`/api/actions/workflow-status/${user.id}/${repoId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setWorkflowStatusData(data);
+        
+        // Initialize expanded branches state - expand all if only one branch, otherwise collapse all
+        const branchNames = Object.keys(data.branches);
+        const initialExpandedState: Record<string, boolean> = {};
+        branchNames.forEach(branchName => {
+          initialExpandedState[branchName] = branchNames.length === 1;
+        });
+        setExpandedBranches(initialExpandedState);
+      } else {
+        console.error('Failed to fetch workflow status');
+      }
+    } catch (error) {
+      console.error('Error fetching workflow status:', error);
+    } finally {
+      setIsLoadingWorkflowStatus(false);
+    }
+  };
+
+  const closeWorkflowStatus = () => {
+    setShowWorkflowStatus(null);
+    setWorkflowStatusData(null);
+    setExpandedBranches({});
+  };
+
+  const toggleBranch = (branchName: string) => {
+    setExpandedBranches(prev => ({
+      ...prev,
+      [branchName]: !prev[branchName]
+    }));
+  };
+
   // Sort repositories by status priority (failure first, then pending, success, unknown)
   const getSortedRepositories = () => {
     const statusPriority: Record<string, number> = {
@@ -320,10 +392,10 @@ export default function RepositoryList({
               </div>
             </div>
             
-            <div className="repo-content">
+            <div className="repo-content" onClick={() => openWorkflowStatus(repo.id)}>
               <div className="repo-title-section">
                 <h4>
-                  <a href={repo.repository_url} target="_blank" rel="noopener noreferrer">
+                  <a href={repo.repository_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
                     {repo.repository_name}
                   </a>
                 </h4>
@@ -389,6 +461,122 @@ export default function RepositoryList({
                   </div>
                 );
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Workflow Status Popup */}
+      {showWorkflowStatus !== null && (
+        <div className="modal-overlay" onClick={closeWorkflowStatus}>
+          <div className="modal-content workflow-status-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Workflow Status</h3>
+              <button 
+                className="modal-close-button"
+                onClick={closeWorkflowStatus}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              {isLoadingWorkflowStatus ? (
+                <div className="loading-indicator">
+                  <p>Loading workflow status...</p>
+                </div>
+              ) : workflowStatusData ? (
+                <div className="workflow-status-details">
+                  <div className="branch-workflow-groups">
+                    {Object.entries(workflowStatusData.branches).map(([branchName, branchData]) => (
+                      <div key={branchName} className="branch-group">
+                        <div 
+                          className="branch-header" 
+                          onClick={() => toggleBranch(branchName)}
+                        >
+                          <h5 className="branch-name">{branchName}</h5>
+                          <span className={`branch-toggle ${expandedBranches[branchName] ? 'expanded' : ''}`}>
+                            ▼
+                          </span>
+                        </div>
+                        {expandedBranches[branchName] && (
+                          <div className="branch-content">
+                            {branchData.error ? (
+                              <div className="error-message">
+                                <span className="error-indicator">❌</span>
+                                <span>Error: {branchData.error}</span>
+                              </div>
+                            ) : (
+                              <div className="workflow-list">
+                                {Object.entries(branchData.workflows).map(([workflowName, workflow]) => {
+                                  const status = workflow.status;
+                                  const conclusion = workflow.conclusion;
+                                  const displayStatus = conclusion || status;
+                                  
+                                  return (
+                                    <div key={workflowName} className={`workflow-item status-${displayStatus}`}>
+                                      <div className="workflow-header">
+                                        <span className="workflow-name">{workflowName}</span>
+                                        <span className={`status-badge status-${displayStatus}`}>
+                                          {displayStatus === 'success' ? '✅' : 
+                                           displayStatus === 'failure' ? '❌' : 
+                                           displayStatus === 'cancelled' ? '⏹️' : 
+                                           displayStatus === 'in_progress' ? '⏳' : 
+                                           displayStatus === 'pending' ? '⏳' : 
+                                           displayStatus === 'no_runs' ? '➖' : 
+                                           displayStatus === 'action_required' ? '⚠️' : '❓'}
+                                          {displayStatus.replace('_', ' ')}
+                                        </span>
+                                      </div>
+                                      <div className="workflow-details">
+                                        {workflow.status !== 'no_runs' && 'html_url' in workflow && (
+                                          <>
+                                            <div className="workflow-info">
+                                              <span className="info-label">Run:</span>
+                                              <a 
+                                                href={workflow.html_url} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="run-link"
+                                              >
+                                                #{workflow.run_number}
+                                              </a>
+                                            </div>
+                                            <div className="workflow-info">
+                                              <span className="info-label">Updated:</span>
+                                              <span className="info-value">
+                                                {new Date(workflow.updated_at).toLocaleString()}
+                                              </span>
+                                            </div>
+                                            <div className="workflow-info">
+                                              <span className="info-label">SHA:</span>
+                                              <span className="info-value sha">
+                                                {workflow.head_sha.substring(0, 7)}
+                                              </span>
+                                            </div>
+                                          </>
+                                        )}
+                                        {workflow.status === 'no_runs' && (
+                                          <div className="workflow-info">
+                                            <span className="info-value">No runs found for this workflow on this branch</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="error-message">
+                  <p>Failed to load workflow status. Please try again.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
