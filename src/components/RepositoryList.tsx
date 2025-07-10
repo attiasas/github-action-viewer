@@ -321,6 +321,35 @@ export default function RepositoryList({
     return 'unknown';
   };
 
+  // Sort branches by status priority
+  const getSortedBranches = (branches: Record<string, { workflows: Record<string, WorkflowRun | { status: 'no_runs'; conclusion: null; name: string; workflow_id: number; }>; error: string | null; }>) => {
+    const statusPriority: Record<string, number> = {
+      'failure': 1,
+      'action_required': 2,
+      'pending': 3,
+      'cancelled': 4,
+      'success': 5,
+      'no_runs': 6,
+      'error': 7,
+      'unknown': 8
+    };
+    
+    return Object.entries(branches).sort(([branchNameA, branchDataA], [branchNameB, branchDataB]) => {
+      const statusA = getBranchStatus(branchDataA);
+      const statusB = getBranchStatus(branchDataB);
+      
+      const priorityA = statusPriority[statusA] || 8;
+      const priorityB = statusPriority[statusB] || 8;
+      
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      
+      // If same status, sort by branch name alphabetically
+      return branchNameA.localeCompare(branchNameB);
+    });
+  };
+
   // Sort repositories by status priority (failure first, then pending, success, unknown)
   const getSortedRepositories = () => {
     const statusPriority: Record<string, number> = {
@@ -511,7 +540,7 @@ export default function RepositoryList({
               ) : workflowStatusData ? (
                 <div className="workflow-status-details">
                   <div className="branch-workflow-groups">
-                    {Object.entries(workflowStatusData.branches).map(([branchName, branchData]) => {
+                    {getSortedBranches(workflowStatusData.branches).map(([branchName, branchData]) => {
                       const branchStatus = getBranchStatus(branchData);
                       
                       return (
