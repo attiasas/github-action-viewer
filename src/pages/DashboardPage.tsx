@@ -356,6 +356,11 @@ export default function DashboardPage() {
       <header className="dashboard-header">
         <div className="header-content">
           <div className="header-left">
+            <img 
+              src="/github-actions-viewer.svg" 
+              alt="GitHub Actions Viewer" 
+              className="app-icon"
+            />
             <h1>GitHub Actions Dashboard</h1>
           </div>
           

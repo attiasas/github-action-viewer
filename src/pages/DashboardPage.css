@@ -31,6 +31,14 @@
   align-items: center;
   flex: 1;
   min-width: 0;
+  gap: 12px; /* Add spacing between icon and title */
+}
+
+.app-icon {
+  width: 32px;
+  height: 32px;
+  display: block;
+  flex-shrink: 0;
 }
 
 .header-left h1 {
