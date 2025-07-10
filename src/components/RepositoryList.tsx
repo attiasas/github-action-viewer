@@ -108,6 +108,8 @@ export default function RepositoryList({
   const [repositoryTimers, setRepositoryTimers] = useState<Record<number, RepositoryTimer>>({});
   const [pendingRefreshes, setPendingRefreshes] = useState<Set<number>>(new Set()); // Track pending refreshes
   const refreshQueueRef = useRef<{ repoId: number; scheduledTime: number }[]>([]); // Queue for staggered refreshes
+  const bulkRefreshEndTimeRef = useRef<number>(0); // Track when bulk refresh ended to add grace period
+  const refreshStartTimesRef = useRef<Record<number, number>>({}); // Track when each repository started refreshing
 
   // Enhanced function to refresh a single repository with deduplication
   const refreshSingleRepository = useCallback(async (repoId: number, force = false) => {
@@ -126,6 +128,9 @@ export default function RepositoryList({
     
     // Mark as pending
     setPendingRefreshes(prev => new Set(prev).add(repoId));
+    
+    // Track when this repository started refreshing
+    refreshStartTimesRef.current[repoId] = Date.now();
     
     // Mark the repository as refreshing in the UI immediately
     const markAsRefreshing = () => {
@@ -222,26 +227,17 @@ export default function RepositoryList({
         console.log(`❌ [Frontend] Network error UI updated for repository: ${repoName} - refreshing state cleared`);
       }
     } finally {
-      // Remove from pending refreshes and ensure refreshing state is definitely cleared
+      // Remove from pending refreshes
       setPendingRefreshes(prev => {
         const newSet = new Set(prev);
         newSet.delete(repoId);
         return newSet;
       });
       
-      // Extra safety: ensure the refreshing state is cleared in case something went wrong
-      setTimeout(() => {
-        const currentStats = [...actionStats];
-        const repoIndex = currentStats.findIndex(stat => stat.repoId === repoId);
-        if (repoIndex >= 0 && currentStats[repoIndex].isRefreshing) {
-          console.log(`🔧 [Frontend] Safety cleanup - clearing stuck refreshing state for repository: ${repoName}`);
-          currentStats[repoIndex] = {
-            ...currentStats[repoIndex],
-            isRefreshing: false
-          };
-          onActionStatsUpdate(currentStats);
-        }
-      }, 1000); // 1 second delay to ensure async operations complete
+      // Clean up refresh start time tracking
+      delete refreshStartTimesRef.current[repoId];
+      
+      console.log(`🔧 [Frontend] Cleanup completed for repository: ${repoName} - removed from pending refreshes`);
     }
   }, [user, actionStats, onActionStatsUpdate, repositories, pendingRefreshes]);
 
@@ -362,18 +358,24 @@ export default function RepositoryList({
         
         actionStats.forEach(stat => {
           if (updated[stat.repoId] && !updated[stat.repoId].isActive) {
-            updated[stat.repoId] = {
-              ...updated[stat.repoId],
-              isActive: true
-            };
-            hasChanges = true;
+            // Find the repository to get its refresh interval
+            const repo = repositories.find(r => r.id === stat.repoId);
+            if (repo) {
+              updated[stat.repoId] = {
+                ...updated[stat.repoId],
+                isActive: true,
+                timeLeft: repo.auto_refresh_interval // Reset timer when first activated
+              };
+              hasChanges = true;
+              console.log(`⏰ [Frontend] Timer activated for repository: ${repo.repository_name} (reset to ${repo.auto_refresh_interval}s)`);
+            }
           }
         });
         
         return hasChanges ? updated : prev;
       });
     }
-  }, [actionStats]);
+  }, [actionStats, repositories]);
 
   // Enhanced timer system with staggered refresh queue
   useEffect(() => {
@@ -394,11 +396,17 @@ export default function RepositoryList({
                 timeLeft: repo.auto_refresh_interval
               };
               
-              if (!isBulkRefreshing && !pendingRefreshes.has(repo.id)) {
+              // Check if we're in grace period after bulk refresh
+              const isInGracePeriod = bulkRefreshEndTimeRef.current > 0 && 
+                                    (Date.now() - bulkRefreshEndTimeRef.current) < 10000; // 10 second grace period
+              
+              if (!isBulkRefreshing && !pendingRefreshes.has(repo.id) && !isInGracePeriod) {
                 expiredRepos.push(repo.id);
                 console.log(`⏰ [Frontend] TIMER EXPIRED for repository: ${repo.repository_name} (ID: ${repo.id}), adding to refresh queue`);
               } else if (isBulkRefreshing) {
                 console.log(`⏰ [Frontend] TIMER REFRESH skipped for repository: ${repo.repository_name} (bulk refresh in progress)`);
+              } else if (isInGracePeriod) {
+                console.log(`⏰ [Frontend] TIMER REFRESH skipped for repository: ${repo.repository_name} (in grace period after bulk refresh)`);
               } else {
                 console.log(`⏰ [Frontend] TIMER REFRESH skipped for repository: ${repo.repository_name} (already refreshing)`);
               }
@@ -440,40 +448,40 @@ export default function RepositoryList({
     return () => clearInterval(queueInterval);
   }, [processRefreshQueue]);
 
-  // Cleanup stuck refreshing states - runs every 15 seconds
+  // Cleanup stuck refreshing states - runs every 5 seconds
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
       const now = Date.now();
       
-      // Clear pending refreshes that have been pending for more than 1 minute
+      // Clear pending refreshes that have been pending for more than 30 seconds
       setPendingRefreshes(prev => {
         const newSet = new Set(prev);
         let hasChanges = false;
         
         prev.forEach(repoId => {
+          const refreshStartTime = refreshStartTimesRef.current[repoId];
           const repo = repositories.find(r => r.id === repoId);
-          if (repo) {
-            // Check if repository has been in refreshing state for too long
-            const stat = actionStats.find(s => s.repoId === repoId);
-            if (stat?.isRefreshing) {
-              // If it's been more than 1 minute, force clear the refreshing state
-              console.log(`🧹 [Frontend] Clearing stuck refreshing state for repository: ${repo.repository_name} (timeout: 1 minute)`);
-              
-              // Update the repository stats to clear refreshing state
-              const currentStats = [...actionStats];
-              const repoIndex = currentStats.findIndex(s => s.repoId === repoId);
-              if (repoIndex >= 0) {
-                currentStats[repoIndex] = {
-                  ...currentStats[repoIndex],
-                  isRefreshing: false,
-                  status: currentStats[repoIndex].status === 'refreshing' ? 'unknown' : currentStats[repoIndex].status
-                };
-                onActionStatsUpdate(currentStats);
-              }
-              
-              newSet.delete(repoId);
-              hasChanges = true;
+          
+          // If repository has been refreshing for more than 30 seconds, clear it
+          if (refreshStartTime && (now - refreshStartTime) > 30000) {
+            console.log(`🧹 [Frontend] Clearing stuck refreshing state for repository: ${repo?.repository_name || `repo-${repoId}`} (timeout: 30 seconds)`);
+            
+            // Update the repository stats to clear refreshing state
+            const currentStats = [...actionStats];
+            const repoIndex = currentStats.findIndex(s => s.repoId === repoId);
+            if (repoIndex >= 0) {
+              currentStats[repoIndex] = {
+                ...currentStats[repoIndex],
+                isRefreshing: false,
+                status: currentStats[repoIndex].status === 'refreshing' ? 'unknown' : currentStats[repoIndex].status
+              };
+              onActionStatsUpdate(currentStats);
             }
+            
+            // Clean up tracking
+            delete refreshStartTimesRef.current[repoId];
+            newSet.delete(repoId);
+            hasChanges = true;
           }
         });
         
@@ -511,7 +519,7 @@ export default function RepositoryList({
       if (refreshQueueRef.current.length !== oldQueueLength) {
         console.log(`🧹 [Frontend] Cleaned up ${oldQueueLength - refreshQueueRef.current.length} old refresh queue items`);
       }
-    }, 15000); // Run every 15 seconds (more frequent cleanup)
+    }, 5000); // Run every 5 seconds (more frequent cleanup to catch orphaned states)
     
     return () => clearInterval(cleanupInterval);
   }, [repositories, actionStats, onActionStatsUpdate, pendingRefreshes]);
@@ -534,11 +542,10 @@ export default function RepositoryList({
     const stat = actionStats.find(s => s.repoId === repoId);
     if (!stat) return 'unknown';
     
-    // If repository is being manually refreshed (local state), show refreshing status
-    if (isRefreshing === repoId) return 'refreshing';
-    
-    // If backend shows refreshing, show refreshing status
-    if (stat.isRefreshing) return 'refreshing';
+    // Check all possible refreshing states to prevent flickering during multiple refreshes
+    if (stat.isRefreshing || isRefreshing === repoId || pendingRefreshes.has(repoId)) {
+      return 'refreshing';
+    }
     
     // Use the backend-calculated status if available
     if (stat.status) {
@@ -590,8 +597,10 @@ export default function RepositoryList({
     const stat = actionStats.find(s => s.repoId === repoId);
     if (!stat) return 'status-unknown';
     
-    // If refreshing, use status-refreshing
-    if (stat.isRefreshing) return 'status-refreshing';
+    // Check all possible refreshing states to prevent flickering
+    if (stat.isRefreshing || isRefreshing === repoId || pendingRefreshes.has(repoId)) {
+      return 'status-refreshing';
+    }
     
     // Use the actual status
     const status = stat.status || 'unknown';
@@ -862,6 +871,21 @@ export default function RepositoryList({
     });
   };
 
+  // Track when repositories become refreshing from external updates (e.g., dashboard bulk refresh)
+  useEffect(() => {
+    actionStats.forEach(stat => {
+      if (stat.isRefreshing && !refreshStartTimesRef.current[stat.repoId]) {
+        // Repository is refreshing but we haven't tracked it yet - it must be from external update
+        refreshStartTimesRef.current[stat.repoId] = Date.now();
+        const repo = repositories.find(r => r.id === stat.repoId);
+        console.log(`📊 [Frontend] Tracking external refresh start for repository: ${repo?.repository_name || `repo-${stat.repoId}`}`);
+      } else if (!stat.isRefreshing && refreshStartTimesRef.current[stat.repoId]) {
+        // Repository is no longer refreshing - clean up tracking
+        delete refreshStartTimesRef.current[stat.repoId];
+      }
+    });
+  }, [actionStats, repositories]);
+
   if (repositories.length === 0) {
     return (
       <div className="repository-list empty">
@@ -873,7 +897,7 @@ export default function RepositoryList({
   const sortedRepositories = getSortedRepositories();
 
   return (
-    <div className={`repository-list ${gridView ? 'grid-view' : ''}`}>
+    <div className={`repository-list ${gridView ? 'grid-view' : ''} ${pendingRefreshes.size > 1 ? 'bulk-refreshing' : ''}`}>
       {error && (
         <div className="error-message">
           <p>{error}</p>
