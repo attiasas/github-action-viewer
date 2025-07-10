@@ -16,8 +16,7 @@ interface GitHubServer {
 interface AuthContextType {
   user: User | null;
   githubServers: GitHubServer[];
-  login: (userId: string, password: string) => Promise<boolean>;
-  register: (userId: string, password: string) => Promise<boolean>;
+  login: (userId: string) => Promise<boolean>;
   logout: () => void;
   loadGitHubServers: () => Promise<void>;
   addGitHubServer: (serverName: string, serverUrl: string, apiToken: string, isDefault?: boolean) => Promise<boolean>;
@@ -69,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await loadGitHubServersForUser(user.id);
   };
 
-  const login = async (userId: string, password: string): Promise<boolean> => {
+  const login = async (userId: string): Promise<boolean> => {
     try {
       setIsLoading(true);
       
@@ -80,7 +79,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
         body: JSON.stringify({
           userId,
-          password,
         }),
       });
 
@@ -97,40 +95,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Login error:', error);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const register = async (userId: string, password: string): Promise<boolean> => {
-    try {
-      setIsLoading(true);
-      
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          password,
-        }),
-      });
-
-      if (response.ok) {
-        const userData = { id: userId };
-        setUser(userData);
-        localStorage.setItem('github-actions-user', JSON.stringify(userData));
-        setGithubServers([]);
-        return true;
-      } else {
-        const error = await response.json();
-        console.error('Registration failed:', error);
-        return false;
-      }
-    } catch (error) {
-      console.error('Registration error:', error);
       return false;
     } finally {
       setIsLoading(false);
@@ -240,7 +204,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user, 
       githubServers, 
       login, 
-      register, 
       logout, 
       loadGitHubServers, 
       addGitHubServer, 

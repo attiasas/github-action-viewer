@@ -42,11 +42,10 @@ export const db = new sqlite3.Database(dbPath);
 console.log(`Database location: ${dbPath}`);
 
 export const initializeDatabase = () => {
-  // Users table - now with password authentication
+  // Users table - simple user ID based authentication
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
-      password_hash TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )

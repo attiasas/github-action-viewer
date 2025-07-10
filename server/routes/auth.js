@@ -1,24 +1,23 @@
 import express from 'express';
 import { db } from '../database.js';
 import axios from 'axios';
-import bcrypt from 'bcrypt';
 
 const router = express.Router();
 
-// Register new user
-router.post('/register', async (req, res) => {
-  const { userId, password } = req.body;
+// Login or create user (simplified)
+router.post('/login', async (req, res) => {
+  const { userId } = req.body;
 
-  if (!userId || !password) {
-    return res.status(400).json({ error: 'User ID and password are required' });
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required' });
   }
 
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+  if (userId.length < 3) {
+    return res.status(400).json({ error: 'User ID must be at least 3 characters long' });
   }
 
   try {
-    // Check if user already exists
+    // Check if user exists
     const existingUser = await new Promise((resolve, reject) => {
       db.get('SELECT id FROM users WHERE id = ?', [userId], (err, row) => {
         if (err) reject(err);
@@ -26,82 +25,39 @@ router.post('/register', async (req, res) => {
       });
     });
 
-    if (existingUser) {
-      return res.status(409).json({ error: 'User ID already exists' });
-    }
+    if (!existingUser) {
+      // Create new user
+      await new Promise((resolve, reject) => {
+        db.run(
+          'INSERT INTO users (id) VALUES (?)',
+          [userId],
+          function(err) {
+            if (err) reject(err);
+            else resolve(this);
+          }
+        );
+      });
 
-    // Hash password
-    const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
-
-    // Create user
-    db.run(
-      'INSERT INTO users (id, password_hash) VALUES (?, ?)',
-      [userId, passwordHash],
-      function(err) {
-        if (err) {
-          console.error('Database error:', err);
-          return res.status(500).json({ error: 'Database error' });
-        }
-        
-        // Create default settings
+      // Create default settings
+      await new Promise((resolve, reject) => {
         db.run(
           'INSERT INTO user_settings (user_id) VALUES (?)',
           [userId],
           (err) => {
-            if (err) {
-              console.error('Settings creation error:', err);
-            }
+            if (err) reject(err);
+            else resolve(this);
           }
         );
-
-        res.json({ 
-          success: true, 
-          message: 'User registered successfully',
-          userId 
-        });
-      }
-    );
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: 'Server error during registration' });
-  }
-});
-
-// Login user
-router.post('/login', async (req, res) => {
-  const { userId, password } = req.body;
-
-  if (!userId || !password) {
-    return res.status(400).json({ error: 'User ID and password are required' });
-  }
-
-  try {
-    // Get user
-    const user = await new Promise((resolve, reject) => {
-      db.get('SELECT id, password_hash FROM users WHERE id = ?', [userId], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
       });
-    });
-
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    // Verify password
-    const passwordMatch = await bcrypt.compare(password, user.password_hash);
-    if (!passwordMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     res.json({ 
       success: true, 
-      message: 'Login successful',
-      userId: user.id
+      message: existingUser ? 'Login successful' : 'User created and logged in',
+      userId 
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Login/registration error:', error);
     res.status(500).json({ error: 'Server error during login' });
   }
 });
@@ -337,7 +293,8 @@ router.get('/test-token/:serverId', async (req, res) => {
     } else {
       res.json({
         valid: false,
-        error: 'Network error or invalid server URL'
+        error: 'Unable to connect to GitHub server',
+        details: error.message
       });
     }
   }
