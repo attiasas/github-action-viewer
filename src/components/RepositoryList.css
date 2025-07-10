@@ -3,7 +3,34 @@
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
+
+.repository-list.grid-view {
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.repository-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.repository-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 20px;
+  padding: 0;
+  flex: 1;
+  align-content: start;
+  transition: grid-template-columns 0.3s ease;
+}
+
+/* Removed - don't force single column layout when expanded */
 
 .repository-list.empty {
   padding: 40px;
@@ -13,49 +40,199 @@
 
 .repository-item {
   border-bottom: 1px solid #e1e5e9;
+  background: white;
+  border-radius: 0;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+  border-left: 4px solid transparent;
+}
+
+.repository-item.status-success {
+  border-left-color: #28a745;
+  background: rgba(40, 167, 69, 0.05);
+}
+
+.repository-item.status-failure {
+  border-left-color: #dc3545;
+  background: rgba(220, 53, 69, 0.05);
+}
+
+.repository-item.status-pending {
+  border-left-color: #ffc107;
+  background: rgba(255, 193, 7, 0.05);
+}
+
+.repository-item.status-unknown {
+  border-left-color: #6c757d;
+  background: rgba(108, 117, 125, 0.05);
+}
+
+.grid-view .repository-item {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: none;
+  border-bottom: none;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+  border-left: 4px solid transparent;
+}
+
+.grid-view .repository-item.status-success {
+  border-left-color: #28a745;
+  background: rgba(40, 167, 69, 0.05);
+}
+
+.grid-view .repository-item.status-failure {
+  border-left-color: #dc3545;
+  background: rgba(220, 53, 69, 0.05);
+}
+
+.grid-view .repository-item.status-pending {
+  border-left-color: #ffc107;
+  background: rgba(255, 193, 7, 0.05);
+}
+
+.grid-view .repository-item.status-unknown {
+  border-left-color: #6c757d;
+  background: rgba(108, 117, 125, 0.05);
 }
 
 .repository-item:last-child {
   border-bottom: none;
 }
 
-.repository-header {
+.grid-view .repository-item:last-child {
+  border-bottom: none;
+}
+
+.repository-header-full {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px;
-  cursor: pointer;
-  transition: background-color 0.2s;
+  padding: 15px 20px;
+  flex-shrink: 0;
+  border-bottom: 1px solid #e1e5e9;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
 }
 
-.repository-header:hover {
-  background-color: #f8f9fa;
+.grid-view .repository-header-full {
+  padding: 15px 15px;
+  border-bottom: 1px solid #e1e5e9;
 }
 
-.repo-info {
+.repository-header-full:hover {
+  background-color: rgba(248, 249, 250, 0.9);
+}
+
+.repo-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
   flex: 1;
 }
 
-.repo-info h4 {
-  margin: 0 0 8px 0;
-  font-size: 18px;
+.repo-actions-left span {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
 }
 
-.repo-info a {
+.repo-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+
+.repo-title-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  min-height: 80px;
+}
+
+.repo-title-section h4 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.repo-title-section h4 a {
   color: #667eea;
   text-decoration: none;
 }
 
-.repo-info a:hover {
+.repo-title-section h4 a:hover {
   text-decoration: underline;
 }
 
-.repo-config {
+.repo-status-right {
   display: flex;
-  gap: 15px;
-  font-size: 12px;
-  color: #666;
+  align-items: center;
+  flex-shrink: 0;
 }
+
+.refresh-button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: all 0.2s;
+  color: #6c757d;
+  opacity: 0.7;
+}
+
+.refresh-button:hover:not(:disabled) {
+  background-color: #e9ecef;
+  color: #495057;
+  opacity: 1;
+}
+
+.refresh-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  color: #6c757d;
+}
+
+.status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-indicator.status-success {
+  background: #28a745;
+  box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.2);
+}
+
+.status-indicator.status-failure {
+  background: #dc3545;
+  box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.2);
+}
+
+.status-indicator.status-pending {
+  background: #ffc107;
+  box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.2);
+}
+
+.status-indicator.status-unknown {
+  background: #6c757d;
+  box-shadow: 0 0 0 2px rgba(108, 117, 125, 0.2);
+}
+
+
 
 .repo-stats-summary {
   margin: 0 20px;
@@ -82,13 +259,7 @@
 .stat.pending { background: #ffc107; }
 .stat.cancelled { background: #6c757d; }
 
-.repo-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.expand-button, .remove-button {
+.remove-button, .config-button {
   border: none;
   background: none;
   cursor: pointer;
@@ -98,8 +269,15 @@
   transition: background-color 0.2s;
 }
 
-.expand-button:hover {
+.config-button {
+  color: #6c757d;
+  font-size: 16px;
+  padding: 6px 8px;
+}
+
+.config-button:hover {
   background-color: #e9ecef;
+  color: #495057;
 }
 
 .remove-button {
@@ -115,14 +293,8 @@
   cursor: not-allowed;
 }
 
-.repository-details {
-  padding: 0 20px 20px 20px;
-  background-color: #f8f9fa;
-  border-top: 1px solid #e1e5e9;
-}
-
 .details-section {
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 
 .details-section:last-child {
@@ -137,6 +309,28 @@
   padding-bottom: 8px;
 }
 
+.config-details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 8px 0;
+  border-bottom: 1px solid #e1e5e9;
+  margin-bottom: 10px;
+  transition: background-color 0.2s;
+}
+
+/* Remove conflicting styles */
+
+.config-details-header h5 {
+  margin: 0;
+  border: none;
+  padding: 0;
+  font-size: 14px;
+}
+
+/* Remove conflicting toggle button styles - use specific ones below */
+
 .config-details {
   display: flex;
   flex-direction: column;
@@ -145,11 +339,17 @@
 
 .config-item {
   font-size: 14px;
+  color: #333;
 }
 
 .config-item strong {
   display: block;
   margin-bottom: 4px;
+  color: #333;
+}
+
+.config-item p {
+  margin: 0;
   color: #333;
 }
 
@@ -163,66 +363,19 @@
   margin-bottom: 2px;
 }
 
-.branch-details {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.branch-detail {
-  background: white;
-  border-radius: 6px;
-  padding: 15px;
-  border: 1px solid #dee2e6;
-}
-
-.branch-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.branch-header h6 {
+.config-item .default-config {
   margin: 0;
-  font-size: 14px;
-  color: #333;
-}
-
-.branch-stats {
-  display: flex;
-  gap: 6px;
-}
-
-.branch-error {
-  color: #dc3545;
-  font-size: 14px;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-radius: 4px;
   font-style: italic;
+  color: #6c757d;
+  border-left: 3px solid #007bff;
 }
 
-.latest-run {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  color: #666;
-}
+/* Branch Details styles removed */
 
-.run-label {
-  font-weight: 500;
-}
-
-.run-status {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 500;
-}
-
-.run-time {
-  margin-left: auto;
-  font-family: monospace;
-}
+/* Branch Details styles removed */
 
 /* Error message styles */
 .repository-list .error-message {
@@ -264,3 +417,205 @@
 .repository-list .dismiss-error:hover {
   background: rgba(114, 28, 36, 0.1);
 }
+
+/* Responsive grid adjustments */
+@media (max-width: 768px) {
+  .repository-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .repository-header-full {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .repo-actions-left,
+  .repo-status-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .repo-actions-left {
+    order: 1;
+  }
+  
+  .repo-status-right {
+    order: 2;
+  }
+  
+  .refresh-button {
+    font-size: 12px;
+    padding: 6px;
+    color: #6c757d;
+    opacity: 0.7;
+  }
+  
+  .repo-content {
+    padding: 15px;
+  }
+  
+  .repo-title-section {
+    min-height: 60px;
+  }
+  
+  .repo-title-section h4 {
+    font-size: 18px;
+  }
+  
+  .repo-status-summary,
+  .repo-stats-summary {
+    margin: 0;
+    align-self: stretch;
+  }
+  
+  .branch-stats-vertical {
+    gap: 6px;
+  }
+  
+  .stat-item .stat {
+    padding: 2px 4px;
+    font-size: 10px;
+    min-width: 18px;
+  }
+  
+  .stat-item .stat-label {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 1400px) {
+  .repository-grid {
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  }
+}
+
+@media (max-width: 1000px) {
+  .repository-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 15px;
+  }
+  
+  .grid-view .repository-item {
+    min-height: 140px;
+  }
+}
+
+@media (max-width: 768px) {
+  .repository-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .grid-view .repository-item {
+    min-height: 120px;
+  }
+  
+  .grid-view .repository-header-full {
+    padding: 12px 12px;
+  }
+  
+  .repo-title-section h4 {
+    font-size: 16px;
+  }
+  
+  .workflow-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  
+  .workflow-status {
+    margin: 2px 0;
+  }
+}
+
+/* Configuration Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e1e5e9;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.modal-close-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.modal-close-button:hover {
+  background-color: #f8f9fa;
+  color: #333;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+/* Smooth transition for branch details expansion */
+.branch-details {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+/* Branch Details styles removed */
+
+/* Branch Details styles removed */
+
+/* Better hover effect for non-expanded items */
+.repository-item:not(.branch-details-expanded):hover {
+  background-color: #f8f9fa;
+  transition: background-color 0.2s ease;
+}
+
+.details-section {
+  margin: 0;
+}
+
+.details-section:last-child {
+  margin: 0;
+}
+
+/* Branch Details styles removed */
+
+

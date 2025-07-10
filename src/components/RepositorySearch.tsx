@@ -41,13 +41,14 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
   const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [branchError, setBranchError] = useState<string | null>(null);
 
-  // Set default server when servers are loaded
+  // Set default server when servers are loaded or component mounts
   useEffect(() => {
-    if (githubServers.length > 0 && !selectedServer) {
+    if (githubServers.length > 0) {
       const defaultServer = githubServers.find(server => server.is_default);
-      setSelectedServer(defaultServer?.id || githubServers[0].id);
+      const serverToSelect = defaultServer?.id || githubServers[0].id;
+      setSelectedServer(serverToSelect);
     }
-  }, [githubServers, selectedServer]);
+  }, [githubServers]);
 
   const searchRepositories = async () => {
     if (!searchQuery.trim() || !user || !selectedServer) return;
@@ -238,7 +239,7 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
         <select 
           id="github-server"
           value={selectedServer || ''}
-          onChange={(e) => setSelectedServer(Number(e.target.value))}
+          onChange={(e) => setSelectedServer(e.target.value ? Number(e.target.value) : null)}
           className="server-select"
         >
           <option value="">Select a GitHub server...</option>

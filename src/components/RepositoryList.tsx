@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import './RepositoryList.css';
 
@@ -43,16 +43,154 @@ interface RepositoryListProps {
   repositories: Repository[];
   actionStats: ActionStatistics[];
   onRepositoryRemoved: (repoId: number) => void;
+  onActionStatsUpdate: (stats: ActionStatistics[]) => void;
+  gridView?: boolean;
 }
 
-export default function RepositoryList({ repositories, actionStats, onRepositoryRemoved }: RepositoryListProps) {
-  const { user } = useAuth();
-  const [expandedRepo, setExpandedRepo] = useState<number | null>(null);
-  const [isRemoving, setIsRemoving] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+interface RepositoryTimer {
+  timeLeft: number;
+  intervalId: NodeJS.Timeout | null;
+}
 
-  const getRepoStats = (repoId: number) => {
-    return actionStats.find(stat => stat.repoId === repoId);
+export default function RepositoryList({ 
+  repositories, 
+  actionStats, 
+  onRepositoryRemoved, 
+  onActionStatsUpdate,
+  gridView = false 
+}: RepositoryListProps) {
+  const { user } = useAuth();
+  const [showConfigModal, setShowConfigModal] = useState<number | null>(null);
+  const [isRemoving, setIsRemoving] = useState<number | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [repositoryTimers, setRepositoryTimers] = useState<Record<number, RepositoryTimer>>({});
+
+  // Function to refresh stats for all repositories
+  const refreshRepositoryStats = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const response = await fetch(`/api/actions/stats/${user.id}`);
+      if (response.ok) {
+        const stats = await response.json();
+        onActionStatsUpdate(stats);
+      }
+    } catch (error) {
+      console.error('Error refreshing repository stats:', error);
+    }
+  }, [user, onActionStatsUpdate]);
+
+  // Function to manually refresh a specific repository
+  const manualRefreshRepository = useCallback(async (repoId: number) => {
+    setIsRefreshing(repoId);
+    
+    try {
+      // Reset the timer for this repository
+      setRepositoryTimers(prev => {
+        const repo = repositories.find(r => r.id === repoId);
+        if (repo && prev[repoId]) {
+          return {
+            ...prev,
+            [repoId]: {
+              ...prev[repoId],
+              timeLeft: repo.auto_refresh_interval
+            }
+          };
+        }
+        return prev;
+      });
+      
+      // Trigger the refresh
+      await refreshRepositoryStats();
+    } catch (error) {
+      console.error('Error manually refreshing repository:', error);
+    } finally {
+      setIsRefreshing(null);
+    }
+  }, [repositories, refreshRepositoryStats]);
+
+  // Initialize timers when repositories change
+  useEffect(() => {
+    const newTimers: Record<number, RepositoryTimer> = {};
+    
+    repositories.forEach(repo => {
+      newTimers[repo.id] = {
+        timeLeft: repo.auto_refresh_interval,
+        intervalId: null
+      };
+    });
+    
+    setRepositoryTimers(newTimers);
+  }, [repositories]);
+
+  // Single timer that runs every second and updates all repository timers
+  useEffect(() => {
+    const globalInterval = setInterval(() => {
+      setRepositoryTimers(prev => {
+        const updated = { ...prev };
+        let hasChanges = false;
+        
+        repositories.forEach(repo => {
+          if (updated[repo.id]) {
+            const newTimeLeft = updated[repo.id].timeLeft - 1;
+            
+            if (newTimeLeft <= 0) {
+              // Time to refresh - reset timer and trigger refresh
+              updated[repo.id] = {
+                ...updated[repo.id],
+                timeLeft: repo.auto_refresh_interval
+              };
+              refreshRepositoryStats();
+              hasChanges = true;
+            } else {
+              updated[repo.id] = {
+                ...updated[repo.id],
+                timeLeft: newTimeLeft
+              };
+              hasChanges = true;
+            }
+          }
+        });
+        
+        return hasChanges ? updated : prev;
+      });
+    }, 1000);
+    
+    return () => clearInterval(globalInterval);
+  }, [repositories, refreshRepositoryStats]);
+
+  // Format time left display
+  const formatTimeLeft = (seconds: number): string => {
+    if (seconds <= 0) return '0s';
+    
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    
+    if (minutes > 0) {
+      return `${minutes}m ${remainingSeconds}s`;
+    }
+    return `${remainingSeconds}s`;
+  };
+
+  // Calculate repository status based on latest runs
+  const getRepositoryStatus = (repoId: number): string => {
+    const stat = actionStats.find(s => s.repoId === repoId);
+    if (!stat) return 'unknown';
+    
+    // Get all latest run statuses from branches
+    const branchStatuses = Object.values(stat.branches)
+      .filter(branch => branch.latestRun && !branch.error)
+      .map(branch => branch.latestRun?.conclusion || branch.latestRun?.status || 'unknown');
+    
+    if (branchStatuses.length === 0) return 'unknown';
+    
+    // Priority: failure > pending/cancelled > success
+    if (branchStatuses.some(status => status === 'failure')) return 'failure';
+    if (branchStatuses.some(status => status === 'pending' || status === 'in_progress' || status === 'cancelled')) return 'pending';
+    if (branchStatuses.every(status => status === 'success')) return 'success';
+    
+    return 'unknown';
   };
 
   const removeRepository = async (repoId: number) => {
@@ -79,28 +217,37 @@ export default function RepositoryList({ repositories, actionStats, onRepository
     }
   };
 
-  const toggleExpanded = (repoId: number) => {
-    setExpandedRepo(expandedRepo === repoId ? null : repoId);
+  const openConfigModal = (repoId: number) => {
+    setShowConfigModal(repoId);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'success': return '#28a745';
-      case 'failure': return '#dc3545';
-      case 'pending': return '#ffc107';
-      case 'cancelled': return '#6c757d';
-      default: return '#6c757d';
-    }
+  const closeConfigModal = () => {
+    setShowConfigModal(null);
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'success': return '✓';
-      case 'failure': return '✗';
-      case 'pending': return '○';
-      case 'cancelled': return '⊘';
-      default: return '?';
-    }
+  // Sort repositories by status priority (failure first, then pending, success, unknown)
+  const getSortedRepositories = () => {
+    const statusPriority: Record<string, number> = {
+      'failure': 1,
+      'pending': 2,
+      'success': 3,
+      'unknown': 4
+    };
+    
+    return [...repositories].sort((a, b) => {
+      const statusA = getRepositoryStatus(a.id);
+      const statusB = getRepositoryStatus(b.id);
+      
+      const priorityA = statusPriority[statusA] || 4;
+      const priorityB = statusPriority[statusB] || 4;
+      
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      
+      // If same status, sort by repository name
+      return a.repository_name.localeCompare(b.repository_name);
+    });
   };
 
   if (repositories.length === 0) {
@@ -111,57 +258,23 @@ export default function RepositoryList({ repositories, actionStats, onRepository
     );
   }
 
+  const sortedRepositories = getSortedRepositories();
+
   return (
-    <div className="repository-list">
+    <div className={`repository-list ${gridView ? 'grid-view' : ''}`}>
       {error && (
         <div className="error-message">
           <p>{error}</p>
           <button onClick={() => setError(null)} className="dismiss-error">×</button>
         </div>
       )}
-      {repositories.map(repo => {
-        const stats = getRepoStats(repo.id);
-        const isExpanded = expandedRepo === repo.id;
-
+      <div className={gridView ? "repository-grid" : "repository-items"}>
+        {sortedRepositories.map(repo => {
+          const status = getRepositoryStatus(repo.id);
         return (
-          <div key={repo.id} className="repository-item">
-            <div className="repository-header" onClick={() => toggleExpanded(repo.id)}>
-              <div className="repo-info">
-                <h4>
-                  <a href={repo.repository_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
-                    {repo.repository_name}
-                  </a>
-                </h4>
-                <div className="repo-config">
-                  <span>Branches: {repo.tracked_branches.join(', ')}</span>
-                  <span>Refresh: {repo.auto_refresh_interval}s</span>
-                  {repo.tracked_workflows.length > 0 && (
-                    <span>Workflows: {repo.tracked_workflows.length}</span>
-                  )}
-                </div>
-              </div>
-              
-              {stats && (
-                <div className="repo-stats-summary">
-                  <div className="stats-row">
-                    <span className="stat success" title="Success">{stats.overall.success}</span>
-                    <span className="stat failure" title="Failure">{stats.overall.failure}</span>
-                    <span className="stat pending" title="Pending">{stats.overall.pending}</span>
-                    <span className="stat cancelled" title="Cancelled">{stats.overall.cancelled}</span>
-                  </div>
-                </div>
-              )}
-              
-              <div className="repo-actions">
-                <button 
-                  className="expand-button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleExpanded(repo.id);
-                  }}
-                >
-                  {isExpanded ? '▲' : '▼'}
-                </button>
+          <div key={repo.id} className={`repository-item status-${status}`}>
+            <div className="repository-header-full">
+              <div className="repo-actions-left">
                 <button 
                   className="remove-button"
                   onClick={(e) => {
@@ -169,17 +282,86 @@ export default function RepositoryList({ repositories, actionStats, onRepository
                     removeRepository(repo.id);
                   }}
                   disabled={isRemoving === repo.id}
+                  title="Remove repository"
                 >
                   {isRemoving === repo.id ? '...' : '✗'}
                 </button>
+                <button 
+                  className="config-button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openConfigModal(repo.id);
+                  }}
+                  title="Repository Configuration"
+                >
+                  ⚙️
+                </button>
+                <button 
+                  className="refresh-button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    manualRefreshRepository(repo.id);
+                  }}
+                  disabled={isRefreshing === repo.id}
+                  title="Refresh this repository"
+                >
+                  {isRefreshing === repo.id ? '⏳' : '🔄'}
+                </button>
+                {repo.tracked_workflows.length > 0 && (
+                  <span>Workflows: {repo.tracked_workflows.length}</span>
+                )}
+                <span>
+                  Refresh: {repositoryTimers[repo.id] ? formatTimeLeft(repositoryTimers[repo.id].timeLeft) : repo.auto_refresh_interval + 's'}
+                </span>
+              </div>
+              
+              <div className="repo-status-right">
+                <div className={`status-indicator status-${status}`} title={`Status: ${status}`}></div>
               </div>
             </div>
+            
+            <div className="repo-content">
+              <div className="repo-title-section">
+                <h4>
+                  <a href={repo.repository_url} target="_blank" rel="noopener noreferrer">
+                    {repo.repository_name}
+                  </a>
+                </h4>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      </div>
 
-            {isExpanded && (
-              <div className="repository-details">
-                <div className="details-section">
-                  <h5>Configuration</h5>
+      {/* Configuration Modal */}
+      {showConfigModal && (
+        <div className="modal-overlay" onClick={closeConfigModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Repository Configuration</h3>
+              <button 
+                className="modal-close-button"
+                onClick={closeConfigModal}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              {(() => {
+                const repo = repositories.find(r => r.id === showConfigModal);
+                if (!repo) return null;
+                
+                return (
                   <div className="config-details">
+                    <div className="config-item">
+                      <strong>Repository:</strong>
+                      <p>
+                        <a href={repo.repository_url} target="_blank" rel="noopener noreferrer">
+                          {repo.repository_name}
+                        </a>
+                      </p>
+                    </div>
                     <div className="config-item">
                       <strong>Tracked Branches:</strong>
                       <ul>
@@ -188,65 +370,29 @@ export default function RepositoryList({ repositories, actionStats, onRepository
                         ))}
                       </ul>
                     </div>
-                    {repo.tracked_workflows.length > 0 && (
-                      <div className="config-item">
-                        <strong>Tracked Workflows:</strong>
+                    <div className="config-item">
+                      <strong>Tracked Workflows ({repo.tracked_workflows.length > 0 ? repo.tracked_workflows.length : 'All'}):</strong>
+                      {repo.tracked_workflows.length > 0 ? (
                         <ul>
                           {repo.tracked_workflows.map(workflow => (
                             <li key={workflow}>{workflow}</li>
                           ))}
                         </ul>
-                      </div>
-                    )}
+                      ) : (
+                        <p className="default-config">All workflows in the repository are being tracked</p>
+                      )}
+                    </div>
                     <div className="config-item">
-                      <strong>Auto-refresh Interval:</strong> {repo.auto_refresh_interval} seconds
+                      <strong>Auto-refresh Interval:</strong>
+                      <p>{repo.auto_refresh_interval} seconds</p>
                     </div>
                   </div>
-                </div>
-
-                {stats && (
-                  <div className="details-section">
-                    <h5>Branch Details</h5>
-                    <div className="branch-details">
-                      {Object.entries(stats.branches).map(([branch, branchStats]) => (
-                        <div key={branch} className="branch-detail">
-                          <div className="branch-header">
-                            <h6>{branch}</h6>
-                            <div className="branch-stats">
-                              <span className="stat success">{branchStats.success}</span>
-                              <span className="stat failure">{branchStats.failure}</span>
-                              <span className="stat pending">{branchStats.pending}</span>
-                              <span className="stat cancelled">{branchStats.cancelled}</span>
-                            </div>
-                          </div>
-                          
-                          {branchStats.error ? (
-                            <div className="branch-error">Error: {branchStats.error}</div>
-                          ) : branchStats.latestRun && (
-                            <div className="latest-run">
-                              <span className="run-label">Latest run:</span>
-                              <span 
-                                className={`run-status ${branchStats.latestRun.conclusion || branchStats.latestRun.status}`}
-                                style={{ color: getStatusColor(branchStats.latestRun.conclusion || branchStats.latestRun.status) }}
-                              >
-                                {getStatusIcon(branchStats.latestRun.conclusion || branchStats.latestRun.status)}
-                                {branchStats.latestRun.conclusion || branchStats.latestRun.status}
-                              </span>
-                              <span className="run-time">
-                                {new Date(branchStats.latestRun.created_at).toLocaleString()}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+                );
+              })()}
+            </div>
           </div>
-        );
-      })}
+        </div>
+      )}
     </div>
   );
 }
