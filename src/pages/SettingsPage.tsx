@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import GitHubServerManager from '../components/GitHubServerManager';
+import ThemeSelector from '../components/ThemeSelector';
 import './SettingsPage.css';
 
 interface UserSettings {
-  theme: string;
   notifications_enabled: boolean;
 }
 
@@ -20,7 +20,6 @@ interface GitHubServer {
 export default function SettingsPage() {
   const { user, logout, addGitHubServer, updateGitHubServer } = useAuth();
   const [settings, setSettings] = useState<UserSettings>({
-    theme: 'light',
     notifications_enabled: true
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -47,17 +46,21 @@ export default function SettingsPage() {
       if (response.ok) {
         const userSettings = await response.json();
         setSettings(userSettings);
+        // Only sync theme with global theme context on initial load, not on every theme change
       }
     } catch (error) {
       console.error('Error loading settings:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user]); // Removed theme and setTheme from dependencies
 
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
+
+  // Note: Theme is now handled by the separate ThemeSelector component
+  // Theme is synced explicitly when loading settings and saving settings
 
   const saveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,11 +94,13 @@ export default function SettingsPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
+    const newValue = type === 'checkbox' ? (e.target as HTMLInputElement).checked 
+                   : type === 'number' ? Number(value) 
+                   : value;
+    
     setSettings(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked 
-              : type === 'number' ? Number(value) 
-              : value
+      [name]: newValue
     }));
   };
 
@@ -175,6 +180,7 @@ export default function SettingsPage() {
           <div className="header-content">
             <div className="header-left">
               <h1>Settings</h1>
+              <p>Manage your preferences and configurations</p>
             </div>
             <div className="header-actions">
               <button 
@@ -196,6 +202,9 @@ export default function SettingsPage() {
 
         <main className="settings-main">
           <div className="settings-grid">
+            {/* Theme Selector */}
+            <ThemeSelector />
+            
             <div className="settings-card">
               <div className="card-header">
                 <h2>User Preferences</h2>
@@ -211,20 +220,6 @@ export default function SettingsPage() {
                 <div className="user-preferences-separator"></div>
                 
                 <form onSubmit={saveSettings} className="settings-form">
-                  <div className="form-group">
-                    <label htmlFor="theme">Theme</label>
-                    <select
-                      id="theme"
-                      name="theme"
-                      value={settings.theme}
-                      onChange={handleInputChange}
-                    >
-                      <option value="light">Light</option>
-                      <option value="dark">Dark</option>
-                      <option value="auto">Auto (System)</option>
-                    </select>
-                  </div>
-
                   <div className="form-group checkbox-group">
                     <label className="checkbox-label">
                       <input

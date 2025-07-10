@@ -1,0 +1,194 @@
+/* Global theme variables and styles */
+
+/* Light theme */
+.theme-light {
+  --bg-primary: #f5f6fa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f8f9fa;
+  --bg-card: #ffffff;
+  --bg-header: #ffffff;
+  --bg-input: #ffffff;
+  --bg-button: #28a745;
+  --bg-button-secondary: #667eea;
+  --bg-button-danger: #dc3545;
+  --bg-modal: rgba(0, 0, 0, 0.5);
+  --bg-modal-content: #ffffff;
+
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-tertiary: #999999;
+  --text-inverse: #ffffff;
+  --text-muted: #8b949e;
+
+  --border-primary: #ddd;
+  --border-secondary: #e1e5e9;
+  --border-input: #ddd;
+  --border-card: rgba(0, 0, 0, 0.1);
+
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-modal: 0 4px 20px rgba(0, 0, 0, 0.15);
+  --shadow-button: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+  --accent-primary: #667eea;
+  --accent-success: #28a745;
+  --accent-danger: #dc3545;
+  --accent-warning: #ffc107;
+  --accent-info: #17a2b8;
+}
+
+/* Light theme background */
+.theme-light body {
+  background: #f5f6fa !important;
+  color: #333333;
+}
+
+/* Dark theme */
+.theme-dark {
+  --bg-secondary: rgba(255, 255, 255, 0.05);
+  --bg-tertiary: rgba(255, 255, 255, 0.03);
+  --bg-card: rgba(255, 255, 255, 0.05);
+  --bg-header: rgba(255, 255, 255, 0.05);
+  --bg-input: rgba(255, 255, 255, 0.1);
+  --bg-button: #7c3aed;
+  --bg-button-secondary: #8b5cf6;
+  --bg-button-danger: #ef4444;
+  --bg-modal: rgba(0, 0, 0, 0.7);
+  --bg-modal-content: rgba(30, 41, 59, 0.95);
+
+  --text-primary: #ffffff;
+  --text-secondary: #8b949e;
+  --text-tertiary: #6b7280;
+  --text-inverse: #000000;
+  --text-muted: #8b949e;
+
+  --border-primary: rgba(255, 255, 255, 0.1);
+  --border-secondary: rgba(255, 255, 255, 0.08);
+  --border-input: rgba(255, 255, 255, 0.2);
+  --border-card: rgba(255, 255, 255, 0.1);
+
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-button: 0 4px 8px rgba(0, 0, 0, 0.2);
+
+  --accent-primary: #7c3aed;
+  --accent-success: #10b981;
+  --accent-danger: #ef4444;
+  --accent-warning: #f59e0b;
+  --accent-info: #06b6d4;
+}
+
+/* Dark theme background - applied directly */
+.theme-dark body {
+  background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #21262d 100%) !important;
+  color: #ffffff;
+}
+
+/* Backdrop filter for dark theme */
+.theme-dark .glass-effect {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.theme-light .glass-effect {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Global body styles */
+body {
+  margin: 0;
+  padding: 0;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Common button styles that work with both themes */
+.btn {
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text-inverse);
+}
+
+.btn-primary {
+  background: var(--bg-button);
+  box-shadow: var(--shadow-button);
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: var(--bg-button-secondary);
+  box-shadow: var(--shadow-button);
+}
+
+.btn-secondary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  background: var(--bg-button-danger);
+  box-shadow: var(--shadow-button);
+}
+
+.btn-danger:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* Card styles */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  transition: all 0.3s ease;
+}
+
+.theme-dark .card {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Modal styles */
+.modal-overlay {
+  background: var(--bg-modal);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: var(--bg-modal-content);
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-modal);
+  color: var(--text-primary);
+}
+
+.theme-dark .modal-content {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Input styles */
+.form-input {
+  background: var(--bg-input);
+  border: 1px solid var(--border-input);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+}
+
+.form-input:focus {
+  border-color: var(--accent-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.theme-dark .form-input:focus {
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+}

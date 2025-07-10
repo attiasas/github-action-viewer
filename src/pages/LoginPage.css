@@ -1,12 +1,13 @@
 .login-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #21262d 100%);
+  background: transparent; /* Let body handle the background */
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
   position: relative;
   overflow: hidden;
+  transition: all 0.3s ease;
 }
 
 .login-page::before {
@@ -24,19 +25,23 @@
 }
 
 .login-container {
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--bg-card);
   backdrop-filter: blur(20px);
   border-radius: 16px;
-  box-shadow: 
-    0 20px 40px rgba(0, 0, 0, 0.1),
-    0 8px 16px rgba(0, 0, 0, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  box-shadow: var(--shadow-modal);
+  border: 1px solid var(--border-card);
   padding: 48px;
   width: 100%;
   max-width: 420px;
   position: relative;
   z-index: 1;
   margin: auto;
+  transition: all 0.3s ease;
+}
+
+.theme-dark .login-container {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .login-header {
@@ -51,7 +56,7 @@
 }
 
 .login-header h1 {
-  color: #1a202c;
+  color: var(--text-primary);
   margin-bottom: 12px;
   font-size: 32px;
   font-weight: 700;
@@ -63,7 +68,7 @@
 }
 
 .login-header p {
-  color: #4a5568;
+  color: var(--text-secondary);
   font-size: 16px;
   margin: 0;
   font-weight: 400;
@@ -77,7 +82,7 @@
 }
 
 .login-form h2 {
-  color: #2d3748;
+  color: var(--text-primary);
   font-size: 24px;
   font-weight: 600;
   margin: 0 0 8px 0;
@@ -92,7 +97,7 @@
 
 .form-group label {
   font-weight: 400;
-  color: #718096;
+  color: var(--text-secondary);
   font-size: 14px;
   letter-spacing: 0.025em;
   margin-bottom: 4px;
@@ -100,20 +105,24 @@
 
 .form-group input {
   padding: 16px 20px;
-  border: 2px solid #e2e8f0;
+  border: 2px solid var(--border-input);
   border-radius: 12px;
   font-size: 16px;
   font-weight: 400;
   transition: all 0.2s ease;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--bg-input);
   backdrop-filter: blur(10px);
+  color: var(--text-primary);
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #7c3aed;
+  border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
-  background: rgba(255, 255, 255, 0.95);
+}
+
+.theme-dark .form-group input:focus {
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
 }
 
 .form-group input:disabled {
@@ -122,18 +131,18 @@
 }
 
 .form-help {
-  color: #718096;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.4;
   font-weight: 400;
 }
 
 .error-message {
-  background: rgba(254, 226, 226, 0.9);
-  color: #c53030;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--accent-danger);
   padding: 16px 20px;
   border-radius: 12px;
-  border: 1px solid #feb2b2;
+  border: 1px solid rgba(239, 68, 68, 0.2);
   font-size: 14px;
   font-weight: 500;
   backdrop-filter: blur(10px);
@@ -141,7 +150,7 @@
 
 .login-button {
   background: linear-gradient(135deg, #7c3aed 0%, #a855f7 30%, #06b6d4 70%, #0ea5e9 100%);
-  color: white;
+  color: var(--text-inverse);
   border: none;
   padding: 16px 24px;
   border-radius: 12px;
