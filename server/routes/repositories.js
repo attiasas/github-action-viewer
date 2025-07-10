@@ -170,7 +170,7 @@ router.get('/:owner/:repo/branches', async (req, res) => {
 
 // Add repository to user's tracking list
 router.post('/track', (req, res) => {
-  const { userId, githubServerId, repositoryName, repositoryUrl, trackedBranches, trackedWorkflows, autoRefreshInterval } = req.body;
+  const { userId, githubServerId, repositoryName, repositoryUrl, trackedBranches, trackedWorkflows, autoRefreshInterval, displayName } = req.body;
 
   if (!userId || !githubServerId || !repositoryName || !repositoryUrl || !trackedBranches || !trackedWorkflows) {
     return res.status(400).json({ error: 'All fields are required' });
@@ -178,8 +178,8 @@ router.post('/track', (req, res) => {
 
   db.run(
     `INSERT OR REPLACE INTO user_repositories 
-     (user_id, github_server_id, repository_name, repository_url, tracked_branches, tracked_workflows, auto_refresh_interval, updated_at) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+     (user_id, github_server_id, repository_name, repository_url, tracked_branches, tracked_workflows, auto_refresh_interval, display_name, updated_at) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
     [
       userId, 
       githubServerId,
@@ -187,7 +187,8 @@ router.post('/track', (req, res) => {
       repositoryUrl, 
       JSON.stringify(trackedBranches), 
       JSON.stringify(trackedWorkflows),
-      autoRefreshInterval || 300
+      autoRefreshInterval || 300,
+      displayName || null
     ],
     function(err) {
       if (err) {

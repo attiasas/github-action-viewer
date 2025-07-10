@@ -40,6 +40,7 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
   const [customBranch, setCustomBranch] = useState('');
   const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [branchError, setBranchError] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState('');
 
   // Set default server when servers are loaded or component mounts
   useEffect(() => {
@@ -191,6 +192,7 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
           trackedBranches: selectedBranches,
           trackedWorkflows: selectedWorkflows,
           autoRefreshInterval: refreshInterval,
+          displayName: displayName.trim() || null,
         }),
       });
 
@@ -198,6 +200,7 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
         setSelectedRepo(null);
         setSearchResults([]);
         setSearchQuery('');
+        setDisplayName('');
         onRepositoryAdded();
       }
     } catch (error) {
@@ -486,11 +489,28 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
             />
           </div>
 
+          <div className="config-section">
+            <h5>Display Name (optional):</h5>
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Custom name for this repository"
+              className="display-name-input"
+            />
+            <small className="input-help">
+              Leave empty to use the repository name ({selectedRepo?.full_name})
+            </small>
+          </div>
+
           <div className="config-actions">
             <button onClick={addRepository} disabled={isLoading || selectedBranches.length === 0} className="add-button">
               {isLoading ? 'Adding...' : 'Add Repository'}
             </button>
-            <button onClick={() => setSelectedRepo(null)} className="cancel-button">
+            <button onClick={() => {
+              setSelectedRepo(null);
+              setDisplayName('');
+            }} className="cancel-button">
               Cancel
             </button>
           </div>

@@ -9,6 +9,7 @@ interface Repository {
   tracked_branches: string[];
   tracked_workflows: string[];
   auto_refresh_interval: number;
+  display_name?: string;
 }
 
 interface BranchStats {
@@ -607,6 +608,11 @@ export default function RepositoryList({
     return `status-${status}`;
   };
 
+  // Get display name for a repository (use custom display name if available, otherwise repository name)
+  const getRepositoryDisplayName = (repo: Repository): string => {
+    return repo.display_name && repo.display_name.trim() ? repo.display_name : repo.repository_name;
+  };
+
   const removeRepository = async (repoId: number) => {
     if (!user) return;
 
@@ -977,7 +983,7 @@ export default function RepositoryList({
                     onClick={(e) => e.stopPropagation()}
                     className={getStatusClassName(repo.id)}
                   >
-                    {repo.repository_name}
+                    {getRepositoryDisplayName(repo)}
                   </a>
                   {stat?.isCached && (
                     <span className="cache-indicator" title="Data from cache - click refresh for latest">
@@ -1021,7 +1027,7 @@ export default function RepositoryList({
                           rel="noopener noreferrer"
                           className={getStatusClassName(repo.id)}
                         >
-                          {repo.repository_name}
+                          {getRepositoryDisplayName(repo)}
                         </a>
                       </p>
                     </div>
@@ -1065,7 +1071,10 @@ export default function RepositoryList({
               <h3>
                 {workflowStatusData ? (
                   <>
-                    {workflowStatusData.repository} - Workflow Status
+                    {(() => {
+                      const repo = repositories.find(r => r.id === showWorkflowStatus);
+                      return repo ? getRepositoryDisplayName(repo) : workflowStatusData.repository;
+                    })()} - Workflow Status
                     {workflowStatusData.isRefreshing ? (
                       <span className="refreshing-indicator" title="Refreshing workflow data...">🔄</span>
                     ) : (

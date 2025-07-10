@@ -80,6 +80,7 @@ export const initializeDatabase = () => {
       auto_refresh_interval INTEGER DEFAULT 300, -- seconds
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      display_name TEXT, -- Optional custom repository name
       FOREIGN KEY (user_id) REFERENCES users (id),
       FOREIGN KEY (github_server_id) REFERENCES github_servers (id),
       UNIQUE(user_id, github_server_id, repository_name)
@@ -98,6 +99,17 @@ export const initializeDatabase = () => {
       FOREIGN KEY (user_id) REFERENCES users (id)
     )
   `);
+
+  // Add display_name column to existing user_repositories table if it doesn't exist
+  db.run(`
+    ALTER TABLE user_repositories 
+    ADD COLUMN display_name TEXT
+  `, (err) => {
+    // Ignore error if column already exists
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Error adding display_name column:', err);
+    }
+  });
 
   console.log('Database initialized successfully');
 };

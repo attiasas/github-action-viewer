@@ -12,6 +12,7 @@ interface Repository {
   tracked_branches: string[];
   tracked_workflows: string[];
   auto_refresh_interval: number;
+  display_name?: string;
 }
 
 interface BranchStats {
