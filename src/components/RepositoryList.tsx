@@ -562,11 +562,13 @@ export default function RepositoryList({
                   <span>Workflows: {repo.tracked_workflows.length}</span>
                 )}
                 <span>
-                  Refresh: {repositoryTimers[repo.id] 
-                    ? (repositoryTimers[repo.id].isActive 
-                        ? formatTimeLeft(repositoryTimers[repo.id].timeLeft) 
-                        : 'Loading...')
-                    : repo.auto_refresh_interval + 's'}
+                  Refresh: {isRefreshing === repo.id 
+                    ? 'Loading...'
+                    : (repositoryTimers[repo.id] 
+                        ? (repositoryTimers[repo.id].isActive 
+                            ? formatTimeLeft(repositoryTimers[repo.id].timeLeft) 
+                            : 'Loading...')
+                        : repo.auto_refresh_interval + 's')}
                 </span>
               </div>
               
