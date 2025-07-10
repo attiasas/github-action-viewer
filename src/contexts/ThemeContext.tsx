@@ -17,7 +17,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (savedTheme && ['light', 'dark', 'auto'].includes(savedTheme)) {
       return savedTheme;
     }
-    return 'light';
+    return 'auto';
   });
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('light');
 
