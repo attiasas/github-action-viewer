@@ -418,6 +418,18 @@
   background: rgba(114, 28, 36, 0.1);
 }
 
+/* Cache indicator */
+.cache-indicator {
+  margin-left: 8px;
+  opacity: 0.7;
+  font-size: 14px;
+  cursor: help;
+}
+
+.cache-indicator:hover {
+  opacity: 1;
+}
+
 /* Responsive grid adjustments */
 @media (max-width: 768px) {
   .repository-grid {

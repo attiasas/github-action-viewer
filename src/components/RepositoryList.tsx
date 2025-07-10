@@ -38,6 +38,11 @@ interface ActionStatistics {
     cancelled: number;
   };
   status: string; // New field for overall repository status
+  hasPermissionError?: boolean;
+  permissionError?: string;
+  hasError?: boolean;
+  error?: string;
+  isCached?: boolean;
 }
 
 interface WorkflowRun {
@@ -99,11 +104,14 @@ export default function RepositoryList({
   const [repositoryTimers, setRepositoryTimers] = useState<Record<number, RepositoryTimer>>({});
 
   // Function to refresh stats for all repositories
-  const refreshRepositoryStats = useCallback(async () => {
+  const refreshRepositoryStats = useCallback(async (force = false) => {
     if (!user) return;
     
     try {
-      const response = await fetch(`/api/actions/stats/${user.id}`);
+      const url = force 
+        ? `/api/actions/stats/${user.id}?force=true`
+        : `/api/actions/stats/${user.id}`;
+      const response = await fetch(url);
       if (response.ok) {
         const stats = await response.json();
         onActionStatsUpdate(stats);
@@ -147,8 +155,8 @@ export default function RepositoryList({
         return prev;
       });
       
-      // Trigger the refresh
-      await refreshRepositoryStats();
+      // Trigger a force refresh to bypass cache
+      await refreshRepositoryStats(true);
     } catch (error) {
       console.error('Error manually refreshing repository:', error);
     } finally {
@@ -471,6 +479,7 @@ export default function RepositoryList({
       <div className={gridView ? "repository-grid" : "repository-items"}>
         {sortedRepositories.map(repo => {
           const status = getRepositoryStatus(repo.id);
+          const stat = actionStats.find(s => s.repoId === repo.id);
         return (
           <div key={repo.id} className={`repository-item status-${status}`}>
             <div className="repository-header-full">
@@ -532,6 +541,11 @@ export default function RepositoryList({
                   <a href={repo.repository_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
                     {repo.repository_name}
                   </a>
+                  {stat?.isCached && (
+                    <span className="cache-indicator" title="Data from cache - click refresh for latest">
+                      📋
+                    </span>
+                  )}
                 </h4>
               </div>
             </div>
