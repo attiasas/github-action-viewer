@@ -578,13 +578,13 @@ export default function RepositoryList({
                                       <div className="workflow-header">
                                         <span className="workflow-name">{workflowName}</span>
                                         <span className={`status-badge status-${displayStatus}`}>
-                                          {displayStatus === 'success' ? '✅' : 
-                                           displayStatus === 'failure' ? '❌' : 
-                                           displayStatus === 'cancelled' ? '⏹️' : 
-                                           displayStatus === 'in_progress' ? '⏳' : 
-                                           displayStatus === 'pending' ? '⏳' : 
-                                           displayStatus === 'no_runs' ? '➖' : 
-                                           displayStatus === 'action_required' ? '⚠️' : '❓'}
+                                          {displayStatus === 'success' ? '✅ ' : 
+                                           displayStatus === 'failure' ? '❌ ' : 
+                                           displayStatus === 'cancelled' ? '⏹️ ' : 
+                                           displayStatus === 'in_progress' ? '⏳ ' : 
+                                           displayStatus === 'pending' ? '⏳ ' : 
+                                           displayStatus === 'no_runs' ? '➖ ' : 
+                                           displayStatus === 'action_required' ? '⚠️ ' : '❓ '}
                                           {displayStatus.replace('_', ' ')}
                                         </span>
                                       </div>
