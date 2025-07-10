@@ -109,7 +109,7 @@ export default function GitHubServerManager() {
     });
 
     try {
-      const response = await fetch(`/api/auth/test-token/${serverId}?userId=${user.id}`);
+      const response = await fetch(`/api/auth/test-token/${serverId}?userId=${encodeURIComponent(user.id)}`);
       const result = await response.json();
       setTestResults(prev => ({ ...prev, [serverId]: result }));
     } catch {

@@ -56,7 +56,7 @@ export default function DashboardPage() {
     if (!user) return;
     
     try {
-      const response = await fetch(`/api/repositories/tracked/${user.id}`);
+      const response = await fetch(`/api/repositories/tracked/${encodeURIComponent(user.id)}`);
       if (response.ok) {
         const repos = await response.json();
         setRepositories(repos);
@@ -77,7 +77,7 @@ export default function DashboardPage() {
     
     setIsLoadingStats(true);
     try {
-      const response = await fetch(`/api/actions/stats/${user.id}`);
+      const response = await fetch(`/api/actions/stats/${encodeURIComponent(user.id)}`);
       if (response.ok) {
         const stats = await response.json();
         setActionStats(stats);

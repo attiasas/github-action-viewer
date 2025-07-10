@@ -108,9 +108,10 @@ export default function RepositoryList({
     if (!user) return;
     
     try {
+      const encodedUserId = encodeURIComponent(user.id);
       const url = force 
-        ? `/api/actions/stats/${user.id}?force=true`
-        : `/api/actions/stats/${user.id}`;
+        ? `/api/actions/stats/${encodedUserId}?force=true`
+        : `/api/actions/stats/${encodedUserId}`;
       const response = await fetch(url);
       if (response.ok) {
         const stats = await response.json();
@@ -135,25 +136,30 @@ export default function RepositoryList({
     }
   }, [user, onActionStatsUpdate]);
 
+  // Reset timer for a specific repository (after manual refresh)
+  const resetRepositoryTimer = useCallback((repoId: number) => {
+    setRepositoryTimers(prev => {
+      const repo = repositories.find(r => r.id === repoId);
+      if (!repo || !prev[repoId]) return prev;
+      
+      return {
+        ...prev,
+        [repoId]: {
+          ...prev[repoId],
+          timeLeft: repo.auto_refresh_interval,
+          isActive: true
+        }
+      };
+    });
+  }, [repositories]);
+
   // Function to manually refresh a specific repository
   const manualRefreshRepository = useCallback(async (repoId: number) => {
     setIsRefreshing(repoId);
     
     try {
       // Reset the timer for this repository
-      setRepositoryTimers(prev => {
-        const repo = repositories.find(r => r.id === repoId);
-        if (repo && prev[repoId]) {
-          return {
-            ...prev,
-            [repoId]: {
-              ...prev[repoId],
-              timeLeft: repo.auto_refresh_interval
-            }
-          };
-        }
-        return prev;
-      });
+      resetRepositoryTimer(repoId);
       
       // Trigger a force refresh to bypass cache
       await refreshRepositoryStats(true);
@@ -162,7 +168,7 @@ export default function RepositoryList({
     } finally {
       setIsRefreshing(null);
     }
-  }, [repositories, refreshRepositoryStats]);
+  }, [resetRepositoryTimer, refreshRepositoryStats]);
 
   // Initialize timers when repositories change
   useEffect(() => {
@@ -281,7 +287,7 @@ export default function RepositoryList({
     setIsRemoving(repoId);
     setError(null);
     try {
-      const response = await fetch(`/api/repositories/tracked/${user.id}/${repoId}`, {
+      const response = await fetch(`/api/repositories/tracked/${encodeURIComponent(user.id)}/${repoId}`, {
         method: 'DELETE',
       });
 
@@ -307,7 +313,7 @@ export default function RepositoryList({
     setShowConfigModal(null);
   };
 
-  const openWorkflowStatus = async (repoId: number) => {
+  const openWorkflowStatus = async (repoId: number, forceRefresh: boolean = false) => {
     setShowWorkflowStatus(repoId);
     setIsLoadingWorkflowStatus(true);
     setWorkflowStatusData(null);
@@ -316,7 +322,12 @@ export default function RepositoryList({
     if (!user) return;
     
     try {
-      const response = await fetch(`/api/actions/workflow-status/${user.id}/${repoId}`);
+      const encodedUserId = encodeURIComponent(user.id);
+      const url = forceRefresh 
+        ? `/api/actions/workflow-status/${encodedUserId}/${repoId}?force=true`
+        : `/api/actions/workflow-status/${encodedUserId}/${repoId}`;
+      
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setWorkflowStatusData(data);
@@ -333,6 +344,35 @@ export default function RepositoryList({
       }
     } catch (error) {
       console.error('Error fetching workflow status:', error);
+    } finally {
+      setIsLoadingWorkflowStatus(false);
+    }
+  };
+
+  const refreshWorkflowStatus = async (repoId: number) => {
+    if (!user) return;
+    
+    setIsLoadingWorkflowStatus(true);
+    try {
+      const encodedUserId = encodeURIComponent(user.id);
+      const response = await fetch(`/api/actions/workflow-status/${encodedUserId}/${repoId}?force=true`);
+      if (response.ok) {
+        const data = await response.json();
+        setWorkflowStatusData(data);
+        
+        // After force refreshing workflow status, also refresh the main repository stats
+        // to ensure the repository list UI and timers are updated with the same data
+        console.log('🔄 Refreshing main repository stats after workflow status force refresh');
+        await refreshRepositoryStats(true);
+        
+        // Reset the timer for this specific repository
+        resetRepositoryTimer(repoId);
+        
+      } else {
+        console.error('Failed to refresh workflow status');
+      }
+    } catch (error) {
+      console.error('Error refreshing workflow status:', error);
     } finally {
       setIsLoadingWorkflowStatus(false);
     }
@@ -620,14 +660,30 @@ export default function RepositoryList({
           <div className="modal-content workflow-status-popup" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>
-                {workflowStatusData ? `${workflowStatusData.repository} - Workflow Status` : 'Workflow Status'}
+                {workflowStatusData ? (
+                  <>
+                    {workflowStatusData.repository} - Workflow Status
+                    <span className="cache-indicator" title="Data from cache">📋</span>
+                  </>
+                ) : 'Workflow Status'}
               </h3>
-              <button 
-                className="modal-close-button"
-                onClick={closeWorkflowStatus}
-              >
-                ×
-              </button>
+              <div className="modal-header-actions">
+                {!isLoadingWorkflowStatus && showWorkflowStatus !== null && (
+                  <button 
+                    className="refresh-button"
+                    onClick={() => refreshWorkflowStatus(showWorkflowStatus)}
+                    title="Force refresh workflow status"
+                  >
+                    🔄
+                  </button>
+                )}
+                <button 
+                  className="modal-close-button"
+                  onClick={closeWorkflowStatus}
+                >
+                  ×
+                </button>
+              </div>
             </div>
             <div className="modal-body">
               {isLoadingWorkflowStatus ? (

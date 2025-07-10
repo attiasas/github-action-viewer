@@ -578,6 +578,40 @@
 .modal-header h3 {
   margin: 0;
   color: #333;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-header .refresh-button {
+  background: none;
+  border: 1px solid #e1e5e9;
+  font-size: 16px;
+  cursor: pointer;
+  color: #666;
+  padding: 6px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.modal-header .refresh-button:hover {
+  background-color: #f8f9fa;
+  color: #333;
+  border-color: #d1d5db;
+}
+
+.modal-header .refresh-button:active {
+  transform: scale(0.95);
 }
 
 .modal-close-button {

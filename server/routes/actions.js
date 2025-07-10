@@ -361,6 +361,105 @@ async function processRepositoryStats(repo) {
   return repoStats;
 }
 
+// Helper function to generate repository stats from detailed workflow status
+function generateRepositoryStatsFromDetailed(detailedStatus, repository) {
+  const repoStats = {
+    repository: detailedStatus.repository,
+    repositoryUrl: detailedStatus.repositoryUrl,
+    repoId: detailedStatus.repoId,
+    serverName: repository.server_name,
+    serverUrl: repository.server_url,
+    branches: {},
+    overall: { success: 0, failure: 0, pending: 0, cancelled: 0 }
+  };
+
+  // Track latest workflow runs for overall repository status calculation
+  const latestWorkflowRuns = [];
+  let hasFailure = false;
+  let hasPending = false;
+  let hasPermissionError = false;
+
+  // Convert detailed branch data to repository stats format
+  Object.entries(detailedStatus.branches).forEach(([branchName, branchData]) => {
+    repoStats.branches[branchName] = {
+      success: 0,
+      failure: 0,
+      pending: 0,
+      cancelled: 0,
+      workflows: {}
+    };
+
+    if (branchData.error) {
+      repoStats.branches[branchName].error = branchData.error;
+      if (branchData.error.includes('Access denied') || branchData.error.includes('not found')) {
+        hasPermissionError = true;
+      }
+      return;
+    }
+
+    // Process each workflow in the branch
+    Object.entries(branchData.workflows).forEach(([workflowName, workflowData]) => {
+      if (workflowData.status === 'no_runs') {
+        return; // Skip workflows with no runs
+      }
+
+      const status = workflowData.conclusion || workflowData.status;
+      const normalizedStatus = status === 'success' ? 'success' 
+        : status === 'failure' ? 'failure'
+        : status === 'cancelled' ? 'cancelled'
+        : 'pending';
+
+      // Count this workflow's status for the branch
+      repoStats.branches[branchName][normalizedStatus]++;
+
+      // Store workflow details
+      repoStats.branches[branchName].workflows[workflowName] = {
+        status: workflowData.status,
+        conclusion: workflowData.conclusion,
+        created_at: workflowData.created_at,
+        html_url: workflowData.html_url,
+        normalizedStatus
+      };
+
+      // Add to latest workflow runs for overall repo status
+      latestWorkflowRuns.push({
+        branch: branchName,
+        workflow: workflowName,
+        status: normalizedStatus,
+        run: workflowData
+      });
+
+      // Track status flags
+      if (normalizedStatus === 'failure') {
+        hasFailure = true;
+      } else if (normalizedStatus === 'pending') {
+        hasPending = true;
+      }
+    });
+  });
+
+  // Calculate overall repository status
+  latestWorkflowRuns.forEach(workflowRun => {
+    repoStats.overall[workflowRun.status]++;
+  });
+
+  // Set repository status
+  if (hasPermissionError) {
+    repoStats.status = 'error';
+    repoStats.hasPermissionError = true;
+  } else if (hasFailure) {
+    repoStats.status = 'failure';
+  } else if (hasPending) {
+    repoStats.status = 'pending';
+  } else if (latestWorkflowRuns.length > 0 && latestWorkflowRuns.every(wr => wr.status === 'success')) {
+    repoStats.status = 'success';
+  } else {
+    repoStats.status = 'unknown';
+  }
+
+  return repoStats;
+}
+
 // Get workflow runs for a specific repository and branch
 router.get('/runs/:owner/:repo', async (req, res) => {
   const { owner, repo } = req.params;
@@ -465,6 +564,7 @@ router.get('/stats/:userId', async (req, res) => {
 // Get detailed workflow status for a specific repository
 router.get('/workflow-status/:userId/:repoId', async (req, res) => {
   const { userId, repoId } = req.params;
+  const forceRefresh = req.query.force === 'true';
 
   try {
     // Get repository information
@@ -490,6 +590,22 @@ router.get('/workflow-status/:userId/:repoId', async (req, res) => {
     const trackedBranches = JSON.parse(repository.tracked_branches);
     const trackedWorkflows = JSON.parse(repository.tracked_workflows);
 
+    // Create a cache key for this detailed request
+    const detailCacheKey = `detailed-${userId}-${repoId}`;
+    
+    // Check if we have recent cached data (unless force refresh is requested)
+    if (!forceRefresh) {
+      const cachedData = cache.get(detailCacheKey);
+      if (cachedData) {
+        console.log(`📋 Cache hit for detailed workflow status: ${repository.repository_name}`);
+        return res.json(cachedData);
+      }
+    } else {
+      console.log(`🔄 Force refresh requested for detailed workflow status: ${repository.repository_name}`);
+    }
+
+    console.log(`🔄 Cache miss for detailed workflow status, fetching: ${repository.repository_name}`);
+
     const baseUrl = repository.server_url.replace(/\/$/, '');
     const apiUrl = baseUrl.includes('github.com') 
       ? 'https://api.github.com' 
@@ -502,98 +618,138 @@ router.get('/workflow-status/:userId/:repoId', async (req, res) => {
       branches: {}
     };
 
-    // Get all workflows for the repository first
-    let allWorkflows = [];
+    // Fetch the detailed workflow status directly (no need for batching on individual requests)
     try {
-      const workflowsResponse = await axios.get(`${apiUrl}/repos/${owner}/${repoName}/actions/workflows`, {
-        headers: {
-          'Authorization': `token ${repository.api_token}`,
-          'Accept': 'application/vnd.github.v3+json'
-        }
-      });
-      allWorkflows = workflowsResponse.data.workflows;
-    } catch (error) {
-      console.error('Error fetching workflows:', error.message);
-    }
-
-    // Filter workflows if tracking specific ones
-    if (trackedWorkflows.length > 0) {
-      allWorkflows = allWorkflows.filter(workflow => 
-        trackedWorkflows.some(tracked => 
-          workflow.path.includes(tracked) || workflow.name === tracked
-        )
-      );
-    }
-
-    // For each branch, get the latest run for each workflow
-    for (const branch of trackedBranches) {
-      detailedStatus.branches[branch] = {
-        workflows: {},
-        error: null
-      };
-
+      // Get all workflows for the repository first
+      let allWorkflows = [];
       try {
-        // Get recent runs for this branch
-        const runsResponse = await axios.get(`${apiUrl}/repos/${owner}/${repoName}/actions/runs`, {
-          params: { branch, per_page: 100 },
+        const workflowsResponse = await axios.get(`${apiUrl}/repos/${owner}/${repoName}/actions/workflows`, {
           headers: {
             'Authorization': `token ${repository.api_token}`,
             'Accept': 'application/vnd.github.v3+json'
           }
         });
+        allWorkflows = workflowsResponse.data.workflows;
+      } catch (error) {
+        console.error('Error fetching workflows:', error.message);
+      }
 
-        const runs = runsResponse.data.workflow_runs;
+      // Filter workflows if tracking specific ones
+      if (trackedWorkflows.length > 0) {
+        allWorkflows = allWorkflows.filter(workflow => 
+          trackedWorkflows.some(tracked => 
+            workflow.path.includes(tracked) || workflow.name === tracked
+          )
+        );
+      }
 
-        // Group runs by workflow
-        const workflowRuns = {};
-        runs.forEach(run => {
-          if (!workflowRuns[run.workflow_id]) {
-            workflowRuns[run.workflow_id] = [];
-          }
-          workflowRuns[run.workflow_id].push(run);
-        });
+      // For each branch, get the latest run for each workflow
+      for (const branch of trackedBranches) {
+        detailedStatus.branches[branch] = {
+          workflows: {},
+          error: null
+        };
 
-        // For each workflow, get the latest run
-        for (const workflow of allWorkflows) {
-          const workflowName = workflow.name;
-          const latestRuns = workflowRuns[workflow.id] || [];
-          
-          if (latestRuns.length > 0) {
-            // Sort by created_at to get the latest
-            latestRuns.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-            const latestRun = latestRuns[0];
+        try {
+          // Get recent runs for this branch
+          const runsResponse = await axios.get(`${apiUrl}/repos/${owner}/${repoName}/actions/runs`, {
+            params: { branch, per_page: 100 },
+            headers: {
+              'Authorization': `token ${repository.api_token}`,
+              'Accept': 'application/vnd.github.v3+json'
+            }
+          });
+
+          const runs = runsResponse.data.workflow_runs;
+
+          // Group runs by workflow
+          const workflowRuns = {};
+          runs.forEach(run => {
+            if (!workflowRuns[run.workflow_id]) {
+              workflowRuns[run.workflow_id] = [];
+            }
+            workflowRuns[run.workflow_id].push(run);
+          });
+
+          // For each workflow, get the latest run
+          for (const workflow of allWorkflows) {
+            const workflowName = workflow.name;
+            const latestRuns = workflowRuns[workflow.id] || [];
             
-            detailedStatus.branches[branch].workflows[workflowName] = {
-              id: latestRun.id,
-              name: latestRun.name,
-              status: latestRun.status,
-              conclusion: latestRun.conclusion,
-              created_at: latestRun.created_at,
-              updated_at: latestRun.updated_at,
-              html_url: latestRun.html_url,
-              head_branch: latestRun.head_branch,
-              head_sha: latestRun.head_sha,
-              workflow_id: latestRun.workflow_id,
-              run_number: latestRun.run_number
-            };
-          } else {
-            // No runs found for this workflow on this branch
-            detailedStatus.branches[branch].workflows[workflowName] = {
-              status: 'no_runs',
-              conclusion: null,
-              name: workflowName,
-              workflow_id: workflow.id
-            };
+            if (latestRuns.length > 0) {
+              // Sort by created_at to get the latest
+              latestRuns.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              const latestRun = latestRuns[0];
+              
+              detailedStatus.branches[branch].workflows[workflowName] = {
+                id: latestRun.id,
+                name: latestRun.name,
+                status: latestRun.status,
+                conclusion: latestRun.conclusion,
+                created_at: latestRun.created_at,
+                updated_at: latestRun.updated_at,
+                html_url: latestRun.html_url,
+                head_branch: latestRun.head_branch,
+                head_sha: latestRun.head_sha,
+                workflow_id: latestRun.workflow_id,
+                run_number: latestRun.run_number
+              };
+            } else {
+              // No runs found for this workflow on this branch
+              detailedStatus.branches[branch].workflows[workflowName] = {
+                status: 'no_runs',
+                conclusion: null,
+                name: workflowName,
+                workflow_id: workflow.id
+              };
+            }
           }
+
+        } catch (error) {
+          console.error(`Error fetching detailed runs for ${repository.repository_name}/${branch}:`, error.message);
+          detailedStatus.branches[branch].error = error.message;
         }
 
-      } catch (error) {
-        console.error(`Error fetching detailed runs for ${repository.repository_name}/${branch}:`, error.message);
-        detailedStatus.branches[branch].error = error.message;
+        // Add delay between branch requests to avoid rate limiting
+        if (trackedBranches.indexOf(branch) < trackedBranches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
       }
+
+      // Cache the detailed result for 2 minutes (shorter than main cache since it's more detailed)
+      cache.set(detailCacheKey, detailedStatus);
+      
+      // If this was a force refresh, also update the main repository stats cache
+      // to keep them in sync for the repository list display
+      if (forceRefresh) {
+        console.log(`🔄 Updating main repository stats cache due to detailed force refresh: ${repository.repository_name}`);
+        
+        // Generate repository stats from the detailed data
+        const repoStats = generateRepositoryStatsFromDetailed(detailedStatus, repository);
+        
+        // Update individual repository cache
+        const repoKey = getCacheKey('repo', repository.id);
+        cache.set(repoKey, {
+          data: repoStats,
+          timestamp: Date.now(),
+          lastApiCall: Date.now()
+        });
+        
+        // Invalidate the main user stats cache to force refresh
+        const userStatsKey = `stats_${userId}`;
+        cache.delete(userStatsKey);
+      }
+
+      res.json(detailedStatus);
+
+    } catch (error) {
+      console.error('Error fetching detailed workflow status:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch detailed workflow status',
+        details: error.message 
+      });
     }
 
-    res.json(detailedStatus);
   } catch (error) {
     console.error('Error fetching detailed workflow status:', error);
     res.status(500).json({ 

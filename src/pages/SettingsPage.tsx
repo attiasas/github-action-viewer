@@ -24,7 +24,7 @@ export default function SettingsPage() {
     
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/users/settings/${user.id}`);
+      const response = await fetch(`/api/users/settings/${encodeURIComponent(user.id)}`);
       if (response.ok) {
         const userSettings = await response.json();
         setSettings(userSettings);
@@ -48,7 +48,7 @@ export default function SettingsPage() {
     setMessage('');
     
     try {
-      const response = await fetch(`/api/users/settings/${user.id}`, {
+      const response = await fetch(`/api/users/settings/${encodeURIComponent(user.id)}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
