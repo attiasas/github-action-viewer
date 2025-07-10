@@ -40,6 +40,7 @@ interface ActionStatistics {
     pending: number;
     cancelled: number;
   };
+  status: string; // New field for overall repository status
 }
 
 export default function DashboardPage() {

@@ -26,6 +26,7 @@ interface ActionStatistics {
     pending: number;
     cancelled: number;
   };
+  status: string; // New field for overall repository status
 }
 
 interface ActionStatsProps {
@@ -59,18 +60,21 @@ export default function ActionStats({ stats, isLoading, showOverviewOnly = false
     if (showOverviewOnly) {
       // For overview, count latest status of each repository
       return stats.reduce((totals, stat) => {
-        // Count repositories by their latest overall status
-        let repoStatus = 'success'; // Default to success
+        // Use backend-calculated status if available, otherwise calculate from branches
+        let repoStatus = stat.status || 'success'; // Default to success
         
-        // Determine repository status based on branches
-        const branchStatuses = Object.values(stat.branches)
-          .filter(branch => branch.latestRun && !branch.error)
-          .map(branch => branch.latestRun?.conclusion || branch.latestRun?.status || 'unknown');
-        
-        if (branchStatuses.length > 0) {        // Priority: failure > pending/cancelled > success
-        if (branchStatuses.some(status => status === 'failure')) repoStatus = 'failure';
-        else if (branchStatuses.some(status => status === 'pending' || status === 'in_progress' || status === 'cancelled')) repoStatus = 'pending';
-        else if (branchStatuses.every(status => status === 'success')) repoStatus = 'success';
+        if (!stat.status) {
+          // Fallback calculation for legacy data
+          const branchStatuses = Object.values(stat.branches)
+            .filter(branch => branch.latestRun && !branch.error)
+            .map(branch => branch.latestRun?.conclusion || branch.latestRun?.status || 'unknown');
+          
+          if (branchStatuses.length > 0) {
+            // Priority: failure > pending/cancelled > success
+            if (branchStatuses.some(status => status === 'failure')) repoStatus = 'failure';
+            else if (branchStatuses.some(status => status === 'pending' || status === 'in_progress' || status === 'cancelled')) repoStatus = 'pending';
+            else if (branchStatuses.every(status => status === 'success')) repoStatus = 'success';
+          }
         }
         
         return {

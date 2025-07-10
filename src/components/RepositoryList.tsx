@@ -37,6 +37,7 @@ interface ActionStatistics {
     pending: number;
     cancelled: number;
   };
+  status: string; // New field for overall repository status
 }
 
 interface WorkflowRun {
@@ -201,12 +202,17 @@ export default function RepositoryList({
     return `${remainingSeconds}s`;
   };
 
-  // Calculate repository status based on latest runs
+  // Calculate repository status based on latest runs or use backend status
   const getRepositoryStatus = (repoId: number): string => {
     const stat = actionStats.find(s => s.repoId === repoId);
     if (!stat) return 'unknown';
     
-    // Get all latest run statuses from branches
+    // Use the backend-calculated status if available
+    if (stat.status) {
+      return stat.status;
+    }
+    
+    // Fallback to legacy calculation (should not be needed with updated backend)
     const branchStatuses = Object.values(stat.branches)
       .filter(branch => branch.latestRun && !branch.error)
       .map(branch => branch.latestRun?.conclusion || branch.latestRun?.status || 'unknown');
