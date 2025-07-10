@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import RepositorySearch from '../components/RepositorySearch';
@@ -50,65 +50,192 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [showAddRepoModal, setShowAddRepoModal] = useState(false);
   const [isLoadingStats, setIsLoadingStats] = useState(true); // Start as true for initial loading
+  const hasInitiallyLoaded = useRef(false);
 
-  // Load tracked repositories
-  const loadRepositories = useCallback(async () => {
+  // Load action statistics with real-time updates
+  const loadActionStats = useCallback(async (forceRefresh = false, reposToUse?: Repository[]) => {
     if (!user) return;
     
-    try {
-      const response = await fetch(`/api/repositories/tracked/${encodeURIComponent(user.id)}`);
-      if (response.ok) {
-        const repos = await response.json();
-        setRepositories(repos);
-        setError(null);
-      } else {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        setError(`Failed to load repositories: ${errorData.error || 'Please check your connection'}`);
-      }
-    } catch (error) {
-      console.error('Error loading repositories:', error);
-      setError('Network error occurred while loading repositories');
-    }
-  }, [user]);
-
-  // Load action statistics
-  const loadActionStats = useCallback(async (forceRefresh = false) => {
-    if (!user) return;
-    
-    console.log(`� [Dashboard] BULK REFRESH CALL STARTING ${forceRefresh ? '(FORCE) ' : ''}for all repositories (user: ${user.id})`);
+    console.log(`🚀 [Dashboard] BULK REFRESH CALL STARTING ${forceRefresh ? '(FORCE) ' : ''}for all repositories (user: ${user.id})`);
     
     setIsLoadingStats(true);
     try {
-      const startTime = Date.now();
-      const url = forceRefresh 
-        ? `/api/actions/stats/${encodeURIComponent(user.id)}?force=true`
-        : `/api/actions/stats/${encodeURIComponent(user.id)}`;
-      const response = await fetch(url);
-      const endTime = Date.now();
+      // Use provided repositories (required parameter now)
+      const reposToRefresh = reposToUse || [];
       
-      if (response.ok) {
-        const stats = await response.json();
-        setActionStats(stats);
-        console.log(`🏁 [Dashboard] BULK REFRESH CALL COMPLETED for ${stats.length} repositories (total call duration: ${endTime - startTime}ms)`);
-      } else {
-        console.error(`💥 [Dashboard] BULK REFRESH CALL FAILED: ${response.status} ${response.statusText}`);
+      if (reposToRefresh.length === 0) {
+        // No repositories to refresh
+        console.log(`📊 [Dashboard] No repositories to refresh`);
+        setIsLoadingStats(false);
+        return;
       }
+      
+      console.log(`📊 [Dashboard] Starting individual refresh for ${reposToRefresh.length} repositories`);
+      
+      // Mark all repositories as refreshing in the UI
+      const initialStats = reposToRefresh.map(repo => ({
+        repository: repo.repository_name,
+        repositoryUrl: repo.repository_url,
+        repoId: repo.id,
+        branches: {},
+        overall: { success: 0, failure: 0, pending: 0, cancelled: 0 },
+        status: 'refreshing',
+        isRefreshing: true
+      }));
+      setActionStats(initialStats as ActionStatistics[]);
+      
+      const startTime = Date.now();
+      let completedCount = 0;
+      
+      // Refresh each repository individually and update UI immediately
+      const refreshPromises = reposToRefresh.map(async (repo, index) => {
+        try {
+          console.log(`📋 [Dashboard] Refreshing repository ${repo.repository_name} (${index + 1}/${reposToRefresh.length})`);
+          
+          const encodedUserId = encodeURIComponent(user.id);
+          const url = forceRefresh 
+            ? `/api/actions/refresh/${encodedUserId}/${repo.id}?force=true`
+            : `/api/actions/refresh/${encodedUserId}/${repo.id}`;
+          
+          const repoStartTime = Date.now();
+          const response = await fetch(url, { method: 'POST' });
+          const repoEndTime = Date.now();
+          
+          if (response.ok) {
+            const repoStats = await response.json();
+            completedCount++;
+            
+            console.log(`✅ [Dashboard] Repository ${repo.repository_name} completed (${completedCount}/${reposToRefresh.length}) (took ${repoEndTime - repoStartTime}ms)`);
+            
+            // Update UI immediately for this specific repository
+            setActionStats(prevStats => {
+              const updatedStats = [...prevStats];
+              const repoIndex = updatedStats.findIndex(stat => stat.repoId === repo.id);
+              
+              if (repoIndex >= 0) {
+                updatedStats[repoIndex] = { ...repoStats, isRefreshing: false };
+              } else {
+                updatedStats.push({ ...repoStats, isRefreshing: false });
+              }
+              
+              return updatedStats;
+            });
+          } else {
+            completedCount++;
+            console.error(`❌ [Dashboard] Repository ${repo.repository_name} failed (${completedCount}/${reposToRefresh.length}): ${response.status} ${response.statusText}`);
+            
+            // Update UI with error state for this repository
+            setActionStats(prevStats => {
+              const updatedStats = [...prevStats];
+              const repoIndex = updatedStats.findIndex(stat => stat.repoId === repo.id);
+              
+              if (repoIndex >= 0) {
+                updatedStats[repoIndex] = {
+                  ...updatedStats[repoIndex],
+                  status: 'error',
+                  hasError: true,
+                  error: `HTTP ${response.status}: ${response.statusText}`,
+                  isRefreshing: false
+                } as ActionStatistics;
+              }
+              
+              return updatedStats;
+            });
+          }
+        } catch (error) {
+          completedCount++;
+          console.error(`💥 [Dashboard] Repository ${repo.repository_name} error (${completedCount}/${reposToRefresh.length}):`, error);
+          
+          // Update UI with error state for this repository
+          setActionStats(prevStats => {
+            const updatedStats = [...prevStats];
+            const repoIndex = updatedStats.findIndex(stat => stat.repoId === repo.id);
+            
+            if (repoIndex >= 0) {
+              updatedStats[repoIndex] = {
+                ...updatedStats[repoIndex],
+                status: 'error',
+                hasError: true,
+                error: error instanceof Error ? error.message : 'Unknown error',
+                isRefreshing: false
+              } as ActionStatistics;
+            }
+            
+            return updatedStats;
+          });
+        }
+      });
+      
+      // Wait for all repositories to complete
+      await Promise.all(refreshPromises);
+      
+      const endTime = Date.now();
+      console.log(`🏁 [Dashboard] BULK REFRESH CALL COMPLETED for ${reposToRefresh.length} repositories (total call duration: ${endTime - startTime}ms)`);
+      
     } catch (error) {
       console.error('💥 [Dashboard] BULK REFRESH CALL ERROR:', error);
     } finally {
       setIsLoadingStats(false);
     }
-  }, [user]);
+  }, [user]); // Only depend on user since repositories are passed as parameter
 
   useEffect(() => {
-    loadRepositories();
-    loadActionStats(true); // Force refresh on initial load
-  }, [loadRepositories, loadActionStats]);
+    if (!user) return;
+    
+    const initializeData = async () => {
+      console.log(`🔄 [Dashboard] Initializing data for user: ${user.id}`);
+      
+      // Load repositories first
+      try {
+        const response = await fetch(`/api/repositories/tracked/${encodeURIComponent(user.id)}`);
+        if (response.ok) {
+          const repos = await response.json();
+          setRepositories(repos);
+          setError(null);
+          
+          // Only load stats if we have repositories and haven't loaded yet
+          if (repos.length > 0 && !hasInitiallyLoaded.current) {
+            console.log(`🔄 [Dashboard] Found ${repos.length} repositories, starting initial stats load`);
+            hasInitiallyLoaded.current = true;
+            await loadActionStats(true, repos);
+          } else {
+            setIsLoadingStats(false);
+          }
+        } else {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          setError(`Failed to load repositories: ${errorData.error || 'Please check your connection'}`);
+          setIsLoadingStats(false);
+        }
+      } catch (error) {
+        console.error('Error loading repositories:', error);
+        setError('Network error occurred while loading repositories');
+        setIsLoadingStats(false);
+      }
+    };
+    
+    initializeData();
+  }, [user, loadActionStats]); // Include loadActionStats dependency
 
-  const handleRepositoryAdded = () => {
+  const handleRepositoryAdded = async () => {
     setIsLoadingStats(true); // Set loading state when new repository is added
-    loadRepositories();
-    loadActionStats(true); // Force refresh when new repository is added
+    
+    // Reload repositories
+    try {
+      const response = await fetch(`/api/repositories/tracked/${encodeURIComponent(user!.id)}`);
+      if (response.ok) {
+        const repos = await response.json();
+        setRepositories(repos);
+        
+        // Load stats for the updated repositories
+        if (repos.length > 0) {
+          await loadActionStats(true, repos);
+        }
+      }
+    } catch (error) {
+      console.error('Error reloading repositories after addition:', error);
+      setIsLoadingStats(false);
+    }
+    
     setShowAddRepoModal(false);
   };
 
@@ -170,6 +297,7 @@ export default function DashboardPage() {
               onActionStatsUpdate={handleActionStatsUpdate}
               gridView={true}
               isInitialLoading={isLoadingStats}
+              isBulkRefreshing={isLoadingStats}
             />
           ) : (
             <div className="empty-state">
