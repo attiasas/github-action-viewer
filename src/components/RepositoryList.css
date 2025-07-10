@@ -656,27 +656,58 @@
   background: #e9ecef;
 }
 
+.branch-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.branch-status-circle {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.branch-status-circle.status-success {
+  background-color: #28a745;
+}
+
+.branch-status-circle.status-failure {
+  background-color: #dc3545;
+}
+
+.branch-status-circle.status-action_required {
+  background-color: #ffc107;
+}
+
+.branch-status-circle.status-pending {
+  background-color: #ffc107;
+}
+
+.branch-status-circle.status-cancelled {
+  background-color: #6c757d;
+}
+
+.branch-status-circle.status-no_runs {
+  background-color: #6c757d;
+  opacity: 0.5;
+}
+
+.branch-status-circle.status-error {
+  background-color: #dc3545;
+}
+
+.branch-status-circle.status-unknown {
+  background-color: #6c757d;
+  opacity: 0.3;
+}
+
 .branch-name {
   margin: 0;
   color: #0366d6;
   font-weight: 600;
   font-size: 16px;
-}
-
-.branch-toggle {
-  font-size: 12px;
-  color: #666;
-  transition: transform 0.2s ease;
-}
-
-.branch-toggle.expanded {
-  transform: rotate(180deg);
-}
-
-.branch-content {
-  padding: 16px;
-  background: white;
-  border-top: 1px solid #e1e5e9;
 }
 
 .workflow-list {
@@ -851,6 +882,15 @@
   
   .branch-header {
     padding: 10px 12px;
+  }
+  
+  .branch-title {
+    gap: 6px;
+  }
+  
+  .branch-status-circle {
+    width: 10px;
+    height: 10px;
   }
   
   .workflow-item {

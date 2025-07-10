@@ -297,6 +297,30 @@ export default function RepositoryList({
     }));
   };
 
+  // Calculate overall branch status based on workflows
+  const getBranchStatus = (branchData: { workflows: Record<string, WorkflowRun | { status: 'no_runs'; conclusion: null; name: string; workflow_id: number; }>; error: string | null; }) => {
+    if (branchData.error) return 'error';
+    
+    const workflows = Object.values(branchData.workflows);
+    if (workflows.length === 0) return 'unknown';
+    
+    const statuses = workflows.map(workflow => {
+      const status = workflow.status;
+      const conclusion = 'conclusion' in workflow ? workflow.conclusion : null;
+      return conclusion || status;
+    });
+    
+    // Priority: failure/action_required > pending/in_progress > cancelled > success > no_runs
+    if (statuses.some(status => status === 'failure')) return 'failure';
+    if (statuses.some(status => status === 'action_required')) return 'action_required';
+    if (statuses.some(status => status === 'pending' || status === 'in_progress')) return 'pending';
+    if (statuses.some(status => status === 'cancelled')) return 'cancelled';
+    if (statuses.some(status => status === 'success')) return 'success';
+    if (statuses.every(status => status === 'no_runs')) return 'no_runs';
+    
+    return 'unknown';
+  };
+
   // Sort repositories by status priority (failure first, then pending, success, unknown)
   const getSortedRepositories = () => {
     const statusPriority: Record<string, number> = {
@@ -487,17 +511,23 @@ export default function RepositoryList({
               ) : workflowStatusData ? (
                 <div className="workflow-status-details">
                   <div className="branch-workflow-groups">
-                    {Object.entries(workflowStatusData.branches).map(([branchName, branchData]) => (
-                      <div key={branchName} className="branch-group">
-                        <div 
-                          className="branch-header" 
-                          onClick={() => toggleBranch(branchName)}
-                        >
-                          <h5 className="branch-name">{branchName}</h5>
-                          <span className={`branch-toggle ${expandedBranches[branchName] ? 'expanded' : ''}`}>
-                            ▼
-                          </span>
-                        </div>
+                    {Object.entries(workflowStatusData.branches).map(([branchName, branchData]) => {
+                      const branchStatus = getBranchStatus(branchData);
+                      
+                      return (
+                        <div key={branchName} className="branch-group">
+                          <div 
+                            className="branch-header" 
+                            onClick={() => toggleBranch(branchName)}
+                          >
+                            <div className="branch-title">
+                              <div className={`branch-status-circle status-${branchStatus}`}></div>
+                              <h5 className="branch-name">{branchName}</h5>
+                            </div>
+                            <span className={`branch-toggle ${expandedBranches[branchName] ? 'expanded' : ''}`}>
+                              ▼
+                            </span>
+                          </div>
                         {expandedBranches[branchName] && (
                           <div className="branch-content">
                             {branchData.error ? (
@@ -569,7 +599,8 @@ export default function RepositoryList({
                           </div>
                         )}
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 </div>
               ) : (
