@@ -23,6 +23,7 @@ server/database.sqlite*
 .env.production.local
 
 # Editor directories and files
+build/*
 .vscode/*
 !.vscode/extensions.json
 .idea

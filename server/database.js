@@ -1,12 +1,45 @@
 import sqlite3 from 'sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import os from 'os';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbPath = path.join(__dirname, 'database.sqlite');
+// Get user data directory
+const getUserDataDir = () => {
+  const homeDir = os.homedir();
+  let dataDir;
+  
+  switch (process.platform) {
+    case 'darwin': // macOS
+      dataDir = path.join(homeDir, 'Library', 'Application Support', 'GitHubActionViewer');
+      break;
+    case 'win32': // Windows
+      dataDir = path.join(homeDir, 'AppData', 'Local', 'GitHubActionViewer');
+      break;
+    default: // Linux and others
+      dataDir = path.join(homeDir, '.local', 'share', 'GitHubActionViewer');
+      break;
+  }
+  
+  // Create directory if it doesn't exist
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+  
+  return dataDir;
+};
+
+// Use user data directory for database in production, local directory in development
+const dbPath = process.env.NODE_ENV === 'production' 
+  ? path.join(getUserDataDir(), 'database.sqlite')
+  : path.join(__dirname, 'database.sqlite');
+
 export const db = new sqlite3.Database(dbPath);
+
+console.log(`Database location: ${dbPath}`);
 
 export const initializeDatabase = () => {
   // Users table - now with password authentication
