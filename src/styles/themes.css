@@ -34,6 +34,15 @@
   --accent-danger: #dc3545;
   --accent-warning: #ffc107;
   --accent-info: #17a2b8;
+
+  /* Status colors for repository names */
+  --status-success: #28a745;
+  --status-failure: #dc3545;
+  --status-pending: #ffc107;
+  --status-refreshing: #17a2b8;
+  --status-cancelled: #6c757d;
+  --status-error: #dc3545;
+  --status-unknown: #6c757d;
 }
 
 /* Light theme background */
@@ -75,6 +84,14 @@ body.theme-light {
   --accent-danger: #ef4444;
   --accent-warning: #f59e0b;
   --accent-info: #06b6d4;
+
+  /* Status colors for repository names - optimized for dark theme */
+  --status-success: #22c55e;
+  --status-failure: #ef4444;
+  --status-pending: #f59e0b;
+  --status-cancelled: #9ca3af;
+  --status-error: #ef4444;
+  --status-unknown: #9ca3af;
 }
 
 /* Dark theme background - applied directly */

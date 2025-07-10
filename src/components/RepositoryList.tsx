@@ -585,6 +585,19 @@ export default function RepositoryList({
     return 'unknown';
   };
 
+  // Get CSS class name for repository status
+  const getStatusClassName = (repoId: number): string => {
+    const stat = actionStats.find(s => s.repoId === repoId);
+    if (!stat) return 'status-unknown';
+    
+    // If refreshing, use status-refreshing
+    if (stat.isRefreshing) return 'status-refreshing';
+    
+    // Use the actual status
+    const status = stat.status || 'unknown';
+    return `status-${status}`;
+  };
+
   const removeRepository = async (repoId: number) => {
     if (!user) return;
 
@@ -933,7 +946,13 @@ export default function RepositoryList({
             <div className="repo-content" onClick={() => openWorkflowStatus(repo.id)}>
               <div className="repo-title-section">
                 <h4>
-                  <a href={repo.repository_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                  <a 
+                    href={repo.repository_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    onClick={(e) => e.stopPropagation()}
+                    className={getStatusClassName(repo.id)}
+                  >
                     {repo.repository_name}
                   </a>
                   {stat?.isCached && (
@@ -972,7 +991,12 @@ export default function RepositoryList({
                     <div className="config-item">
                       <strong>Repository:</strong>
                       <p>
-                        <a href={repo.repository_url} target="_blank" rel="noopener noreferrer">
+                        <a 
+                          href={repo.repository_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className={getStatusClassName(repo.id)}
+                        >
                           {repo.repository_name}
                         </a>
                       </p>
