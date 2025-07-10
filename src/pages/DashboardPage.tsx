@@ -9,6 +9,7 @@ interface Repository {
   id: number;
   repository_name: string;
   repository_url: string;
+  github_server_id: number;
   tracked_branches: string[];
   tracked_workflows: string[];
   auto_refresh_interval: number;
@@ -443,7 +444,10 @@ export default function DashboardPage() {
               </button>
             </div>
             <div className="modal-body">
-              <RepositorySearch onRepositoryAdded={handleRepositoryAdded} />
+              <RepositorySearch 
+                onRepositoryAdded={handleRepositoryAdded} 
+                existingRepositories={repositories}
+              />
             </div>
           </div>
         </div>

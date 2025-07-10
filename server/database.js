@@ -82,8 +82,7 @@ export const initializeDatabase = () => {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       display_name TEXT, -- Optional custom repository name
       FOREIGN KEY (user_id) REFERENCES users (id),
-      FOREIGN KEY (github_server_id) REFERENCES github_servers (id),
-      UNIQUE(user_id, github_server_id, repository_name)
+      FOREIGN KEY (github_server_id) REFERENCES github_servers (id)
     )
   `);
 

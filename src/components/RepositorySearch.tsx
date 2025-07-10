@@ -22,9 +22,10 @@ interface Branch {
 
 interface RepositorySearchProps {
   onRepositoryAdded: () => void;
+  existingRepositories: { repository_name: string; github_server_id: number; display_name?: string }[];
 }
 
-export default function RepositorySearch({ onRepositoryAdded }: RepositorySearchProps) {
+export default function RepositorySearch({ onRepositoryAdded, existingRepositories }: RepositorySearchProps) {
   const { user, githubServers } = useAuth();
   const [selectedServer, setSelectedServer] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -41,6 +42,7 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
   const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [branchError, setBranchError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState('');
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
   // Set default server when servers are loaded or component mounts
   useEffect(() => {
@@ -92,6 +94,22 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
     setIsLoading(true);
     setWorkflowError(null);
     setBranchError(null);
+    
+    // Check for existing tracked repositories
+    const existingEntries = existingRepositories.filter(
+      existing => existing.repository_name === repo.full_name && existing.github_server_id === selectedServer
+    );
+    
+    if (existingEntries.length > 0) {
+      const displayNames = existingEntries
+        .map(entry => entry.display_name || entry.repository_name)
+        .join(', ');
+      setDuplicateWarning(
+        `This repository is already being tracked ${existingEntries.length} time${existingEntries.length === 1 ? '' : 's'}: ${displayNames}`
+      );
+    } else {
+      setDuplicateWarning(null);
+    }
 
     try {
       const [owner, repoName] = repo.full_name.split('/');
@@ -249,68 +267,94 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
 
   return (
     <div className="repository-search">
-      <div className="server-selection">
-        <label htmlFor="github-server">GitHub Server:</label>
-        <select 
-          id="github-server"
-          value={selectedServer || ''}
-          onChange={(e) => setSelectedServer(e.target.value ? Number(e.target.value) : null)}
-          className="server-select"
-        >
-          <option value="">Select a GitHub server...</option>
-          {githubServers.map((server) => (
-            <option key={server.id} value={server.id}>
-              {server.server_name} ({server.server_url})
-              {server.is_default ? ' (Default)' : ''}
-            </option>
-          ))}
-        </select>
-        {githubServers.length === 0 && (
-          <p className="no-servers-message">
-            No GitHub servers configured. Please add a GitHub server in Settings.
-          </p>
-        )}
-      </div>
+      {!selectedRepo && (
+        <>
+          <div className="server-selection">
+            <label htmlFor="github-server">GitHub Server:</label>
+            <select 
+              id="github-server"
+              value={selectedServer || ''}
+              onChange={(e) => setSelectedServer(e.target.value ? Number(e.target.value) : null)}
+              className="server-select"
+            >
+              <option value="">Select a GitHub server...</option>
+              {githubServers.map((server) => (
+                <option key={server.id} value={server.id}>
+                  {server.server_name} ({server.server_url})
+                  {server.is_default ? ' (Default)' : ''}
+                </option>
+              ))}
+            </select>
+            {githubServers.length === 0 && (
+              <p className="no-servers-message">
+                No GitHub servers configured. Please add a GitHub server in Settings.
+              </p>
+            )}
+          </div>
 
-      <div className="search-input-container">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search repositories..."
-          className="search-input"
-          onKeyPress={(e) => e.key === 'Enter' && searchRepositories()}
-          disabled={!selectedServer}
-        />
-        <button 
-          onClick={searchRepositories} 
-          disabled={isSearching || !searchQuery.trim() || !selectedServer}
-          className="search-button"
-        >
-          {isSearching ? 'Searching...' : 'Search'}
-        </button>
-      </div>
+          <div className="search-input-container">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search repositories..."
+              className="search-input"
+              onKeyPress={(e) => e.key === 'Enter' && searchRepositories()}
+              disabled={!selectedServer}
+            />
+            <button 
+              onClick={searchRepositories} 
+              disabled={isSearching || !searchQuery.trim() || !selectedServer}
+              className="search-button"
+            >
+              {isSearching ? 'Searching...' : 'Search'}
+            </button>
+          </div>
 
-      {searchResults.length > 0 && !selectedRepo && (
-        <div className="search-results">
-          <h4>Search Results:</h4>
-          {searchResults.map(repo => (
-            <div key={repo.id} className="search-result-item">
-              <div className="repo-info">
-                <h5>{repo.full_name}</h5>
-                {repo.description && <p>{repo.description}</p>}
-              </div>
-              <button onClick={() => selectRepository(repo)} className="select-button">
-                Select
-              </button>
+          {searchResults.length > 0 && (
+            <div className="search-results">
+              <h4>Search Results:</h4>
+              {searchResults.map(repo => (
+                <div key={repo.id} className="search-result-item">
+                  <div className="repo-info">
+                    <h5>{repo.full_name}</h5>
+                    {repo.description && <p>{repo.description}</p>}
+                  </div>
+                  <button onClick={() => selectRepository(repo)} className="select-button">
+                    Select
+                  </button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {selectedRepo && (
         <div className="repository-config">
-          <h4>Configure: {selectedRepo.full_name}</h4>
+          <div className="config-header">
+            <h4>Configure: {selectedRepo.full_name}</h4>
+            <button 
+              onClick={() => {
+                setSelectedRepo(null);
+                setDisplayName('');
+                setDuplicateWarning(null);
+              }} 
+              className="back-to-search-button"
+              title="Back to search"
+            >
+              ← Back to Search
+            </button>
+          </div>
+          
+          {duplicateWarning && (
+            <div className="duplicate-warning">
+              <p className="warning-text">⚠️ {duplicateWarning}</p>
+              <p className="warning-note">
+                You can still add this repository with different tracking settings if needed.
+              </p>
+            </div>
+          )}
           
           <div className="config-section">
             <h5>Display Name (optional):</h5>
@@ -535,12 +579,6 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
                 {isLoading ? 'Adding...' : 'Add Repository'}
               </button>
             )}
-            <button onClick={() => {
-              setSelectedRepo(null);
-              setDisplayName('');
-            }} className="cancel-button">
-              Cancel
-            </button>
           </div>
         </div>
       )}

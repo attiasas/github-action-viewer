@@ -177,7 +177,7 @@ router.post('/track', (req, res) => {
   }
 
   db.run(
-    `INSERT OR REPLACE INTO user_repositories 
+    `INSERT INTO user_repositories 
      (user_id, github_server_id, repository_name, repository_url, tracked_branches, tracked_workflows, auto_refresh_interval, display_name, updated_at) 
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
     [
@@ -196,7 +196,7 @@ router.post('/track', (req, res) => {
         return res.status(500).json({ error: 'Database error' });
       }
       
-      res.json({ success: true, message: 'Repository added to tracking list' });
+      res.json({ success: true, message: 'Repository added to tracking list', repositoryId: this.lastID });
     }
   );
 });
