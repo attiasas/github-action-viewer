@@ -524,7 +524,9 @@ export default function RepositoryList({
         <div className="modal-overlay" onClick={closeWorkflowStatus}>
           <div className="modal-content workflow-status-popup" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Workflow Status</h3>
+              <h3>
+                {workflowStatusData ? `${workflowStatusData.repository} - Workflow Status` : 'Workflow Status'}
+              </h3>
               <button 
                 className="modal-close-button"
                 onClick={closeWorkflowStatus}
