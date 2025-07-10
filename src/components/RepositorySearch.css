@@ -94,8 +94,8 @@
 
 .search-button {
   background: var(--bg-button-secondary);
-  color: var(--text-inverse);
-  border: none;
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
   padding: 10px 20px;
   border-radius: 6px;
   cursor: pointer;
