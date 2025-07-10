@@ -1019,17 +1019,14 @@ export default function RepositoryList({
                 return (
                   <div className="config-details">
                     <div className="config-item">
-                      <strong>Repository:</strong>
-                      <p>
-                        <a 
-                          href={repo.repository_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className={getStatusClassName(repo.id)}
-                        >
-                          {getRepositoryDisplayName(repo)}
-                        </a>
-                      </p>
+                      <strong>Repository:</strong> <a 
+                        href={repo.repository_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className={getStatusClassName(repo.id)}
+                      >
+                        {repo.repository_url}
+                      </a>
                     </div>
                     <div className="config-item">
                       <strong>Tracked Branches:</strong>
@@ -1052,8 +1049,7 @@ export default function RepositoryList({
                       )}
                     </div>
                     <div className="config-item">
-                      <strong>Auto-refresh Interval:</strong>
-                      <p>{repo.auto_refresh_interval} seconds</p>
+                      <strong>Auto-refresh Interval:</strong> {repo.auto_refresh_interval} seconds
                     </div>
                   </div>
                 );
