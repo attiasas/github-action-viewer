@@ -217,12 +217,6 @@
   font-size: 13px;
 }
 
-.user-preferences-separator {
-  height: 1px;
-  background: var(--border-secondary);
-  margin: 20px 0;
-}
-
 .settings-form {
   display: flex;
   flex-direction: column;

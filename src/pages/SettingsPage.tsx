@@ -5,10 +5,6 @@ import GitHubServerManager from '../components/GitHubServerManager';
 import ThemeSelector from '../components/ThemeSelector';
 import './SettingsPage.css';
 
-interface UserSettings {
-  notifications_enabled: boolean;
-}
-
 interface GitHubServer {
   id: number;
   server_name: string;
@@ -19,12 +15,7 @@ interface GitHubServer {
 
 export default function SettingsPage() {
   const { user, logout, addGitHubServer, updateGitHubServer } = useAuth();
-  const [settings, setSettings] = useState<UserSettings>({
-    notifications_enabled: true
-  });
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState('');
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showAddServerForm, setShowAddServerForm] = useState(false);
   const [editingServer, setEditingServer] = useState<GitHubServer | null>(null);
@@ -42,67 +33,17 @@ export default function SettingsPage() {
     
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/users/settings/${encodeURIComponent(user.id)}`);
-      if (response.ok) {
-        const userSettings = await response.json();
-        setSettings(userSettings);
-        // Only sync theme with global theme context on initial load, not on every theme change
-      }
+      // Load any necessary settings here if needed in the future
     } catch (error) {
       console.error('Error loading settings:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [user]); // Removed theme and setTheme from dependencies
+  }, [user]);
 
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
-
-  // Note: Theme is now handled by the separate ThemeSelector component
-  // Theme is synced explicitly when loading settings and saving settings
-
-  const saveSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-
-    setIsSaving(true);
-    setMessage('');
-    
-    try {
-      const response = await fetch(`/api/users/settings/${encodeURIComponent(user.id)}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(settings),
-      });
-
-      if (response.ok) {
-        setMessage('Settings saved successfully!');
-        setTimeout(() => setMessage(''), 3000);
-      } else {
-        setMessage('Failed to save settings');
-      }
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      setMessage('Error saving settings');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    const newValue = type === 'checkbox' ? (e.target as HTMLInputElement).checked 
-                   : type === 'number' ? Number(value) 
-                   : value;
-    
-    setSettings(prev => ({
-      ...prev,
-      [name]: newValue
-    }));
-  };
 
   const handleServerFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -220,35 +161,6 @@ export default function SettingsPage() {
                     <span className="info-value">{user?.id}</span>
                   </div>
                 </div>
-                
-                <div className="user-preferences-separator"></div>
-                
-                <form onSubmit={saveSettings} className="settings-form">
-                  <div className="form-group checkbox-group">
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        name="notifications_enabled"
-                        checked={settings.notifications_enabled}
-                        onChange={handleInputChange}
-                      />
-                      <span className="checkbox-text">Enable notifications</span>
-                    </label>
-                    <small>Get notifications about action failures (feature coming soon)</small>
-                  </div>
-
-                  {message && (
-                    <div className={`message ${message.includes('successfully') ? 'success' : 'error'}`}>
-                      {message}
-                    </div>
-                  )}
-
-                  <div className="form-actions">
-                    <button type="submit" disabled={isSaving} className="save-button">
-                      {isSaving ? 'Saving...' : 'Save Settings'}
-                    </button>
-                  </div>
-                </form>
               </div>
             </div>
 
