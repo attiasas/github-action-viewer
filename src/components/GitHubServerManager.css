@@ -123,8 +123,9 @@
 }
 
 .servers-list {
-  display: grid;
-  gap: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .no-servers {
@@ -136,19 +137,28 @@
   color: var(--text-secondary);
 }
 
+.no-servers p {
+  margin: 8px 0;
+}
+
 .server-card {
   background: var(--bg-card);
   border: 1px solid var(--border-card);
   border-radius: 8px;
   padding: 20px;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .server-card.default {
   border-color: var(--accent-success);
   background: var(--bg-tertiary);
+}
+
+.server-info {
+  flex: 1;
+  min-width: 0; /* Allow text to wrap/truncate */
 }
 
 .server-info h4 {
@@ -182,79 +192,140 @@
 
 .server-actions {
   display: flex;
-  gap: 8px;
-  flex-shrink: 0;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  border-top: 1px solid var(--border-secondary);
+  padding-top: 16px;
+  margin-top: 4px;
 }
 
 .test-button {
   background: #17a2b8;
   color: white;
   border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
+  padding: 8px 14px;
+  border-radius: 5px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .test-button:hover:not(:disabled) {
   background: #138496;
+  transform: translateY(-1px);
 }
 
 .test-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
 .edit-button {
   background: #ffc107;
   color: #212529;
   border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
+  padding: 8px 14px;
+  border-radius: 5px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .edit-button:hover {
   background: #e0a800;
+  transform: translateY(-1px);
 }
 
 .delete-button {
   background: #dc3545;
   color: white;
   border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
+  padding: 8px 14px;
+  border-radius: 5px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .delete-button:hover {
   background: #c82333;
+  transform: translateY(-1px);
 }
 
 .test-result {
-  margin-top: 15px;
-  padding: 10px;
-  border-radius: 4px;
-  font-size: 12px;
-  grid-column: 1 / -1;
+  padding: 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  border: 1px solid;
+  margin-top: 0; /* Remove margin since we're using flex gap */
 }
 
 .test-result.valid {
   background: var(--bg-tertiary);
-  border: 1px solid var(--accent-success);
-  color: var(--accent-success);
+  border-color: var(--accent-success);
+  color: var(--text-primary);
 }
 
 .test-result.invalid {
   background: var(--bg-tertiary);
-  border: 1px solid var(--accent-danger);
+  border-color: var(--accent-danger);
+  color: var(--text-primary);
+}
+
+.test-result-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.test-result-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.test-result-icon {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.test-result.valid .test-result-icon {
+  color: var(--accent-success);
+}
+
+.test-result.invalid .test-result-icon {
   color: var(--accent-danger);
 }
 
-.test-result p {
-  margin: 2px 0;
+.test-result-title {
+  color: var(--text-primary);
+}
+
+.test-result-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 24px; /* Align with icon */
+}
+
+.test-result-item {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.test-result-item strong {
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .error-message {
@@ -458,5 +529,47 @@
   
   .server-form .form-actions {
     flex-direction: column;
+  }
+}
+
+/* Additional responsive styles for server cards */
+@media (max-width: 768px) {
+  .server-actions {
+    justify-content: flex-start;
+    gap: 10px;
+  }
+  
+  .manager-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  
+  .manager-header h2 {
+    margin-bottom: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .github-server-manager {
+    padding: 16px;
+  }
+  
+  .server-card {
+    padding: 16px;
+  }
+  
+  .server-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .server-actions button {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .test-result-details {
+    padding-left: 0;
   }
 }

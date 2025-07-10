@@ -155,15 +155,31 @@ export default function GitHubServerManager({
               {testResults[server.id] && (
                 <div className={`test-result ${testResults[server.id].valid ? 'valid' : 'invalid'}`}>
                   {testResults[server.id].valid ? (
-                    <div>
-                      <p>✓ Token is valid!</p>
-                      <p><strong>Username:</strong> {testResults[server.id].username}</p>
-                      <p><strong>Scopes:</strong> {testResults[server.id].scopes}</p>
+                    <div className="test-result-content">
+                      <div className="test-result-header">
+                        <span className="test-result-icon">✓</span>
+                        <span className="test-result-title">Token is valid!</span>
+                      </div>
+                      <div className="test-result-details">
+                        <div className="test-result-item">
+                          <strong>Username:</strong> {testResults[server.id].username}
+                        </div>
+                        <div className="test-result-item">
+                          <strong>Scopes:</strong> {testResults[server.id].scopes}
+                        </div>
+                      </div>
                     </div>
                   ) : (
-                    <div>
-                      <p>✗ Token test failed</p>
-                      <p>{testResults[server.id].error}</p>
+                    <div className="test-result-content">
+                      <div className="test-result-header">
+                        <span className="test-result-icon">✗</span>
+                        <span className="test-result-title">Token test failed</span>
+                      </div>
+                      <div className="test-result-details">
+                        <div className="test-result-item">
+                          {testResults[server.id].error}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
