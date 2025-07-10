@@ -1,6 +1,6 @@
 .token-validator {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 20px;
@@ -15,7 +15,7 @@
 
 .validator-header h4 {
   margin: 0;
-  color: #333;
+  color: var(--text-primary);
   font-size: 16px;
 }
 
@@ -46,15 +46,15 @@
 }
 
 .validation-result.valid {
-  background: #d4edda;
-  border: 1px solid #c3e6cb;
-  color: #155724;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent-success);
+  color: var(--accent-success);
 }
 
 .validation-result.invalid {
-  background: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent-danger);
+  color: var(--accent-danger);
 }
 
 .success-info h5,
@@ -87,18 +87,18 @@
 }
 
 .scope-check li.scope-ok {
-  color: #28a745;
+  color: var(--accent-success);
 }
 
 .scope-check li.scope-missing {
-  color: #dc3545;
+  color: var(--accent-danger);
   font-weight: 500;
 }
 
 .scope-warning {
-  background: #fff3cd;
-  border: 1px solid #ffeaa7;
-  color: #856404;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent-warning);
+  color: var(--accent-warning);
   padding: 8px 12px;
   border-radius: 4px;
   margin-top: 8px;

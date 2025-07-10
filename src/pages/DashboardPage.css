@@ -2,17 +2,19 @@
   min-height: 100vh;
   height: 100vh;
   width: 100%;
-  background: #f5f6fa;
+  background: transparent; /* Let body handle the background */
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: all 0.3s ease;
 }
 
 .dashboard-header {
-  background: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: var(--bg-header);
+  box-shadow: var(--shadow-card);
   padding: 12px 20px;
   flex-shrink: 0;
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .header-content {
@@ -33,7 +35,7 @@
 
 .header-left h1 {
   margin: 0;
-  color: #333;
+  color: var(--text-primary);
   font-size: 22px;
   font-weight: 600;
   white-space: nowrap;
@@ -45,7 +47,7 @@
   gap: 12px;
   margin-left: 15px;
   padding-left: 15px;
-  border-left: 1px solid #ddd;
+  border-left: 1px solid var(--border-primary);
 }
 
 .header-right {
@@ -59,12 +61,12 @@
 
 .user-info {
   font-size: 13px;
-  color: #666;
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 
 .user-info strong {
-  color: #333;
+  color: var(--text-primary);
 }
 
 .header-actions {
@@ -74,41 +76,42 @@
 }
 
 .add-repo-button {
-  background: #28a745;
-  color: white;
+  background: var(--accent-success);
+  color: var(--text-inverse);
   border: none;
   padding: 6px 14px;
   border-radius: 5px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
   white-space: nowrap;
 }
 
 .add-repo-button:hover {
-  background: #218838;
+  opacity: 0.9;
+  transform: translateY(-1px);
 }
 
 .settings-link {
-  color: #667eea;
+  color: var(--accent-primary);
   text-decoration: none;
   font-weight: 500;
   padding: 6px 12px;
   border-radius: 4px;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
   font-size: 13px;
   white-space: nowrap;
 }
 
 .settings-link:hover {
-  background: #f0f2ff;
+  background: var(--bg-tertiary);
   text-decoration: none;
 }
 
 .logout-button {
-  background: #dc3545;
-  color: white;
+  background: var(--accent-danger);
+  color: var(--text-inverse);
   border: none;
   padding: 6px 12px;
   border-radius: 4px;
@@ -116,10 +119,12 @@
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
+  transition: all 0.2s ease;
 }
 
 .logout-button:hover {
-  background: #c82333;
+  opacity: 0.9;
+  transform: translateY(-1px);
 }
 
 .dashboard-main {
@@ -136,15 +141,17 @@
 }
 
 .action-stats-overview {
-  background: white;
+  background: var(--bg-card);
   border-radius: 8px;
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-card);
+  transition: all 0.3s ease;
 }
 
 .action-stats-overview h2 {
   margin: 0 0 15px 0;
-  color: #333;
+  color: var(--text-primary);
   font-size: 18px;
 }
 
@@ -157,29 +164,31 @@
 
 .repositories-grid-section h2 {
   margin: 0 0 15px 0;
-  color: #333;
+  color: var(--text-primary);
   font-size: 18px;
   flex-shrink: 0;
 }
 
 .empty-state {
-  background: white;
+  background: var(--bg-card);
   border-radius: 8px;
   padding: 60px 40px;
   text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-card);
   margin-top: 20px;
+  transition: all 0.3s ease;
 }
 
 .empty-state h3 {
   margin: 0 0 15px 0;
-  color: #333;
+  color: var(--text-primary);
   font-size: 20px;
 }
 
 .empty-state p {
   margin: 0;
-  color: #666;
+  color: var(--text-secondary);
   font-size: 16px;
   line-height: 1.5;
 }
@@ -230,7 +239,7 @@
     padding-left: 0;
     border-left: none;
     padding-top: 8px;
-    border-top: 1px solid #ddd;
+    border-top: 1px solid var(--border-primary);
     width: 100%;
   }
   
@@ -262,9 +271,9 @@
 
 /* Error banner styles */
 .error-banner {
-  background: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: var(--accent-danger);
   padding: 15px;
   border-radius: 6px;
   margin-bottom: 20px;
@@ -283,7 +292,7 @@
 .dismiss-error {
   background: none;
   border: none;
-  color: #721c24;
+  color: var(--accent-danger);
   font-size: 20px;
   font-weight: bold;
   cursor: pointer;
@@ -299,7 +308,7 @@
 }
 
 .dismiss-error:hover {
-  background: rgba(114, 28, 36, 0.1);
+  background: rgba(239, 68, 68, 0.1);
 }
 
 /* Modal styles */
@@ -309,7 +318,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--bg-modal);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -318,13 +327,14 @@
 }
 
 .modal-content {
-  background: white;
+  background: var(--bg-modal-content);
+  border: 1px solid var(--border-card);
   border-radius: 12px;
   width: 100%;
   max-width: 600px;
   max-height: 80vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-modal);
   animation: modalSlideIn 0.2s ease-out;
 }
 
@@ -344,12 +354,12 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--border-secondary);
 }
 
 .modal-header h2 {
   margin: 0;
-  color: #333;
+  color: var(--text-primary);
   font-size: 20px;
   font-weight: 600;
 }
@@ -358,7 +368,7 @@
   background: none;
   border: none;
   font-size: 24px;
-  color: #666;
+  color: var(--text-secondary);
   cursor: pointer;
   padding: 0;
   width: 32px;
@@ -371,8 +381,8 @@
 }
 
 .modal-close-button:hover {
-  background: #f8f9fa;
-  color: #333;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 .modal-body {

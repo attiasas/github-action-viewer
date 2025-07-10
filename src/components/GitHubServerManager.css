@@ -13,21 +13,23 @@
 
 .manager-header h2 {
   margin: 0;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .add-server-button {
-  background: #28a745;
-  color: white;
+  background: var(--accent-success);
+  color: var(--text-inverse);
   border: none;
   padding: 10px 20px;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .add-server-button:hover:not(:disabled) {
-  background: #218838;
+  opacity: 0.9;
+  transform: translateY(-1px);
 }
 
 .add-server-button:disabled {
@@ -36,8 +38,8 @@
 }
 
 .server-form {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 20px;
@@ -45,7 +47,7 @@
 
 .server-form h3 {
   margin-top: 0;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .form-group {
@@ -56,21 +58,23 @@
   display: block;
   margin-bottom: 5px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .form-group input {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-input);
   border-radius: 4px;
   font-size: 14px;
+  background: var(--bg-input);
+  color: var(--text-primary);
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.25);
 }
 
 .checkbox-group label {
@@ -91,8 +95,8 @@
 }
 
 .save-button {
-  background: #007bff;
-  color: white;
+  background: var(--accent-primary);
+  color: var(--text-inverse);
   border: none;
   padding: 10px 20px;
   border-radius: 6px;
@@ -126,15 +130,15 @@
 .no-servers {
   text-align: center;
   padding: 40px;
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
   border-radius: 8px;
-  color: #6c757d;
+  color: var(--text-secondary);
 }
 
 .server-card {
-  background: white;
-  border: 1px solid #dee2e6;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
   border-radius: 8px;
   padding: 20px;
   display: flex;
@@ -143,13 +147,13 @@
 }
 
 .server-card.default {
-  border-color: #28a745;
-  background: #f8fff9;
+  border-color: var(--accent-success);
+  background: var(--bg-tertiary);
 }
 
 .server-info h4 {
   margin: 0 0 8px 0;
-  color: #333;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -165,13 +169,13 @@
 }
 
 .server-url {
-  color: #007bff;
+  color: var(--accent-primary);
   margin: 4px 0;
   word-break: break-all;
 }
 
 .server-date {
-  color: #6c757d;
+  color: var(--text-secondary);
   font-size: 12px;
   margin: 4px 0 0 0;
 }
@@ -238,15 +242,15 @@
 }
 
 .test-result.valid {
-  background: #d4edda;
-  border: 1px solid #c3e6cb;
-  color: #155724;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent-success);
+  color: var(--accent-success);
 }
 
 .test-result.invalid {
-  background: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent-danger);
+  color: var(--accent-danger);
 }
 
 .test-result p {
@@ -254,19 +258,205 @@
 }
 
 .error-message {
-  background: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent-danger);
+  color: var(--accent-danger);
   padding: 10px;
   border-radius: 4px;
   margin-bottom: 15px;
 }
 
 .success-message {
-  background: #d4edda;
-  border: 1px solid #c3e6cb;
-  color: #155724;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent-success);
+  color: var(--accent-success);
   padding: 10px;
   border-radius: 4px;
   margin-bottom: 15px;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.modal-close-button {
+  background: none;
+  border: none;
+  color: #8b949e;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.modal-close-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.server-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.server-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.server-form .form-group label {
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.server-form .form-group input {
+  padding: 12px 16px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-input);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+}
+
+.server-form .form-group input:focus {
+  outline: none;
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.server-form .checkbox-group {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.server-form .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: normal;
+}
+
+.server-form .checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #7c3aed;
+}
+
+.server-form .checkbox-text {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.server-form .form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.server-form .save-button {
+  background: linear-gradient(135deg, #7c3aed, #06b6d4);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.server-form .save-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+.server-form .cancel-button {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.server-form .cancel-button:hover {
+  background: var(--bg-secondary);
+}
+
+/* Responsive Design for Modal */
+@media (max-width: 768px) {
+  .modal-overlay {
+    padding: 16px;
+  }
+  
+  .modal-content {
+    max-height: 90vh;
+  }
+  
+  .modal-header {
+    padding: 20px 20px 16px;
+  }
+  
+  .modal-body {
+    padding: 20px;
+  }
+  
+  .server-form .form-actions {
+    flex-direction: column;
+  }
 }

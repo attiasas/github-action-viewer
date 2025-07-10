@@ -19,16 +19,18 @@ interface TestResult {
   serverUrl?: string;
 }
 
-export default function GitHubServerManager() {
-  const { user, githubServers, loadGitHubServers, addGitHubServer, updateGitHubServer, deleteGitHubServer } = useAuth();
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [editingServer, setEditingServer] = useState<GitHubServer | null>(null);
-  const [formData, setFormData] = useState({
-    serverName: '',
-    serverUrl: '',
-    apiToken: '',
-    isDefault: false
-  });
+interface GitHubServerManagerProps {
+  showHeader?: boolean;
+  onAddServer?: () => void;
+  onEditServer?: (server: GitHubServer) => void;
+}
+
+export default function GitHubServerManager({ 
+  showHeader = true, 
+  onAddServer,
+  onEditServer
+}: GitHubServerManagerProps = {}) {
+  const { user, githubServers, loadGitHubServers, deleteGitHubServer } = useAuth();
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [testingToken, setTestingToken] = useState<number | null>(null);
@@ -40,50 +42,10 @@ export default function GitHubServerManager() {
     }
   }, [user, loadGitHubServers]);
 
-  const resetForm = () => {
-    setFormData({
-      serverName: '',
-      serverUrl: '',
-      apiToken: '',
-      isDefault: false
-    });
-    setError('');
-    setSuccess('');
-    setShowAddForm(false);
-    setEditingServer(null);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    if (!formData.serverName || !formData.serverUrl || !formData.apiToken) {
-      setError('All fields are required');
-      return;
-    }
-
-    const success = editingServer
-      ? await updateGitHubServer(editingServer.id, formData.serverName, formData.serverUrl, formData.apiToken, formData.isDefault)
-      : await addGitHubServer(formData.serverName, formData.serverUrl, formData.apiToken, formData.isDefault);
-
-    if (success) {
-      setSuccess(editingServer ? 'Server updated successfully!' : 'Server added successfully!');
-      resetForm();
-    } else {
-      setError(editingServer ? 'Failed to update server' : 'Failed to add server');
-    }
-  };
-
   const handleEdit = (server: GitHubServer) => {
-    setEditingServer(server);
-    setFormData({
-      serverName: server.server_name,
-      serverUrl: server.server_url,
-      apiToken: '', // Don't populate API token for security
-      isDefault: server.is_default
-    });
-    setShowAddForm(true);
+    if (onEditServer) {
+      onEditServer(server);
+    }
   };
 
   const handleDelete = async (serverId: number) => {
@@ -91,9 +53,17 @@ export default function GitHubServerManager() {
       const success = await deleteGitHubServer(serverId);
       if (success) {
         setSuccess('Server deleted successfully!');
+        setTimeout(() => setSuccess(''), 3000);
       } else {
         setError('Failed to delete server');
+        setTimeout(() => setError(''), 3000);
       }
+    }
+  };
+
+  const handleAddClick = () => {
+    if (onAddServer) {
+      onAddServer();
     }
   };
 
@@ -125,96 +95,22 @@ export default function GitHubServerManager() {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
-
   return (
     <div className="github-server-manager">
-      <div className="manager-header">
-        <h2>GitHub Servers</h2>
-        <button 
-          onClick={() => setShowAddForm(true)} 
-          className="add-server-button"
-          disabled={showAddForm}
-        >
-          Add GitHub Server
-        </button>
-      </div>
+      {showHeader && (
+        <div className="manager-header">
+          <h2>GitHub Servers</h2>
+          <button 
+            onClick={handleAddClick} 
+            className="add-server-button"
+          >
+            Add GitHub Server
+          </button>
+        </div>
+      )}
 
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}
-
-      {showAddForm && (
-        <div className="server-form">
-          <h3>{editingServer ? 'Edit GitHub Server' : 'Add GitHub Server'}</h3>
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="serverName">Server Name</label>
-              <input
-                type="text"
-                id="serverName"
-                name="serverName"
-                value={formData.serverName}
-                onChange={handleInputChange}
-                placeholder="e.g., GitHub.com, Company GitHub"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="serverUrl">Server URL</label>
-              <input
-                type="url"
-                id="serverUrl"
-                name="serverUrl"
-                value={formData.serverUrl}
-                onChange={handleInputChange}
-                placeholder="e.g., https://github.com, https://github.company.com"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="apiToken">API Token</label>
-              <input
-                type="password"
-                id="apiToken"
-                name="apiToken"
-                value={formData.apiToken}
-                onChange={handleInputChange}
-                placeholder="Your GitHub personal access token"
-                required
-              />
-            </div>
-
-            <div className="form-group checkbox-group">
-              <label>
-                <input
-                  type="checkbox"
-                  name="isDefault"
-                  checked={formData.isDefault}
-                  onChange={handleInputChange}
-                />
-                Set as default server
-              </label>
-            </div>
-
-            <div className="form-actions">
-              <button type="submit" className="save-button">
-                {editingServer ? 'Update Server' : 'Add Server'}
-              </button>
-              <button type="button" onClick={resetForm} className="cancel-button">
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
       <div className="servers-list">
         {githubServers.length === 0 ? (
