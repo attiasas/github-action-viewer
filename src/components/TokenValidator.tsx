@@ -19,7 +19,7 @@ export default function TokenValidator() {
     setValidationResult(null);
 
     try {
-      const response = await fetch(`/api/auth/test-token/${user.id}`);
+      const response = await fetch(`/api/auth/test-token/${encodeURIComponent(user.id)}`);
       const result = await response.json();
       setValidationResult(result);
     } catch (error) {

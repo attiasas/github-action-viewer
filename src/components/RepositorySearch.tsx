@@ -55,7 +55,7 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
 
     setIsSearching(true);
     try {
-      const response = await fetch(`/api/repositories/search?q=${encodeURIComponent(searchQuery)}&userId=${user.id}&serverId=${selectedServer}`);
+      const response = await fetch(`/api/repositories/search?q=${encodeURIComponent(searchQuery)}&userId=${encodeURIComponent(user.id)}&serverId=${selectedServer}`);
       
       if (response.ok) {
         const data = await response.json();

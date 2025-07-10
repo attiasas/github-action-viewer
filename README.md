@@ -1,3 +1,5 @@
+![GitHub Actions Viewer](./github-actions-viewer-banner.svg)
+
 # GitHub Actions Viewer
 
 A full-stack web application for monitoring GitHub Actions across multiple repositories and GitHub servers. View action statuses, track specific workflows and branches, and get real-time updates on your CI/CD pipelines.
