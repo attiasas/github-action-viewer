@@ -327,6 +327,35 @@ export default function RepositoryList({
     return 'unknown';
   };
 
+  // Sort workflows by status priority within a branch
+  const getSortedWorkflows = (workflows: Record<string, WorkflowRun | { status: 'no_runs'; conclusion: null; name: string; workflow_id: number; }>) => {
+    const statusPriority: Record<string, number> = {
+      'failure': 1,
+      'action_required': 2,
+      'pending': 3,
+      'in_progress': 4,
+      'cancelled': 5,
+      'success': 6,
+      'no_runs': 7,
+      'unknown': 8
+    };
+    
+    return Object.entries(workflows).sort(([workflowNameA, workflowA], [workflowNameB, workflowB]) => {
+      const statusA = workflowA.conclusion || workflowA.status;
+      const statusB = workflowB.conclusion || workflowB.status;
+      
+      const priorityA = statusPriority[statusA] || 8;
+      const priorityB = statusPriority[statusB] || 8;
+      
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      
+      // If same status, sort by workflow name alphabetically
+      return workflowNameA.localeCompare(workflowNameB);
+    });
+  };
+
   // Sort branches by status priority
   const getSortedBranches = (branches: Record<string, { workflows: Record<string, WorkflowRun | { status: 'no_runs'; conclusion: null; name: string; workflow_id: number; }>; error: string | null; }>) => {
     const statusPriority: Record<string, number> = {
@@ -574,7 +603,7 @@ export default function RepositoryList({
                               </div>
                             ) : (
                               <div className="workflow-list">
-                                {Object.entries(branchData.workflows).map(([workflowName, workflow]) => {
+                                {getSortedWorkflows(branchData.workflows).map(([workflowName, workflow]) => {
                                   const status = workflow.status;
                                   const conclusion = workflow.conclusion;
                                   const displayStatus = conclusion || status;
