@@ -49,13 +49,14 @@ interface ActionStatistics {
 }
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, githubServers, loadGitHubServers } = useAuth();
   const location = useLocation();
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [actionStats, setActionStats] = useState<ActionStatistics[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showAddRepoModal, setShowAddRepoModal] = useState(false);
   const [isLoadingStats, setIsLoadingStats] = useState(true); // Start as true for initial loading
+  const [isValidatingServers, setIsValidatingServers] = useState(false);
   const hasInitiallyLoaded = useRef(false);
 
   // Load action statistics with real-time updates
@@ -296,6 +297,27 @@ export default function DashboardPage() {
     initializeData();
   }, [user, loadActionStats, loadCachedActionStats, location.state?.fromSettings]); // Include all dependencies
 
+  const handleAddRepositoryClick = async () => {
+    if (!user) return;
+    
+    setIsValidatingServers(true);
+    try {
+      // Load/refresh GitHub servers to ensure they are up to date
+      await loadGitHubServers();
+      setShowAddRepoModal(true);
+    } catch (error) {
+      console.error('Error loading GitHub servers:', error);
+      setError('Failed to load GitHub servers. Please check your settings.');
+    } finally {
+      setIsValidatingServers(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowAddRepoModal(false);
+    setError(null); // Clear any validation errors
+  };
+
   const handleRepositoryAdded = async () => {
     setIsLoadingStats(true); // Set loading state when new repository is added
     
@@ -340,7 +362,7 @@ export default function DashboardPage() {
       setIsLoadingStats(false);
     }
     
-    setShowAddRepoModal(false);
+    handleCloseModal();
   };
 
   const handleRepositoryRemoved = (repoId: number) => {
@@ -368,10 +390,11 @@ export default function DashboardPage() {
           
           <div className="header-right">
             <button 
-              onClick={() => setShowAddRepoModal(true)} 
+              onClick={handleAddRepositoryClick}
+              disabled={isValidatingServers}
               className="add-repo-button"
             >
-              + Add Repository
+              {isValidatingServers ? 'Validating...' : '+ Add Repository'}
             </button>
             <Link to="/settings" className="settings-link" title="Settings">
               <svg 
@@ -432,13 +455,13 @@ export default function DashboardPage() {
 
       {/* Add Repository Modal */}
       {showAddRepoModal && (
-        <div className="modal-overlay" onClick={() => setShowAddRepoModal(false)}>
+        <div className="modal-overlay" onClick={handleCloseModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Add Repository</h2>
               <button 
                 className="modal-close-button"
-                onClick={() => setShowAddRepoModal(false)}
+                onClick={handleCloseModal}
               >
                 ×
               </button>

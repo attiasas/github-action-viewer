@@ -105,6 +105,17 @@
   transform: translateY(-1px);
 }
 
+.add-repo-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.add-repo-button:disabled:hover {
+  opacity: 0.6;
+  transform: none;
+}
+
 .settings-link {
   color: var(--accent-primary);
   text-decoration: none;
