@@ -235,6 +235,12 @@
   white-space: nowrap;
   max-width: 300px;
   flex-shrink: 1;
+  cursor: help;
+  transition: background-color 0.2s ease;
+}
+
+.branch-name:hover {
+  background: rgba(0, 123, 255, 0.15);
 }
 
 .branch-summary {
@@ -666,6 +672,11 @@
   
   .branch-name {
     max-width: 200px;
+    cursor: help;
+  }
+
+  .branch-name:hover {
+    background: rgba(0, 123, 255, 0.15);
   }
   
   .branch-summary {
