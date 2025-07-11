@@ -115,6 +115,17 @@
   cursor: not-allowed;
 }
 
+/* Theme-specific search button styling */
+.theme-light .search-button {
+  background: var(--bg-button-secondary);
+  color: var(--text-primary);
+}
+
+.theme-dark .search-button {
+  background: var(--bg-button-secondary);
+  color: #000000; /* Force black text on white background for visibility */
+}
+
 .search-results {
   border: 1px solid var(--border-secondary);
   border-radius: 6px;

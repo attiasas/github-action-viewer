@@ -64,7 +64,7 @@ export default function DashboardPage() {
     if (!user) return;
 
     try {
-      const response = await fetch(`/api/repositories/tracked/${encodeURIComponent(user.id)}`);
+      const response = await fetch(`/api/repositories?userId=${encodeURIComponent(user.id)}`);
       if (response.ok) {
         const data = await response.json();
         setRepositories(data);
@@ -131,41 +131,24 @@ export default function DashboardPage() {
       <header className="dashboard-header">
         <div className="header-content">
           <div className="header-left">
-            <img 
-              src="/github-actions-viewer.svg" 
-              alt="GitHub Actions Viewer" 
-              className="app-icon"
-            />
             <h1>GitHub Actions Viewer</h1>
+            <div className="header-actions">
+              <button 
+                className="add-repo-button"
+                onClick={() => setShowAddRepoModal(true)}
+              >
+                Add Repository
+              </button>
+              <button 
+                className="refresh-all-button"
+                onClick={handleForceRefreshAll}
+                title="Force refresh all repositories"
+              >
+                🔄 Refresh All
+              </button>
+            </div>
           </div>
           <div className="header-right">
-            <button 
-              className="add-repo-button"
-              onClick={() => setShowAddRepoModal(true)}
-            >
-              Add Repository
-            </button>
-            <button 
-              className="refresh-all-button icon-only"
-              onClick={handleForceRefreshAll}
-              title="Force refresh all repositories"
-            >
-              <svg 
-                width="20" 
-                height="20" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-                className="refresh-icon"
-              >
-                <path d="M23 4v6h-6"/>
-                <path d="M1 20v-6h6"/>
-                <path d="m3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-              </svg>
-            </button>
             <Link to="/settings" className="settings-link">
               <svg 
                 width="20" 
@@ -203,31 +186,7 @@ export default function DashboardPage() {
         )}
 
         <div className="repositories-section">
-          <div className="repositories-header">
-            <h2>Tracked Repositories ({repositories.length})</h2>
-            {actionStats.length > 0 && (
-              <div className="status-summary-inline">
-                <div className="status-counts">
-                  <span className="status-item success">
-                    ✓ {actionStats.filter(s => s.status === 'success').length}
-                  </span>
-                  <span className="status-item failure">
-                    ✗ {actionStats.filter(s => s.status === 'failure').length}
-                  </span>
-                  <span className="status-item pending">
-                    ○ {actionStats.filter(s => s.status === 'pending').length}
-                  </span>
-                </div>
-                {actionStats.filter(s => s.status === 'error').length > 0 && (
-                  <div className="error-indicator">
-                    <span className="error-count">
-                      ⚠ {actionStats.filter(s => s.status === 'error').length} error{actionStats.filter(s => s.status === 'error').length !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <h2>Tracked Repositories ({repositories.length})</h2>
           <RepositoryListSimple 
             repositories={repositories}
             onRepositoryRemoved={handleRepositoryRemoved}
@@ -236,6 +195,31 @@ export default function DashboardPage() {
             triggerForceRefresh={triggerForceRefresh}
           />
         </div>
+
+        {/* Stats summary */}
+        {actionStats.length > 0 && (
+          <div className="stats-summary">
+            <h3>Overall Status</h3>
+            <div className="summary-stats">
+              <div className="stat-item success">
+                <span className="stat-value">{actionStats.filter(s => s.status === 'success').length}</span>
+                <span className="stat-label">Success</span>
+              </div>
+              <div className="stat-item failure">
+                <span className="stat-value">{actionStats.filter(s => s.status === 'failure').length}</span>
+                <span className="stat-label">Failure</span>
+              </div>
+              <div className="stat-item pending">
+                <span className="stat-value">{actionStats.filter(s => s.status === 'pending').length}</span>
+                <span className="stat-label">Pending</span>
+              </div>
+              <div className="stat-item error">
+                <span className="stat-value">{actionStats.filter(s => s.status === 'error').length}</span>
+                <span className="stat-label">Error</span>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Add Repository Modal */}
