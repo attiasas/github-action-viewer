@@ -4,7 +4,7 @@ import axios from 'axios';
 
 const router = express.Router();
 
-// Login or create user (simplified)
+// Login existing user only
 router.post('/login', async (req, res) => {
   const { userId } = req.body;
 
@@ -26,39 +26,73 @@ router.post('/login', async (req, res) => {
     });
 
     if (!existingUser) {
-      // Create new user
-      await new Promise((resolve, reject) => {
-        db.run(
-          'INSERT INTO users (id) VALUES (?)',
-          [userId],
-          function(err) {
-            if (err) reject(err);
-            else resolve(this);
-          }
-        );
-      });
-
-      // Create default settings
-      await new Promise((resolve, reject) => {
-        db.run(
-          'INSERT INTO user_settings (user_id) VALUES (?)',
-          [userId],
-          (err) => {
-            if (err) reject(err);
-            else resolve(this);
-          }
-        );
-      });
+      return res.status(404).json({ error: 'User ID not found. Please create a new account.' });
     }
 
     res.json({ 
       success: true, 
-      message: existingUser ? 'Login successful' : 'User created and logged in',
+      message: 'Login successful',
       userId 
     });
   } catch (error) {
-    console.error('Login/registration error:', error);
+    console.error('Login error:', error);
     res.status(500).json({ error: 'Server error during login' });
+  }
+});
+
+// Create new user endpoint
+router.post('/create-user', async (req, res) => {
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required' });
+  }
+
+  if (userId.length < 3) {
+    return res.status(400).json({ error: 'User ID must be at least 3 characters long' });
+  }
+
+  try {
+    // Check if user already exists
+    const existingUser = await new Promise((resolve, reject) => {
+      db.get('SELECT id FROM users WHERE id = ?', [userId], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (existingUser) {
+      return res.status(409).json({ error: 'User ID already exists' });
+    }
+
+    // Create new user
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO users (id) VALUES (?)',
+        [userId],
+        function(err) {
+          if (err) reject(err);
+          else resolve(this);
+        }
+      );
+    });
+
+    // Create default settings
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO user_settings (user_id) VALUES (?)',
+        [userId],
+        (err) => {
+          if (err) reject(err);
+          else resolve(this);
+        }
+      );
+    });
+
+    res.json({ success: true, message: 'User created successfully' });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -97,7 +131,13 @@ router.get('/github-servers/:userId', (req, res) => {
         return res.status(500).json({ error: 'Database error' });
       }
       
-      res.json(rows || []);
+      // Convert is_default from integer to boolean
+      const servers = (rows || []).map(row => ({
+        ...row,
+        is_default: Boolean(row.is_default)
+      }));
+      
+      res.json(servers);
     }
   );
 });
@@ -110,37 +150,52 @@ router.post('/github-servers', (req, res) => {
     return res.status(400).json({ error: 'All fields are required' });
   }
 
-  // If this is set as default, remove default from other servers
-  if (isDefault) {
-    db.run(
-      'UPDATE github_servers SET is_default = 0 WHERE user_id = ?',
-      [userId],
-      (err) => {
-        if (err) {
-          console.error('Error updating default servers:', err);
-        }
-      }
-    );
-  }
-
-  db.run(
-    `INSERT INTO github_servers (user_id, server_name, server_url, api_token, is_default) 
-     VALUES (?, ?, ?, ?, ?)`,
-    [userId, serverName, serverUrl, apiToken, isDefault ? 1 : 0],
-    function(err) {
+  // Check if this is the first server for the user
+  db.get(
+    'SELECT COUNT(*) as count FROM github_servers WHERE user_id = ?',
+    [userId],
+    (err, row) => {
       if (err) {
-        if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-          return res.status(409).json({ error: 'Server name already exists for this user' });
-        }
-        console.error('Database error:', err);
+        console.error('Error checking existing servers:', err);
         return res.status(500).json({ error: 'Database error' });
       }
-      
-      res.json({ 
-        success: true, 
-        message: 'GitHub server added successfully',
-        serverId: this.lastID
-      });
+
+      const isFirstServer = row.count === 0;
+      const shouldBeDefault = isDefault || isFirstServer;
+
+      // If this is set as default or is the first server, remove default from other servers
+      if (shouldBeDefault) {
+        db.run(
+          'UPDATE github_servers SET is_default = 0 WHERE user_id = ?',
+          [userId],
+          (err) => {
+            if (err) {
+              console.error('Error updating default servers:', err);
+            }
+          }
+        );
+      }
+
+      db.run(
+        `INSERT INTO github_servers (user_id, server_name, server_url, api_token, is_default) 
+         VALUES (?, ?, ?, ?, ?)`,
+        [userId, serverName, serverUrl, apiToken, shouldBeDefault ? 1 : 0],
+        function(err) {
+          if (err) {
+            if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+              return res.status(409).json({ error: 'Server name already exists for this user' });
+            }
+            console.error('Database error:', err);
+            return res.status(500).json({ error: 'Database error' });
+          }
+          
+          res.json({ 
+            success: true, 
+            message: 'GitHub server added successfully',
+            serverId: this.lastID
+          });
+        }
+      );
     }
   );
 });

@@ -1,17 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import RepositorySearch from '../components/RepositorySearch';
-import RepositoryList from '../components/RepositoryList';
+import RepositoryListSimple from '../components/RepositoryListSimple';
 import './DashboardPage.css';
 
 interface Repository {
   id: number;
   repository_name: string;
   repository_url: string;
+  github_server_id: number;
   tracked_branches: string[];
   tracked_workflows: string[];
   auto_refresh_interval: number;
+  display_name?: string;
 }
 
 interface BranchStats {
@@ -19,13 +21,13 @@ interface BranchStats {
   failure: number;
   pending: number;
   cancelled: number;
-  latestRun?: {
-    id: number;
+  workflows: Record<string, {
     status: string;
     conclusion: string | null;
-    created_at: string;
-    head_branch: string;
-  };
+    created_at?: string;
+    html_url?: string;
+    normalizedStatus?: string;
+  }>;
   error?: string;
 }
 
@@ -40,236 +42,149 @@ interface ActionStatistics {
     pending: number;
     cancelled: number;
   };
-  status: string; // New field for overall repository status
+  status: string;
+  hasPermissionError?: boolean;
+  hasError?: boolean;
+  error?: string;
 }
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, loadGitHubServers } = useAuth();
+  const location = useLocation();
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [actionStats, setActionStats] = useState<ActionStatistics[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showAddRepoModal, setShowAddRepoModal] = useState(false);
-  const [isLoadingStats, setIsLoadingStats] = useState(true); // Start as true for initial loading
+  const [triggerForceRefresh, setTriggerForceRefresh] = useState(false);
+  
   const hasInitiallyLoaded = useRef(false);
 
-  // Load action statistics with real-time updates
-  const loadActionStats = useCallback(async (forceRefresh = false, reposToUse?: Repository[]) => {
+  // Load repositories from database
+  const loadRepositories = useCallback(async () => {
     if (!user) return;
-    
-    console.log(`🚀 [Dashboard] BULK REFRESH CALL STARTING ${forceRefresh ? '(FORCE) ' : ''}for all repositories (user: ${user.id})`);
-    
-    setIsLoadingStats(true);
-    try {
-      // Use provided repositories (required parameter now)
-      const reposToRefresh = reposToUse || [];
-      
-      if (reposToRefresh.length === 0) {
-        // No repositories to refresh
-        console.log(`📊 [Dashboard] No repositories to refresh`);
-        setIsLoadingStats(false);
-        return;
-      }
-      
-      console.log(`📊 [Dashboard] Starting individual refresh for ${reposToRefresh.length} repositories`);
-      
-      // Mark all repositories as refreshing in the UI
-      const initialStats = reposToRefresh.map(repo => ({
-        repository: repo.repository_name,
-        repositoryUrl: repo.repository_url,
-        repoId: repo.id,
-        branches: {},
-        overall: { success: 0, failure: 0, pending: 0, cancelled: 0 },
-        status: 'refreshing',
-        isRefreshing: true
-      }));
-      setActionStats(initialStats as ActionStatistics[]);
-      
-      const startTime = Date.now();
-      let completedCount = 0;
-      
-      // Refresh each repository individually and update UI immediately
-      const refreshPromises = reposToRefresh.map(async (repo, index) => {
-        try {
-          console.log(`📋 [Dashboard] Refreshing repository ${repo.repository_name} (${index + 1}/${reposToRefresh.length})`);
-          
-          const encodedUserId = encodeURIComponent(user.id);
-          const url = forceRefresh 
-            ? `/api/actions/refresh/${encodedUserId}/${repo.id}?force=true`
-            : `/api/actions/refresh/${encodedUserId}/${repo.id}`;
-          
-          const repoStartTime = Date.now();
-          const response = await fetch(url, { method: 'POST' });
-          const repoEndTime = Date.now();
-          
-          if (response.ok) {
-            const repoStats = await response.json();
-            completedCount++;
-            
-            console.log(`✅ [Dashboard] Repository ${repo.repository_name} completed (${completedCount}/${reposToRefresh.length}) (took ${repoEndTime - repoStartTime}ms)`);
-            
-            // Update UI immediately for this specific repository
-            setActionStats(prevStats => {
-              const updatedStats = [...prevStats];
-              const repoIndex = updatedStats.findIndex(stat => stat.repoId === repo.id);
-              
-              if (repoIndex >= 0) {
-                updatedStats[repoIndex] = { ...repoStats, isRefreshing: false };
-              } else {
-                updatedStats.push({ ...repoStats, isRefreshing: false });
-              }
-              
-              return updatedStats;
-            });
-          } else {
-            completedCount++;
-            console.error(`❌ [Dashboard] Repository ${repo.repository_name} failed (${completedCount}/${reposToRefresh.length}): ${response.status} ${response.statusText}`);
-            
-            // Update UI with error state for this repository
-            setActionStats(prevStats => {
-              const updatedStats = [...prevStats];
-              const repoIndex = updatedStats.findIndex(stat => stat.repoId === repo.id);
-              
-              if (repoIndex >= 0) {
-                updatedStats[repoIndex] = {
-                  ...updatedStats[repoIndex],
-                  status: 'error',
-                  hasError: true,
-                  error: `HTTP ${response.status}: ${response.statusText}`,
-                  isRefreshing: false
-                } as ActionStatistics;
-              }
-              
-              return updatedStats;
-            });
-          }
-        } catch (error) {
-          completedCount++;
-          console.error(`💥 [Dashboard] Repository ${repo.repository_name} error (${completedCount}/${reposToRefresh.length}):`, error);
-          
-          // Update UI with error state for this repository
-          setActionStats(prevStats => {
-            const updatedStats = [...prevStats];
-            const repoIndex = updatedStats.findIndex(stat => stat.repoId === repo.id);
-            
-            if (repoIndex >= 0) {
-              updatedStats[repoIndex] = {
-                ...updatedStats[repoIndex],
-                status: 'error',
-                hasError: true,
-                error: error instanceof Error ? error.message : 'Unknown error',
-                isRefreshing: false
-              } as ActionStatistics;
-            }
-            
-            return updatedStats;
-          });
-        }
-      });
-      
-      // Wait for all repositories to complete
-      await Promise.all(refreshPromises);
-      
-      const endTime = Date.now();
-      console.log(`🏁 [Dashboard] BULK REFRESH CALL COMPLETED for ${reposToRefresh.length} repositories (total call duration: ${endTime - startTime}ms)`);
-      
-    } catch (error) {
-      console.error('💥 [Dashboard] BULK REFRESH CALL ERROR:', error);
-    } finally {
-      setIsLoadingStats(false);
-    }
-  }, [user]); // Only depend on user since repositories are passed as parameter
 
-  useEffect(() => {
-    if (!user) return;
-    
-    const initializeData = async () => {
-      console.log(`🔄 [Dashboard] Initializing data for user: ${user.id}`);
-      
-      // Load repositories first
-      try {
-        const response = await fetch(`/api/repositories/tracked/${encodeURIComponent(user.id)}`);
-        if (response.ok) {
-          const repos = await response.json();
-          setRepositories(repos);
-          setError(null);
-          
-          // Only load stats if we have repositories and haven't loaded yet
-          if (repos.length > 0 && !hasInitiallyLoaded.current) {
-            console.log(`🔄 [Dashboard] Found ${repos.length} repositories, starting initial stats load`);
-            hasInitiallyLoaded.current = true;
-            await loadActionStats(true, repos);
-          } else {
-            setIsLoadingStats(false);
-          }
-        } else {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-          setError(`Failed to load repositories: ${errorData.error || 'Please check your connection'}`);
-          setIsLoadingStats(false);
-        }
-      } catch (error) {
-        console.error('Error loading repositories:', error);
-        setError('Network error occurred while loading repositories');
-        setIsLoadingStats(false);
-      }
-    };
-    
-    initializeData();
-  }, [user, loadActionStats]); // Include loadActionStats dependency
-
-  const handleRepositoryAdded = async () => {
-    setIsLoadingStats(true); // Set loading state when new repository is added
-    
-    // Reload repositories
     try {
-      const response = await fetch(`/api/repositories/tracked/${encodeURIComponent(user!.id)}`);
+      const response = await fetch(`/api/repositories/tracked/${encodeURIComponent(user.id)}`);
       if (response.ok) {
-        const repos = await response.json();
-        setRepositories(repos);
-        
-        // Load stats for the updated repositories
-        if (repos.length > 0) {
-          await loadActionStats(true, repos);
-        }
+        const data = await response.json();
+        setRepositories(data);
+      } else {
+        throw new Error('Failed to load repositories');
       }
     } catch (error) {
-      console.error('Error reloading repositories after addition:', error);
-      setIsLoadingStats(false);
+      console.error('Error loading repositories:', error);
+      setError('Failed to load repositories');
     }
-    
+  }, [user]);
+
+  // Handle repository added
+  const handleRepositoryAdded = useCallback(() => {
     setShowAddRepoModal(false);
-  };
+    // Reload repositories to get the updated list
+    loadRepositories();
+  }, [loadRepositories]);
 
-  const handleRepositoryRemoved = (repoId: number) => {
-    setRepositories(repos => repos.filter(repo => repo.id !== repoId));
-    setActionStats(stats => stats.filter(stat => stat.repoId !== repoId));
-  };
+  // Handle repository removed
+  const handleRepositoryRemoved = useCallback((repoId: number) => {
+    setRepositories(prev => prev.filter(repo => repo.id !== repoId));
+  }, []);
 
-  const handleActionStatsUpdate = (stats: ActionStatistics[]) => {
+  // Handle action stats update from RepositoryList
+  const handleActionStatsUpdate = useCallback((stats: ActionStatistics[]) => {
     setActionStats(stats);
-    setIsLoadingStats(false); // Ensure loading state is cleared when stats are updated
-  };
+  }, []);
+
+  // Force refresh all repositories
+  const handleForceRefreshAll = useCallback(() => {
+    setTriggerForceRefresh(true);
+    // Reset the trigger after a short delay
+    setTimeout(() => setTriggerForceRefresh(false), 100);
+  }, []);
+
+  // Close modal handler
+  const handleCloseModal = useCallback(() => {
+    setShowAddRepoModal(false);
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    if (user && !hasInitiallyLoaded.current) {
+      hasInitiallyLoaded.current = true;
+      loadGitHubServers();
+      loadRepositories();
+    }
+  }, [user, loadGitHubServers, loadRepositories]);
+
+  // Handle URL hash for modal state
+  useEffect(() => {
+    if (location.hash === '#add-repository') {
+      setShowAddRepoModal(true);
+    }
+  }, [location.hash]);
+
+  if (!user) {
+    return <div>Please log in to access the dashboard.</div>;
+  }
 
   return (
-    <div className="dashboard-page">
+    <div className="dashboard">
       <header className="dashboard-header">
         <div className="header-content">
           <div className="header-left">
-            <h1>GitHub Actions Dashboard</h1>
+            <img 
+              src="/github-actions-viewer.svg" 
+              alt="GitHub Actions Viewer" 
+              className="app-icon"
+            />
+            <h1>GitHub Actions Viewer</h1>
           </div>
-          
           <div className="header-right">
             <button 
-              onClick={() => setShowAddRepoModal(true)} 
               className="add-repo-button"
+              onClick={() => setShowAddRepoModal(true)}
             >
-              + Add Repository
+              Add Repository
+            </button>
+            <button 
+              className="refresh-all-button icon-only"
+              onClick={handleForceRefreshAll}
+              title="Force refresh all repositories"
+            >
+              <svg 
+                width="20" 
+                height="20" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                className="refresh-icon"
+              >
+                <path d="M23 4v6h-6"/>
+                <path d="M1 20v-6h6"/>
+                <path d="m3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+              </svg>
             </button>
             <Link to="/settings" className="settings-link">
-              Settings
+              <svg 
+                width="20" 
+                height="20" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                className="settings-icon"
+              >
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
             </Link>
             <div className="user-info-group">
               <span className="user-info">
-                Logged in as: <strong>{user?.id}</strong>
+                Logged in as:<br /><strong>{user?.id}</strong>
               </span>
               <button onClick={logout} className="logout-button">
                 Logout
@@ -287,42 +202,60 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <div className="repositories-grid-section">
-          <h2>Tracked Repositories</h2>
-          {repositories.length > 0 ? (
-            <RepositoryList 
-              repositories={repositories}
-              actionStats={actionStats}
-              onRepositoryRemoved={handleRepositoryRemoved}
-              onActionStatsUpdate={handleActionStatsUpdate}
-              gridView={true}
-              isInitialLoading={isLoadingStats}
-              isBulkRefreshing={isLoadingStats}
-            />
-          ) : (
-            <div className="empty-state">
-              <h3>No repositories tracked yet</h3>
-              <p>Click the "Add Repository" button in the header to start monitoring GitHub Actions.</p>
-            </div>
-          )}
+        <div className="repositories-section">
+          <div className="repositories-header">
+            <h2>Tracked Repositories ({repositories.length})</h2>
+            {actionStats.length > 0 && (
+              <div className="status-summary-inline">
+                <div className="status-counts">
+                  <span className="status-item success">
+                    ✓ {actionStats.filter(s => s.status === 'success').length}
+                  </span>
+                  <span className="status-item failure">
+                    ✗ {actionStats.filter(s => s.status === 'failure').length}
+                  </span>
+                  <span className="status-item pending">
+                    ○ {actionStats.filter(s => s.status === 'pending').length}
+                  </span>
+                </div>
+                {actionStats.filter(s => s.status === 'error').length > 0 && (
+                  <div className="error-indicator">
+                    <span className="error-count">
+                      ⚠ {actionStats.filter(s => s.status === 'error').length} error{actionStats.filter(s => s.status === 'error').length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <RepositoryListSimple 
+            repositories={repositories}
+            onRepositoryRemoved={handleRepositoryRemoved}
+            onActionStatsUpdate={handleActionStatsUpdate}
+            gridView={true}
+            triggerForceRefresh={triggerForceRefresh}
+          />
         </div>
       </main>
 
       {/* Add Repository Modal */}
       {showAddRepoModal && (
-        <div className="modal-overlay" onClick={() => setShowAddRepoModal(false)}>
+        <div className="modal-overlay" onClick={handleCloseModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Add Repository</h2>
               <button 
                 className="modal-close-button"
-                onClick={() => setShowAddRepoModal(false)}
+                onClick={handleCloseModal}
               >
                 ×
               </button>
             </div>
             <div className="modal-body">
-              <RepositorySearch onRepositoryAdded={handleRepositoryAdded} />
+              <RepositorySearch 
+                onRepositoryAdded={handleRepositoryAdded} 
+                existingRepositories={repositories}
+              />
             </div>
           </div>
         </div>

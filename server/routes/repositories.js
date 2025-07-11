@@ -170,16 +170,16 @@ router.get('/:owner/:repo/branches', async (req, res) => {
 
 // Add repository to user's tracking list
 router.post('/track', (req, res) => {
-  const { userId, githubServerId, repositoryName, repositoryUrl, trackedBranches, trackedWorkflows, autoRefreshInterval } = req.body;
+  const { userId, githubServerId, repositoryName, repositoryUrl, trackedBranches, trackedWorkflows, autoRefreshInterval, displayName } = req.body;
 
   if (!userId || !githubServerId || !repositoryName || !repositoryUrl || !trackedBranches || !trackedWorkflows) {
     return res.status(400).json({ error: 'All fields are required' });
   }
 
   db.run(
-    `INSERT OR REPLACE INTO user_repositories 
-     (user_id, github_server_id, repository_name, repository_url, tracked_branches, tracked_workflows, auto_refresh_interval, updated_at) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+    `INSERT INTO user_repositories 
+     (user_id, github_server_id, repository_name, repository_url, tracked_branches, tracked_workflows, auto_refresh_interval, display_name, updated_at) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
     [
       userId, 
       githubServerId,
@@ -187,7 +187,8 @@ router.post('/track', (req, res) => {
       repositoryUrl, 
       JSON.stringify(trackedBranches), 
       JSON.stringify(trackedWorkflows),
-      autoRefreshInterval || 300
+      autoRefreshInterval || 300,
+      displayName || null
     ],
     function(err) {
       if (err) {
@@ -195,7 +196,7 @@ router.post('/track', (req, res) => {
         return res.status(500).json({ error: 'Database error' });
       }
       
-      res.json({ success: true, message: 'Repository added to tracking list' });
+      res.json({ success: true, message: 'Repository added to tracking list', repositoryId: this.lastID });
     }
   );
 });
@@ -246,6 +247,41 @@ router.delete('/tracked/:userId/:repoId', (req, res) => {
       }
 
       res.json({ success: true, message: 'Repository removed from tracking' });
+    }
+  );
+});
+
+// Update repository tracking settings
+router.put('/tracked/:userId/:repoId', (req, res) => {
+  const { userId, repoId } = req.params;
+  const { tracked_workflows, tracked_branches } = req.body;
+
+  if (!Array.isArray(tracked_workflows) || !Array.isArray(tracked_branches)) {
+    return res.status(400).json({ error: 'tracked_workflows and tracked_branches must be arrays' });
+  }
+
+  const workflowsJson = JSON.stringify(tracked_workflows);
+  const branchesJson = JSON.stringify(tracked_branches);
+
+  db.run(
+    'UPDATE user_repositories SET tracked_workflows = ?, tracked_branches = ? WHERE id = ? AND user_id = ?',
+    [workflowsJson, branchesJson, repoId, userId],
+    function(err) {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Repository not found' });
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Repository tracking settings updated',
+        tracked_workflows,
+        tracked_branches
+      });
     }
   );
 });

@@ -94,8 +94,8 @@
 
 .search-button {
   background: var(--bg-button-secondary);
-  color: var(--text-inverse);
-  border: none;
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
   padding: 10px 20px;
   border-radius: 6px;
   cursor: pointer;
@@ -113,6 +113,17 @@
 .search-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Theme-specific search button styling */
+.theme-light .search-button {
+  background: var(--bg-button-secondary);
+  color: var(--text-primary);
+}
+
+.theme-dark .search-button {
+  background: var(--bg-button-secondary);
+  color: #000000; /* Force black text on white background for visibility */
 }
 
 .search-results {
@@ -382,7 +393,9 @@
 
 .config-actions {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
   margin-top: 20px;
 }
 
@@ -490,9 +503,176 @@
   color: var(--accent-danger);
 }
 
-.fallback-message {
+/* Required field indicator */
+.required {
+  color: var(--accent-danger);
+  font-weight: 600;
+  margin-left: 2px;
+}
+
+/* Validation message */
+.validation-message {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--accent-danger);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 0;
+  text-align: center;
+  max-width: 400px;
+}
+
+.validation-message .error-text {
   margin: 0;
-  font-style: italic;
+  color: var(--accent-danger);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.display-name-input {
+  padding: 8px 12px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  font-size: 14px;
+  width: 100%;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+  margin-bottom: 4px;
+}
+
+.display-name-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.theme-dark .display-name-input:focus {
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+}
+
+.input-help {
+  font-size: 12px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-style: italic;
+}
+
+/* Duplicate repository warning */
+.duplicate-warning {
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid var(--accent-warning);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 20px;
+}
+
+.warning-text {
+  margin: 0 0 8px 0;
+  color: var(--accent-warning);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.warning-note {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* Configuration header */
+.config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.config-header h4 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.back-to-search-button {
+  background: var(--bg-button-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-secondary);
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.back-to-search-button:hover {
+  background: var(--bg-button-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-primary);
+}
+
+.back-to-search-button:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
+}
+
+.theme-dark .back-to-search-button:focus {
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+/* Custom workflow input */
+.custom-workflow-input {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  align-items: center;
+}
+
+.custom-workflow-input input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  font-size: 14px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+}
+
+.custom-workflow-input input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
+}
+
+.theme-dark .custom-workflow-input input:focus {
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+.custom-workflow-input input::placeholder {
+  color: var(--text-muted);
+}
+
+.add-workflow-button {
+  background: var(--accent-info);
+  color: var(--text-inverse);
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.add-workflow-button:hover {
+  opacity: 0.9;
+}
+
+.add-workflow-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
+}
+
+.theme-dark .add-workflow-button:focus {
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
 }

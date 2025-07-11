@@ -22,9 +22,10 @@ interface Branch {
 
 interface RepositorySearchProps {
   onRepositoryAdded: () => void;
+  existingRepositories: { repository_name: string; github_server_id: number; display_name?: string }[];
 }
 
-export default function RepositorySearch({ onRepositoryAdded }: RepositorySearchProps) {
+export default function RepositorySearch({ onRepositoryAdded, existingRepositories }: RepositorySearchProps) {
   const { user, githubServers } = useAuth();
   const [selectedServer, setSelectedServer] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,8 +39,11 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
   const [refreshInterval, setRefreshInterval] = useState(300);
   const [isLoading, setIsLoading] = useState(false);
   const [customBranch, setCustomBranch] = useState('');
+  const [customWorkflow, setCustomWorkflow] = useState('');
   const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [branchError, setBranchError] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState('');
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
   // Set default server when servers are loaded or component mounts
   useEffect(() => {
@@ -91,6 +95,22 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
     setIsLoading(true);
     setWorkflowError(null);
     setBranchError(null);
+    
+    // Check for existing tracked repositories
+    const existingEntries = existingRepositories.filter(
+      existing => existing.repository_name === repo.full_name && existing.github_server_id === selectedServer
+    );
+    
+    if (existingEntries.length > 0) {
+      const displayNames = existingEntries
+        .map(entry => entry.display_name || entry.repository_name)
+        .join(', ');
+      setDuplicateWarning(
+        `This repository is already being tracked ${existingEntries.length} time${existingEntries.length === 1 ? '' : 's'}: ${displayNames}`
+      );
+    } else {
+      setDuplicateWarning(null);
+    }
 
     try {
       const [owner, repoName] = repo.full_name.split('/');
@@ -174,7 +194,19 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
   };
 
   const addRepository = async () => {
-    if (!selectedRepo || !user || !selectedServer || selectedBranches.length === 0) return;
+    if (!selectedRepo || !user || !selectedServer) return;
+    
+    // Require at least one branch
+    if (selectedBranches.length === 0) {
+      alert('Please select at least one branch to track.');
+      return;
+    }
+    
+    // Require at least one workflow when workflows are available
+    if (workflows.length > 0 && selectedWorkflows.length === 0) {
+      alert('Please select at least one workflow to track.');
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -191,6 +223,7 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
           trackedBranches: selectedBranches,
           trackedWorkflows: selectedWorkflows,
           autoRefreshInterval: refreshInterval,
+          displayName: displayName.trim() || null,
         }),
       });
 
@@ -198,6 +231,7 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
         setSelectedRepo(null);
         setSearchResults([]);
         setSearchQuery('');
+        setDisplayName('');
         onRepositoryAdded();
       }
     } catch (error) {
@@ -232,73 +266,138 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
     }
   };
 
+  const addCustomWorkflow = () => {
+    if (customWorkflow.trim() && !selectedWorkflows.includes(customWorkflow.trim())) {
+      const newWorkflow = { 
+        id: Date.now(), // Generate a temporary ID
+        name: customWorkflow.trim(), 
+        path: customWorkflow.trim() 
+      };
+      setWorkflows(prev => [...prev, newWorkflow]);
+      setSelectedWorkflows(prev => [...prev, customWorkflow.trim()]);
+      setCustomWorkflow('');
+    }
+  };
+
   return (
     <div className="repository-search">
-      <div className="server-selection">
-        <label htmlFor="github-server">GitHub Server:</label>
-        <select 
-          id="github-server"
-          value={selectedServer || ''}
-          onChange={(e) => setSelectedServer(e.target.value ? Number(e.target.value) : null)}
-          className="server-select"
-        >
-          <option value="">Select a GitHub server...</option>
-          {githubServers.map((server) => (
-            <option key={server.id} value={server.id}>
-              {server.server_name} ({server.server_url})
-              {server.is_default ? ' (Default)' : ''}
-            </option>
-          ))}
-        </select>
-        {githubServers.length === 0 && (
-          <p className="no-servers-message">
-            No GitHub servers configured. Please add a GitHub server in Settings.
-          </p>
-        )}
-      </div>
+      {!selectedRepo && (
+        <>
+          <div className="server-selection">
+            <label htmlFor="github-server">GitHub Server:</label>
+            <select 
+              id="github-server"
+              value={selectedServer || ''}
+              onChange={(e) => setSelectedServer(e.target.value ? Number(e.target.value) : null)}
+              className="server-select"
+            >
+              <option value="">Select a GitHub server...</option>
+              {githubServers.map((server) => (
+                <option key={server.id} value={server.id}>
+                  {server.server_name} ({server.server_url})
+                  {server.is_default ? ' (Default)' : ''}
+                </option>
+              ))}
+            </select>
+            {githubServers.length === 0 && (
+              <p className="no-servers-message">
+                No GitHub servers configured. Please add a GitHub server in Settings.
+              </p>
+            )}
+          </div>
 
-      <div className="search-input-container">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search repositories..."
-          className="search-input"
-          onKeyPress={(e) => e.key === 'Enter' && searchRepositories()}
-          disabled={!selectedServer}
-        />
-        <button 
-          onClick={searchRepositories} 
-          disabled={isSearching || !searchQuery.trim() || !selectedServer}
-          className="search-button"
-        >
-          {isSearching ? 'Searching...' : 'Search'}
-        </button>
-      </div>
+          <div className="search-input-container">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search repositories..."
+              className="search-input"
+              onKeyPress={(e) => e.key === 'Enter' && searchRepositories()}
+              disabled={!selectedServer}
+            />
+            <button 
+              onClick={searchRepositories} 
+              disabled={isSearching || !searchQuery.trim() || !selectedServer}
+              className="search-button"
+            >
+              {isSearching ? 'Searching...' : 'Search'}
+            </button>
+          </div>
 
-      {searchResults.length > 0 && !selectedRepo && (
-        <div className="search-results">
-          <h4>Search Results:</h4>
-          {searchResults.map(repo => (
-            <div key={repo.id} className="search-result-item">
-              <div className="repo-info">
-                <h5>{repo.full_name}</h5>
-                {repo.description && <p>{repo.description}</p>}
-              </div>
-              <button onClick={() => selectRepository(repo)} className="select-button">
-                Select
-              </button>
+          {searchResults.length > 0 && (
+            <div className="search-results">
+              <h4>Search Results:</h4>
+              {searchResults.map(repo => (
+                <div key={repo.id} className="search-result-item">
+                  <div className="repo-info">
+                    <h5>{repo.full_name}</h5>
+                    {repo.description && <p>{repo.description}</p>}
+                  </div>
+                  <button onClick={() => selectRepository(repo)} className="select-button">
+                    Select
+                  </button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {selectedRepo && (
         <div className="repository-config">
-          <h4>Configure: {selectedRepo.full_name}</h4>
+          <div className="config-header">
+            <h4>Configure: {selectedRepo.full_name}</h4>
+            <button 
+              onClick={() => {
+                setSelectedRepo(null);
+                setDisplayName('');
+                setDuplicateWarning(null);
+              }} 
+              className="back-to-search-button"
+              title="Back to search"
+            >
+              ← Back to Search
+            </button>
+          </div>
+          
+          {duplicateWarning && (
+            <div className="duplicate-warning">
+              <p className="warning-text">⚠️ {duplicateWarning}</p>
+              <p className="warning-note">
+                You can still add this repository with different tracking settings if needed.
+              </p>
+            </div>
+          )}
           
           <div className="config-section">
-            <h5>Select Branches to Track:</h5>
+            <h5>Display Name (optional):</h5>
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Custom name for this repository"
+              className="display-name-input"
+            />
+            <small className="input-help">
+              Leave empty to use the repository name ({selectedRepo?.full_name})
+            </small>
+          </div>
+
+          <div className="config-section">
+            <h5>Auto-refresh Interval (seconds):</h5>
+            <input
+              type="number"
+              value={refreshInterval}
+              onChange={(e) => setRefreshInterval(Number(e.target.value))}
+              min="30"
+              max="3600"
+              className="interval-input"
+            />
+          </div>
+          
+          <div className="config-section">
+            <h5>Select Branches to Track: <span className="required">*</span></h5>
             {isLoading ? (
               <p>Loading branches...</p>
             ) : branchError ? (
@@ -405,7 +504,7 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
           </div>
 
           <div className="config-section">
-            <h5>Select Workflows to Track (optional):</h5>
+            <h5>Select Workflows to Track: <span className="required">*</span></h5>
             {isLoading ? (
               <p>Loading workflows...</p>
             ) : workflowError ? (
@@ -450,7 +549,7 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
                       );
                     })}
                     {selectedWorkflows.length === 0 && (
-                      <span className="placeholder">All workflows will be tracked (or select specific ones)</span>
+                      <span className="placeholder">Select at least one workflow</span>
                     )}
                   </div>
                   <div className="available-items">
@@ -468,31 +567,75 @@ export default function RepositorySearch({ onRepositoryAdded }: RepositorySearch
                       ))}
                   </div>
                 </div>
+                
+                <div className="custom-workflow-input">
+                  <input
+                    type="text"
+                    value={customWorkflow}
+                    onChange={(e) => setCustomWorkflow(e.target.value)}
+                    placeholder="Add workflow manually (e.g., .github/workflows/ci.yml)"
+                    onKeyPress={(e) => e.key === 'Enter' && addCustomWorkflow()}
+                  />
+                  <button type="button" onClick={addCustomWorkflow} className="add-workflow-button">
+                    Add Workflow
+                  </button>
+                </div>
+              </div>
+            ) : workflowError ? (
+              <div className="error-message">
+                <p className="error-text">{workflowError}</p>
+                <div className="custom-workflow-input">
+                  <input
+                    type="text"
+                    value={customWorkflow}
+                    onChange={(e) => setCustomWorkflow(e.target.value)}
+                    placeholder="Enter workflow path manually (e.g., .github/workflows/ci.yml)"
+                    onKeyPress={(e) => e.key === 'Enter' && addCustomWorkflow()}
+                  />
+                  <button type="button" onClick={addCustomWorkflow} className="add-workflow-button">
+                    Add Workflow
+                  </button>
+                </div>
               </div>
             ) : (
-              <p>No workflows found (all actions will be tracked)</p>
+              <div>
+                <p>No workflows found (all actions will be tracked)</p>
+                <div className="custom-workflow-input">
+                  <input
+                    type="text"
+                    value={customWorkflow}
+                    onChange={(e) => setCustomWorkflow(e.target.value)}
+                    placeholder="Add workflow manually (e.g., .github/workflows/ci.yml)"
+                    onKeyPress={(e) => e.key === 'Enter' && addCustomWorkflow()}
+                  />
+                  <button type="button" onClick={addCustomWorkflow} className="add-workflow-button">
+                    Add Workflow
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 
-          <div className="config-section">
-            <h5>Auto-refresh Interval (seconds):</h5>
-            <input
-              type="number"
-              value={refreshInterval}
-              onChange={(e) => setRefreshInterval(Number(e.target.value))}
-              min="30"
-              max="3600"
-              className="interval-input"
-            />
-          </div>
-
           <div className="config-actions">
-            <button onClick={addRepository} disabled={isLoading || selectedBranches.length === 0} className="add-button">
-              {isLoading ? 'Adding...' : 'Add Repository'}
-            </button>
-            <button onClick={() => setSelectedRepo(null)} className="cancel-button">
-              Cancel
-            </button>
+            {(selectedBranches.length === 0 || (workflows.length > 0 && selectedWorkflows.length === 0) || branchError || workflowError) && (
+              <div className="validation-message">
+                <p className="error-text">
+                  {branchError && 'Error loading branches. Please try again or add branches manually.'}
+                  {workflowError && !branchError && 'Error loading workflows. Please try again.'}
+                  {!branchError && !workflowError && selectedBranches.length === 0 && 'Please select at least one branch to track.'}
+                  {!branchError && !workflowError && selectedBranches.length > 0 && workflows.length > 0 && selectedWorkflows.length === 0 && 'Please select at least one workflow to track.'}
+                </p>
+              </div>
+            )}
+            {!(branchError || workflowError || selectedBranches.length === 0 || (workflows.length > 0 && selectedWorkflows.length === 0)) && (
+              <button 
+                onClick={addRepository} 
+                disabled={isLoading} 
+                className="add-button"
+              >
+                {isLoading ? 'Adding...' : 'Add Repository'}
+              </button>
+            )}
           </div>
         </div>
       )}

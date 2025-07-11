@@ -5,10 +5,6 @@ import GitHubServerManager from '../components/GitHubServerManager';
 import ThemeSelector from '../components/ThemeSelector';
 import './SettingsPage.css';
 
-interface UserSettings {
-  notifications_enabled: boolean;
-}
-
 interface GitHubServer {
   id: number;
   server_name: string;
@@ -19,12 +15,7 @@ interface GitHubServer {
 
 export default function SettingsPage() {
   const { user, logout, addGitHubServer, updateGitHubServer } = useAuth();
-  const [settings, setSettings] = useState<UserSettings>({
-    notifications_enabled: true
-  });
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState('');
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showAddServerForm, setShowAddServerForm] = useState(false);
   const [editingServer, setEditingServer] = useState<GitHubServer | null>(null);
@@ -42,67 +33,17 @@ export default function SettingsPage() {
     
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/users/settings/${encodeURIComponent(user.id)}`);
-      if (response.ok) {
-        const userSettings = await response.json();
-        setSettings(userSettings);
-        // Only sync theme with global theme context on initial load, not on every theme change
-      }
+      // Load any necessary settings here if needed in the future
     } catch (error) {
       console.error('Error loading settings:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [user]); // Removed theme and setTheme from dependencies
+  }, [user]);
 
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
-
-  // Note: Theme is now handled by the separate ThemeSelector component
-  // Theme is synced explicitly when loading settings and saving settings
-
-  const saveSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-
-    setIsSaving(true);
-    setMessage('');
-    
-    try {
-      const response = await fetch(`/api/users/settings/${encodeURIComponent(user.id)}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(settings),
-      });
-
-      if (response.ok) {
-        setMessage('Settings saved successfully!');
-        setTimeout(() => setMessage(''), 3000);
-      } else {
-        setMessage('Failed to save settings');
-      }
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      setMessage('Error saving settings');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    const newValue = type === 'checkbox' ? (e.target as HTMLInputElement).checked 
-                   : type === 'number' ? Number(value) 
-                   : value;
-    
-    setSettings(prev => ({
-      ...prev,
-      [name]: newValue
-    }));
-  };
 
   const handleServerFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -179,18 +120,26 @@ export default function SettingsPage() {
         <header className="settings-header">
           <div className="header-content">
             <div className="header-left">
-              <h1>Settings</h1>
-              <p>Manage your preferences and configurations</p>
+              <div className="title-section">
+                <button 
+                  onClick={() => setShowAboutModal(true)} 
+                  className="about-button"
+                  title="About GitHub Actions Viewer"
+                >
+                  ℹ️
+                </button>
+                <h1>Settings</h1>
+              </div>
+            </div>
+            <div className="header-center">
+              <p className="subtitle">Manage your preferences and configurations</p>
             </div>
             <div className="header-actions">
-              <button 
-                onClick={() => setShowAboutModal(true)} 
-                className="about-button"
-                title="About GitHub Actions Viewer"
+              <Link 
+                to="/dashboard" 
+                className="back-link"
+                state={{ fromSettings: true }}
               >
-                ℹ️
-              </button>
-              <Link to="/dashboard" className="back-link">
                 ← Dashboard
               </Link>
               <button onClick={logout} className="logout-button">
@@ -216,35 +165,6 @@ export default function SettingsPage() {
                     <span className="info-value">{user?.id}</span>
                   </div>
                 </div>
-                
-                <div className="user-preferences-separator"></div>
-                
-                <form onSubmit={saveSettings} className="settings-form">
-                  <div className="form-group checkbox-group">
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        name="notifications_enabled"
-                        checked={settings.notifications_enabled}
-                        onChange={handleInputChange}
-                      />
-                      <span className="checkbox-text">Enable notifications</span>
-                    </label>
-                    <small>Get notifications about action failures (feature coming soon)</small>
-                  </div>
-
-                  {message && (
-                    <div className={`message ${message.includes('successfully') ? 'success' : 'error'}`}>
-                      {message}
-                    </div>
-                  )}
-
-                  <div className="form-actions">
-                    <button type="submit" disabled={isSaving} className="save-button">
-                      {isSaving ? 'Saving...' : 'Save Settings'}
-                    </button>
-                  </div>
-                </form>
               </div>
             </div>
 
@@ -287,7 +207,14 @@ export default function SettingsPage() {
                 <div className="about-info">
                   <div className="app-version">
                     <h3>GitHub Actions Viewer</h3>
-                    <span className="version-badge">v1.0.0</span>
+                    <a 
+                      href="https://github.com/attiasas/github-action-viewer/releases"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="version-badge-link"
+                    >
+                      <span className="version-badge">v{import.meta.env.PACKAGE_VERSION || '1.0.0'}</span>
+                    </a>
                   </div>
                   <p>A modern tool for monitoring GitHub Actions across multiple repositories.</p>
                   
@@ -317,6 +244,34 @@ export default function SettingsPage() {
                       <div className="feature-item">
                         <span className="feature-icon">🔄</span>
                         <span>Auto-refresh capabilities</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="support-section">
+                    <h4>Support & Issues</h4>
+                    <div className="support-content">
+                      <p>Found a bug or have a feature request?</p>
+                      <a 
+                        href="https://github.com/attiasas/github-action-viewer/issues"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="issues-link"
+                      >
+                        <span className="link-icon">🐛</span>
+                        Report Issues on GitHub
+                      </a>
+                      <div className="repository-info">
+                        <p>View the source code and contribute:</p>
+                        <a 
+                          href="https://github.com/attiasas/github-action-viewer"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="repo-link"
+                        >
+                          <span className="link-icon">📂</span>
+                          GitHub Repository
+                        </a>
                       </div>
                     </div>
                   </div>
