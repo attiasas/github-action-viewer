@@ -18,6 +18,7 @@ interface BranchStats {
   failure: number;
   pending: number;
   cancelled: number;
+  running: number;
   workflows: Record<string, {
     status: string;
     conclusion: string | null;
@@ -38,6 +39,7 @@ interface ActionStatistics {
     failure: number;
     pending: number;
     cancelled: number;
+    running: number;
   };
   status: string;
   hasPermissionError?: boolean;
@@ -71,25 +73,22 @@ export default function RepositoryList({
       .sort((a, b) => {
         const statsA = repositoryStats[a];
         const statsB = repositoryStats[b];
-        
-        // Sort by status priority: failure, pending, success, unknown
+        // Sort by status priority: running, failure, pending, success, unknown
         const getPriority = (stats?: ActionStatistics) => {
-          if (!stats) return 4;
+          if (!stats) return 5;
           switch (stats.status) {
-            case 'failure': return 1;
-            case 'pending': return 2; 
-            case 'success': return 3;
-            default: return 4;
+            case 'running': return 1;
+            case 'failure': return 2;
+            case 'pending': return 3;
+            case 'success': return 4;
+            default: return 5;
           }
         };
-        
         const priorityA = getPriority(statsA);
         const priorityB = getPriority(statsB);
-        
         if (priorityA !== priorityB) {
           return priorityA - priorityB;
         }
-        
         // Secondary sort by repository name
         const repoA = repositories.find(r => r.id === a);
         const repoB = repositories.find(r => r.id === b);
