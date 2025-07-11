@@ -24,6 +24,7 @@ interface WorkflowRun {
   head_sha: string;
   workflow_id: number;
   run_number: number;
+  workflow_path?: string;
 }
 
 interface DetailedWorkflowStatus {
@@ -31,7 +32,7 @@ interface DetailedWorkflowStatus {
   repositoryUrl: string;
   repoId: number;
   branches: Record<string, {
-    workflows: Record<string, WorkflowRun | { status: 'no_runs'; conclusion: null; name: string; workflow_id: number; }>;
+    workflows: Record<string, WorkflowRun | { status: 'no_runs'; conclusion: null; name: string; workflow_id: number; workflow_path?: string; }>;
     error: string | null;
   }>;
 }
@@ -489,17 +490,24 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
     if (conclusion === 'success') return 'Success';
     if (conclusion === 'failure') return 'Failed';
     if (conclusion === 'cancelled') return 'Cancelled';
-    if (status === 'in_progress') return 'Running';
-    if (status === 'queued') return 'Queued';
-    return status || 'Unknown';
+    if (status === 'in_progress') return 'Pending';
+    if (status === 'queued') return 'Pending';
+    if (status === 'pending') return 'Pending';
+    if (status === 'completed' && !conclusion) return 'Pending'; // Completed but no conclusion means still pending
+    if (status === 'completed') return 'Pending'; // Default completed to pending until we have a conclusion
+    // Fallback for any unexpected values - treat as pending if no conclusion
+    return conclusion ? (conclusion.charAt(0).toUpperCase() + conclusion.slice(1)) : 'Pending';
   };
 
   const getStatusIcon = (status: string, conclusion: string | null) => {
     if (conclusion === 'success') return '✓';
     if (conclusion === 'failure') return '✗';
     if (conclusion === 'cancelled') return '⊘';
-    if (status === 'in_progress') return '⟳';
+    if (status === 'in_progress') return '⟳'; // Use spinning icon for active runs
     if (status === 'queued') return '○';
+    if (status === 'pending') return '○';
+    if (status === 'completed' && !conclusion) return '○'; // Still pending if no conclusion
+    if (status === 'completed') return '○'; // Default to pending icon until we have a conclusion
     return '?';
   };
 
@@ -519,7 +527,9 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
     if (conclusion === 'success') return 'success';
     if (conclusion === 'failure') return 'failure';
     if (conclusion === 'cancelled') return 'cancelled';
-    if (status === 'in_progress' || status === 'queued') return 'pending';
+    if (status === 'in_progress' || status === 'queued' || status === 'pending') return 'pending';
+    if (status === 'completed' && !conclusion) return 'pending'; // Treat completed without conclusion as pending
+    if (status === 'completed') return 'pending'; // Default completed to pending until we have a conclusion
     return 'unknown';
   };
 
@@ -731,7 +741,7 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
                     >
                       <h3 className="branch-title">
                         <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
-                        <span className="branch-name">{branchName}</span>
+                        <span className="branch-name" title={branchName}>{branchName}</span>
                       </h3>
                       {!branchData.error && (
                         <div className="branch-summary">
@@ -784,15 +794,48 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
                                     <div className="workflow-main">
                                       <div className="workflow-info">
                                         <div className="workflow-header">
-                                          <h4 className="workflow-name">{workflowName}</h4>
-                                          {'run_number' in workflow && (
-                                            <span className="workflow-run-number">
-                                              #{workflow.run_number}
-                                            </span>
-                                          )}
+                                          <div className="workflow-title-section">
+                                            <h4 className="workflow-name">{workflowName}</h4>
+                                            {'html_url' in workflow && workflow.html_url && (
+                                              <a 
+                                                href={workflow.html_url} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="action-button compact"
+                                                aria-label={`View workflow run for ${workflowName}`}
+                                              >
+                                                <span>View Run</span>
+                                                <span className="button-icon">→</span>
+                                              </a>
+                                            )}
+                                          </div>
                                         </div>
+
+                                        {workflow.workflow_path && (
+                                          <div className="workflow-path">
+                                            <span className="meta-label">Path:</span>
+                                            <a 
+                                              href={`${repository.repository_url}/blob/${branchName}/${workflow.workflow_path}`}
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                              className="path-link"
+                                              title={workflow.workflow_path}
+                                            >
+                                              {workflow.workflow_path}
+                                            </a>
+                                          </div>
+                                        )}
                                         
                                         <div className="workflow-meta">
+                                          {'run_number' in workflow && (
+                                            <div className="meta-item">
+                                              <span className="meta-label">Run:</span>
+                                              <span className="workflow-run-number">
+                                                #{workflow.run_number}
+                                              </span>
+                                            </div>
+                                          )}
+                                          
                                           {'run_number' in workflow && workflow.head_sha && (
                                             <div className="meta-item">
                                               <span className="meta-label">Commit:</span>
@@ -834,19 +877,6 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
                                             <span className="status-icon">○</span>
                                             <span className="status-text">No runs</span>
                                           </div>
-                                        )}
-                                        
-                                        {'html_url' in workflow && workflow.html_url && (
-                                          <a 
-                                            href={workflow.html_url} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="action-button"
-                                            aria-label={`View workflow run for ${workflowName}`}
-                                          >
-                                            <span>View Run</span>
-                                            <span className="button-icon">→</span>
-                                          </a>
                                         )}
                                       </div>
                                     </div>

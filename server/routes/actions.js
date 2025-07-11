@@ -42,7 +42,7 @@ function shouldRefreshWorkflow(key, minRefreshInterval = MIN_REFRESH_INTERVAL) {
 }
 
 // Get or update workflow data from cache
-async function getWorkflowData(serverUrl, apiToken, repository, branch, workflowName, workflowId, minRefreshInterval = MIN_REFRESH_INTERVAL) {
+async function getWorkflowData(serverUrl, apiToken, repository, branch, workflowName, workflowId, workflowPath, minRefreshInterval = MIN_REFRESH_INTERVAL) {
   const key = generateWorkflowKey(serverUrl, repository, branch, workflowName);
   
   // Return cached data if fresh
@@ -91,7 +91,8 @@ async function getWorkflowData(serverUrl, apiToken, repository, branch, workflow
         status: 'no_runs',
         conclusion: null,
         name: workflowName,
-        workflow_id: workflowId
+        workflow_id: workflowId,
+        workflow_path: workflowPath
       };
     }
 
@@ -210,6 +211,7 @@ async function getRepositoryStats(userId, repoId, forceRefresh = false) {
             branch,
             workflow.name,
             workflow.id,
+            workflow.path,
             minRefreshInterval
           );
 
@@ -476,6 +478,7 @@ router.get('/workflow-status/:userId/:repoId', async (req, res) => {
             branch,
             workflow.name,
             workflow.id,
+            workflow.path,
             minRefreshInterval
           );
 
@@ -484,7 +487,13 @@ router.get('/workflow-status/:userId/:repoId', async (req, res) => {
             continue;
           }
 
-          detailedStatus.branches[branch].workflows[workflow.name] = workflowEntry.data;
+          // Add workflow path to the data
+          const workflowData = workflowEntry.data;
+          if (workflowData) {
+            workflowData.workflow_path = workflow.path;
+          }
+
+          detailedStatus.branches[branch].workflows[workflow.name] = workflowData;
         }
       } catch (error) {
         console.error(`Error processing branch ${branch}:`, error.message);
