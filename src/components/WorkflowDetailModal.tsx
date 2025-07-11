@@ -7,6 +7,9 @@ interface Repository {
   repository_name: string;
   repository_url: string;
   display_name?: string;
+  tracked_workflows: string[];
+  tracked_branches: string[];
+  github_server_id: number;
 }
 
 interface WorkflowRun {
@@ -45,6 +48,22 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
+  
+  // Edit mode state
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editedWorkflows, setEditedWorkflows] = useState<string[]>([]);
+  const [editedBranches, setEditedBranches] = useState<string[]>([]);
+  const [newWorkflow, setNewWorkflow] = useState('');
+  const [newBranch, setNewBranch] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // Available options for suggestions
+  const [availableWorkflows, setAvailableWorkflows] = useState<Array<{name: string, path: string}>>([]);
+  const [availableBranches, setAvailableBranches] = useState<string[]>([]);
+  const [showWorkflowSuggestions, setShowWorkflowSuggestions] = useState(false);
+  const [showBranchSuggestions, setShowBranchSuggestions] = useState(false);
+  const [selectedWorkflowIndex, setSelectedWorkflowIndex] = useState(-1);
+  const [selectedBranchIndex, setSelectedBranchIndex] = useState(-1);
 
   // Load detailed workflow status
   const loadWorkflowDetails = useCallback(async () => {
@@ -104,6 +123,346 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
       document.body.style.overflow = 'unset';
     };
   }, [isOpen, onClose]);
+
+  // Initialize edit state when entering edit mode
+  useEffect(() => {
+    if (isEditMode) {
+      setEditedWorkflows([...repository.tracked_workflows]);
+      setEditedBranches([...repository.tracked_branches]);
+    }
+  }, [isEditMode, repository.tracked_workflows, repository.tracked_branches]);
+
+  // Edit mode functions
+  const enterEditMode = () => {
+    setIsEditMode(true);
+  };
+
+  const exitEditMode = () => {
+    setIsEditMode(false);
+    setNewWorkflow('');
+    setNewBranch('');
+    setShowWorkflowSuggestions(false);
+    setShowBranchSuggestions(false);
+    setSelectedWorkflowIndex(-1);
+    setSelectedBranchIndex(-1);
+  };
+
+  // Fetch available workflows and branches for suggestions
+  const fetchAvailableOptions = useCallback(async () => {
+    if (!user || !repository) return;
+
+    try {
+      // Extract owner and repo from repository name
+      const [owner, repo] = repository.repository_name.split('/');
+      
+      // Fetch workflows
+      const workflowsResponse = await fetch(`/api/repositories/${owner}/${repo}/workflows?userId=${encodeURIComponent(user.id)}&serverId=${repository.github_server_id}`);
+      if (workflowsResponse.ok) {
+        const workflowsData = await workflowsResponse.json();
+        const workflowItems = workflowsData.workflows?.map((w: { name: string, path: string }) => ({
+          name: w.name,
+          path: w.path
+        })) || [];
+        setAvailableWorkflows(workflowItems);
+      }
+
+      // Fetch branches
+      const branchesResponse = await fetch(`/api/repositories/${owner}/${repo}/branches?userId=${encodeURIComponent(user.id)}&serverId=${repository.github_server_id}`);
+      if (branchesResponse.ok) {
+        const branchesData = await branchesResponse.json();
+        const branchNames = branchesData.map((b: { name: string }) => b.name) || [];
+        setAvailableBranches(branchNames);
+      }
+    } catch (error) {
+      console.error('Error fetching available options:', error);
+    }
+  }, [user, repository]);
+
+  // Fetch available options when entering edit mode
+  useEffect(() => {
+    if (isEditMode) {
+      fetchAvailableOptions();
+    }
+  }, [isEditMode, fetchAvailableOptions]);
+
+  // Filter suggestions based on input
+  const getFilteredWorkflowSuggestions = () => {
+    if (!newWorkflow.trim()) return availableWorkflows;
+    return availableWorkflows.filter(workflow => {
+      const searchLower = newWorkflow.toLowerCase();
+      const nameMatch = workflow.name.toLowerCase().includes(searchLower);
+      const pathMatch = workflow.path.toLowerCase().includes(searchLower);
+      
+      // Check if this workflow is already tracked (by name or path)
+      const isTrackedByName = editedWorkflows.includes(workflow.name);
+      const isTrackedByPath = editedWorkflows.includes(workflow.path);
+      const isTrackedByPathMatch = editedWorkflows.some(tracked => 
+        workflow.path.includes(tracked) || tracked.includes(workflow.path)
+      );
+      
+      return (nameMatch || pathMatch) && !isTrackedByName && !isTrackedByPath && !isTrackedByPathMatch;
+    });
+  };
+
+  const getFilteredBranchSuggestions = () => {
+    if (!newBranch.trim()) return availableBranches;
+    return availableBranches.filter(branch => 
+      branch.toLowerCase().includes(newBranch.toLowerCase()) &&
+      !editedBranches.includes(branch)
+    );
+  };
+
+  // Render workflow suggestion item
+  const renderWorkflowSuggestion = (workflow: {name: string, path: string}) => {
+    return (
+      <div className="workflow-suggestion">
+        <div 
+          className="workflow-name clickable-option"
+          onClick={(e) => {
+            e.stopPropagation();
+            selectWorkflowByName(workflow);
+          }}
+          title="Click to track by workflow name"
+        >
+          {workflow.name}
+          <span className="workflow-format-label">name</span>
+        </div>
+        <div 
+          className="workflow-path clickable-option"
+          onClick={(e) => {
+            e.stopPropagation();
+            selectWorkflowByPath(workflow);
+          }}
+          title="Click to track by workflow path"
+        >
+          {workflow.path}
+          <span className="workflow-format-label">path</span>
+        </div>
+      </div>
+    );
+  };
+
+  // Handle input changes with suggestion visibility
+  const handleWorkflowInputChange = (value: string) => {
+    setNewWorkflow(value);
+    setShowWorkflowSuggestions(value.trim().length > 0 && availableWorkflows.length > 0);
+    setSelectedWorkflowIndex(-1);
+  };
+
+  const handleBranchInputChange = (value: string) => {
+    setNewBranch(value);
+    setShowBranchSuggestions(value.trim().length > 0 && availableBranches.length > 0);
+    setSelectedBranchIndex(-1);
+  };
+
+  // Handle keyboard navigation for suggestions
+  const handleWorkflowKeyDown = (e: React.KeyboardEvent) => {
+    if (!showWorkflowSuggestions) {
+      if (e.key === 'Enter') {
+        addWorkflow();
+      }
+      return;
+    }
+
+    const suggestions = getFilteredWorkflowSuggestions();
+    
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedWorkflowIndex(prev => 
+        prev < suggestions.length - 1 ? prev + 1 : prev
+      );
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedWorkflowIndex(prev => prev > 0 ? prev - 1 : -1);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedWorkflowIndex >= 0 && suggestions[selectedWorkflowIndex]) {
+        selectWorkflowSuggestion(suggestions[selectedWorkflowIndex]);
+      } else {
+        addWorkflow();
+      }
+    } else if (e.key === 'Escape') {
+      setShowWorkflowSuggestions(false);
+      setSelectedWorkflowIndex(-1);
+    }
+  };
+
+  const handleBranchKeyDown = (e: React.KeyboardEvent) => {
+    if (!showBranchSuggestions) {
+      if (e.key === 'Enter') {
+        addBranch();
+      }
+      return;
+    }
+
+    const suggestions = getFilteredBranchSuggestions();
+    
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedBranchIndex(prev => 
+        prev < suggestions.length - 1 ? prev + 1 : prev
+      );
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedBranchIndex(prev => prev > 0 ? prev - 1 : -1);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedBranchIndex >= 0 && suggestions[selectedBranchIndex]) {
+        selectBranchSuggestion(suggestions[selectedBranchIndex]);
+      } else {
+        addBranch();
+      }
+    } else if (e.key === 'Escape') {
+      setShowBranchSuggestions(false);
+      setSelectedBranchIndex(-1);
+    }
+  };
+
+  // Handle suggestion selection by format
+  const selectWorkflowByName = (workflow: {name: string, path: string}) => {
+    setNewWorkflow(workflow.name);
+    setShowWorkflowSuggestions(false);
+    setSelectedWorkflowIndex(-1);
+  };
+
+  const selectWorkflowByPath = (workflow: {name: string, path: string}) => {
+    setNewWorkflow(workflow.path);
+    setShowWorkflowSuggestions(false);
+    setSelectedWorkflowIndex(-1);
+  };
+
+  // Handle suggestion selection (default behavior)
+  const selectWorkflowSuggestion = (workflow: {name: string, path: string}) => {
+    selectWorkflowByName(workflow);
+  };
+
+  const selectBranchSuggestion = (branch: string) => {
+    setNewBranch(branch);
+    setShowBranchSuggestions(false);
+    setSelectedBranchIndex(-1);
+  };
+
+  const addWorkflow = () => {
+    if (newWorkflow.trim() && !editedWorkflows.includes(newWorkflow.trim())) {
+      setEditedWorkflows([...editedWorkflows, newWorkflow.trim()]);
+      setNewWorkflow('');
+      setShowWorkflowSuggestions(false);
+    }
+  };
+
+  const removeWorkflow = (workflow: string) => {
+    setEditedWorkflows(editedWorkflows.filter(w => w !== workflow));
+  };
+
+  const addBranch = () => {
+    if (newBranch.trim() && !editedBranches.includes(newBranch.trim())) {
+      setEditedBranches([...editedBranches, newBranch.trim()]);
+      setNewBranch('');
+      setShowBranchSuggestions(false);
+    }
+  };
+
+  const removeBranch = (branch: string) => {
+    setEditedBranches(editedBranches.filter(b => b !== branch));
+  };
+
+  const saveChanges = async () => {
+    if (!user) return;
+
+    console.log('Saving changes:', {
+      userId: user.id,
+      repositoryId: repository.id,
+      editedWorkflows,
+      editedBranches
+    });
+
+    setIsSaving(true);
+    try {
+      const url = `/api/repositories/tracked/${encodeURIComponent(user.id)}/${repository.id}`;
+      const payload = {
+        tracked_workflows: editedWorkflows,
+        tracked_branches: editedBranches,
+      };
+      
+      console.log('API Request:', { url, payload });
+      
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      console.log('API Response status:', response.status, response.statusText);
+
+      if (response.ok) {
+        // Update the repository object
+        repository.tracked_workflows = [...editedWorkflows];
+        repository.tracked_branches = [...editedBranches];
+        
+        // Reload workflow details to reflect changes
+        await loadWorkflowDetails();
+        setIsEditMode(false);
+        setNewWorkflow('');
+        setNewBranch('');
+        setShowWorkflowSuggestions(false);
+        setShowBranchSuggestions(false);
+        setSelectedWorkflowIndex(-1);
+        setSelectedBranchIndex(-1);
+      } else {
+        const errorData = await response.text();
+        console.error('API Error Response:', errorData);
+        throw new Error(`Failed to save changes: ${response.status} ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error saving changes:', error);
+      alert(`Failed to save changes: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Find workflow details for display
+  const findWorkflowDetails = (trackedItem: string) => {
+    // Find workflow object that matches either name or path
+    const workflowObj = availableWorkflows.find(w => 
+      w.name === trackedItem || w.path === trackedItem
+    );
+    
+    if (workflowObj) {
+      return workflowObj;
+    }
+    
+    // If not found in available workflows, create a fallback object
+    // This handles cases where the tracked item might be a partial path or custom name
+    const isPath = trackedItem.includes('/') || trackedItem.includes('.');
+    return {
+      name: isPath ? trackedItem.split('/').pop()?.replace(/\.(yml|yaml)$/, '') || trackedItem : trackedItem,
+      path: isPath ? trackedItem : `Unknown path for: ${trackedItem}`
+    };
+  };
+
+  // Render tracked workflow item
+  const renderTrackedWorkflow = (workflow: string, index: number) => {
+    const workflowDetails = findWorkflowDetails(workflow);
+    
+    return (
+      <div key={index} className="tracked-item">
+        <div className="tracked-workflow-info">
+          <div className="workflow-name">{workflowDetails.name}</div>
+          <div className="workflow-path">{workflowDetails.path}</div>
+        </div>
+        <button 
+          className="remove-item-button"
+          onClick={() => removeWorkflow(workflow)}
+          title="Remove workflow"
+        >
+          ×
+        </button>
+      </div>
+    );
+  };
 
   if (!isOpen) return null;
 
@@ -189,23 +548,42 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
             <span className="modal-subtitle">Workflow Details</span>
           </div>
           <div className="modal-actions">
-            <button className="modal-refresh-button" onClick={loadWorkflowDetails} title="Refresh">
-              <svg 
-                width="20" 
-                height="20" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-                className="refresh-icon"
-              >
-                <path d="M23 4v6h-6"/>
-                <path d="M1 20v-6h6"/>
-                <path d="m3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-              </svg>
-            </button>
+            {!isEditMode ? (
+              <>
+                <button className="modal-edit-button" onClick={enterEditMode} title="Edit tracked workflows and branches">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </button>
+                <button className="modal-refresh-button" onClick={loadWorkflowDetails} title="Refresh">
+                  <svg 
+                    width="20" 
+                    height="20" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                    className="refresh-icon"
+                  >
+                    <path d="M23 4v6h-6"/>
+                    <path d="M1 20v-6h6"/>
+                    <path d="m3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                  </svg>
+                </button>
+              </>
+            ) : (
+              <>
+                <button className="modal-save-button" onClick={saveChanges} disabled={isSaving} title="Save changes">
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+                <button className="modal-cancel-button" onClick={exitEditMode} title="Cancel editing">
+                  Cancel
+                </button>
+              </>
+            )}
             <button className="modal-close-button" onClick={onClose} title="Close">
               ×
             </button>
@@ -225,6 +603,121 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
               <button onClick={loadWorkflowDetails} className="retry-button">
                 Retry
               </button>
+            </div>
+          ) : isEditMode ? (
+            <div className="edit-mode">
+              <div className="edit-section">
+                <h3>Tracked Workflows</h3>
+                <div className="tracked-items">
+                  {editedWorkflows.map((workflow, index) => 
+                    renderTrackedWorkflow(workflow, index)
+                  )}
+                  {editedWorkflows.length === 0 && (
+                    <p className="empty-state">No workflows tracked (all workflows will be monitored)</p>
+                  )}
+                </div>
+                <div className="add-item-form">
+                  <div className="input-with-suggestions">
+                    <input
+                      type="text"
+                      value={newWorkflow}
+                      onChange={(e) => handleWorkflowInputChange(e.target.value)}
+                      onKeyDown={handleWorkflowKeyDown}
+                      onFocus={() => setShowWorkflowSuggestions(newWorkflow.trim().length > 0 && availableWorkflows.length > 0)}
+                      onBlur={() => setTimeout(() => setShowWorkflowSuggestions(false), 150)}
+                      placeholder="Enter workflow name..."
+                      className="add-item-input"
+                    />
+                    {showWorkflowSuggestions && (
+                      <div className="suggestions-dropdown">
+                        {getFilteredWorkflowSuggestions().slice(0, 10).map((workflow, index) => (
+                          <div
+                            key={index}
+                            className={`suggestion-item ${selectedWorkflowIndex === index ? 'suggestion-selected' : ''}`}
+                            onMouseDown={() => selectWorkflowSuggestion(workflow)}
+                            onMouseEnter={() => setSelectedWorkflowIndex(index)}
+                          >
+                            {renderWorkflowSuggestion(workflow)}
+                          </div>
+                        ))}
+                        {getFilteredWorkflowSuggestions().length === 0 && (
+                          <div className="suggestion-item suggestion-empty">
+                            No matching workflows found
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <button 
+                    className="add-item-button"
+                    onClick={addWorkflow}
+                    disabled={!newWorkflow.trim() || editedWorkflows.includes(newWorkflow.trim())}
+                  >
+                    Add Workflow
+                  </button>
+                </div>
+              </div>
+
+              <div className="edit-section">
+                <h3>Tracked Branches</h3>
+                <div className="tracked-items">
+                  {editedBranches.map((branch, index) => (
+                    <div key={index} className="tracked-item">
+                      <span>{branch}</span>
+                      <button 
+                        className="remove-item-button"
+                        onClick={() => removeBranch(branch)}
+                        title="Remove branch"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {editedBranches.length === 0 && (
+                    <p className="empty-state">No branches tracked</p>
+                  )}
+                </div>
+                <div className="add-item-form">
+                  <div className="input-with-suggestions">
+                    <input
+                      type="text"
+                      value={newBranch}
+                      onChange={(e) => handleBranchInputChange(e.target.value)}
+                      onKeyDown={handleBranchKeyDown}
+                      onFocus={() => setShowBranchSuggestions(newBranch.trim().length > 0 && availableBranches.length > 0)}
+                      onBlur={() => setTimeout(() => setShowBranchSuggestions(false), 150)}
+                      placeholder="Enter branch name..."
+                      className="add-item-input"
+                    />
+                    {showBranchSuggestions && (
+                      <div className="suggestions-dropdown">
+                        {getFilteredBranchSuggestions().slice(0, 10).map((branch, index) => (
+                          <div
+                            key={index}
+                            className={`suggestion-item ${selectedBranchIndex === index ? 'suggestion-selected' : ''}`}
+                            onMouseDown={() => selectBranchSuggestion(branch)}
+                            onMouseEnter={() => setSelectedBranchIndex(index)}
+                          >
+                            {branch}
+                          </div>
+                        ))}
+                        {getFilteredBranchSuggestions().length === 0 && (
+                          <div className="suggestion-item suggestion-empty">
+                            No matching branches found
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <button 
+                    className="add-item-button"
+                    onClick={addBranch}
+                    disabled={!newBranch.trim() || editedBranches.includes(newBranch.trim())}
+                  >
+                    Add Branch
+                  </button>
+                </div>
+              </div>
             </div>
           ) : workflowData ? (
             <div className="workflow-details">

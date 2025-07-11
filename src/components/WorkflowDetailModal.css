@@ -552,6 +552,16 @@
   .workflow-name {
     font-size: 1rem;
   }
+
+  /* Suggestions dropdown adjustments for mobile */
+  .suggestions-dropdown {
+    max-height: 150px;
+  }
+
+  .suggestion-item {
+    padding: 12px 14px;
+    font-size: 15px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -627,5 +637,349 @@
   
   .branch-header {
     border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Edit Mode Styles */
+.modal-edit-button,
+.modal-save-button,
+.modal-cancel-button {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.modal-edit-button:hover,
+.modal-save-button:hover,
+.modal-cancel-button:hover {
+  background: var(--bg-tertiary);
+  transform: translateY(-1px);
+}
+
+.modal-save-button {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.modal-save-button:hover {
+  background: var(--primary-color-hover);
+  border-color: var(--primary-color-hover);
+}
+
+.modal-save-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.edit-mode {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.edit-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.edit-section h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-primary);
+  padding-bottom: 8px;
+}
+
+.tracked-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 60px;
+}
+
+.tracked-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  gap: 12px;
+}
+
+.tracked-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.remove-item-button {
+  background: var(--accent-danger);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.remove-item-button:hover {
+  background: #c82333;
+  transform: scale(1.1);
+}
+
+.add-item-form {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.add-item-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.add-item-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.add-item-input::placeholder {
+  color: var(--text-muted);
+}
+
+.add-item-button {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.add-item-button:hover:not(:disabled) {
+  background: var(--primary-color-hover);
+  transform: translateY(-1px);
+}
+
+.add-item-button:disabled {
+  background: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.empty-state {
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  margin: 0;
+}
+
+/* Input with Suggestions */
+.input-with-suggestions {
+  position: relative;
+  flex: 1;
+}
+
+.suggestions-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-modal-content);
+  border: 1px solid var(--border-primary);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1001;
+}
+
+.suggestion-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+.suggestion-selected {
+  background: var(--primary-color) !important;
+  color: white !important;
+}
+
+.suggestion-empty {
+  color: var(--text-muted) !important;
+  cursor: default !important;
+  font-style: italic;
+}
+
+.suggestion-empty:hover {
+  background: transparent !important;
+  color: var(--text-muted) !important;
+}
+
+/* Make input fill container within suggestions wrapper */
+.input-with-suggestions .add-item-input {
+  width: 100%;
+}
+
+/* Workflow suggestion styling */
+.workflow-suggestion {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.clickable-option {
+  padding: 2px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0;
+}
+
+.clickable-option:hover {
+  background-color: rgba(124, 58, 237, 0.1);
+}
+
+.suggestion-selected .clickable-option:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.workflow-name {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.workflow-path {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  line-height: 1.2;
+}
+
+.suggestion-selected .workflow-path {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.workflow-format-label {
+  font-size: 9px;
+  background: var(--primary-color);
+  color: white;
+  padding: 1px 3px;
+  border-radius: 2px;
+  font-weight: 400;
+  opacity: 0.8;
+  margin-left: 4px;
+}
+
+.suggestion-selected .workflow-format-label {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+/* Tracked workflow info styling */
+.tracked-workflow-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+}
+
+.tracked-item .workflow-name {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.tracked-item .workflow-path {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  line-height: 1.2;
+}
+
+/* Responsive Edit Mode */
+@media (max-width: 768px) {
+  .edit-mode {
+    padding: 16px;
+    gap: 24px;
+  }
+
+  .add-item-form {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .add-item-input {
+    width: 100%;
+  }
+
+  .add-item-button {
+    width: 100%;
+    padding: 12px 16px;
+  }
+
+  .modal-actions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .modal-edit-button,
+  .modal-save-button,
+  .modal-cancel-button {
+    font-size: 12px;
+    padding: 6px 10px;
   }
 }

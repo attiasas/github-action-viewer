@@ -251,4 +251,39 @@ router.delete('/tracked/:userId/:repoId', (req, res) => {
   );
 });
 
+// Update repository tracking settings
+router.put('/tracked/:userId/:repoId', (req, res) => {
+  const { userId, repoId } = req.params;
+  const { tracked_workflows, tracked_branches } = req.body;
+
+  if (!Array.isArray(tracked_workflows) || !Array.isArray(tracked_branches)) {
+    return res.status(400).json({ error: 'tracked_workflows and tracked_branches must be arrays' });
+  }
+
+  const workflowsJson = JSON.stringify(tracked_workflows);
+  const branchesJson = JSON.stringify(tracked_branches);
+
+  db.run(
+    'UPDATE user_repositories SET tracked_workflows = ?, tracked_branches = ? WHERE id = ? AND user_id = ?',
+    [workflowsJson, branchesJson, repoId, userId],
+    function(err) {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Repository not found' });
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Repository tracking settings updated',
+        tracked_workflows,
+        tracked_branches
+      });
+    }
+  );
+});
+
 export default router;
