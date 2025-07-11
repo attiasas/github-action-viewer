@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import './WorkflowDetailModal.css';
 
@@ -65,6 +65,12 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
   const [showBranchSuggestions, setShowBranchSuggestions] = useState(false);
   const [selectedWorkflowIndex, setSelectedWorkflowIndex] = useState(-1);
   const [selectedBranchIndex, setSelectedBranchIndex] = useState(-1);
+  const [workflowDropdownAbove, setWorkflowDropdownAbove] = useState(false);
+  const [branchDropdownAbove, setBranchDropdownAbove] = useState(false);
+  
+  // Refs for dropdown positioning
+  const workflowInputRef = useRef<HTMLInputElement>(null);
+  const branchInputRef = useRef<HTMLInputElement>(null);
 
   // Load detailed workflow status
   const loadWorkflowDetails = useCallback(async () => {
@@ -243,17 +249,41 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
     );
   };
 
+  // Check if dropdown should appear above input (to avoid being cut off)
+  const checkDropdownPosition = (inputRef: React.RefObject<HTMLInputElement | null>, setDropdownAbove: (above: boolean) => void) => {
+    if (!inputRef.current) return;
+    
+    const inputRect = inputRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - inputRect.bottom;
+    const spaceAbove = inputRect.top;
+    
+    // If there's less than 180px below but more space above, show dropdown above
+    const shouldShowAbove = spaceBelow < 180 && spaceAbove > spaceBelow;
+    setDropdownAbove(shouldShowAbove);
+  };
+
   // Handle input changes with suggestion visibility
   const handleWorkflowInputChange = (value: string) => {
     setNewWorkflow(value);
-    setShowWorkflowSuggestions(value.trim().length > 0 && availableWorkflows.length > 0);
+    const shouldShow = value.trim().length > 0 && availableWorkflows.length > 0;
+    setShowWorkflowSuggestions(shouldShow);
     setSelectedWorkflowIndex(-1);
+    
+    if (shouldShow) {
+      setTimeout(() => checkDropdownPosition(workflowInputRef, setWorkflowDropdownAbove), 0);
+    }
   };
 
   const handleBranchInputChange = (value: string) => {
     setNewBranch(value);
-    setShowBranchSuggestions(value.trim().length > 0 && availableBranches.length > 0);
+    const shouldShow = value.trim().length > 0 && availableBranches.length > 0;
+    setShowBranchSuggestions(shouldShow);
     setSelectedBranchIndex(-1);
+    
+    if (shouldShow) {
+      setTimeout(() => checkDropdownPosition(branchInputRef, setBranchDropdownAbove), 0);
+    }
   };
 
   // Handle keyboard navigation for suggestions
@@ -627,13 +657,20 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
                   )}
                 </div>
                 <div className="add-item-form">
-                  <div className="input-with-suggestions">
+                  <div className={`input-with-suggestions ${showWorkflowSuggestions ? 'has-suggestions' : ''} ${workflowDropdownAbove ? 'dropdown-above' : ''}`}>
                     <input
+                      ref={workflowInputRef}
                       type="text"
                       value={newWorkflow}
                       onChange={(e) => handleWorkflowInputChange(e.target.value)}
                       onKeyDown={handleWorkflowKeyDown}
-                      onFocus={() => setShowWorkflowSuggestions(newWorkflow.trim().length > 0 && availableWorkflows.length > 0)}
+                      onFocus={() => {
+                        const shouldShow = newWorkflow.trim().length > 0 && availableWorkflows.length > 0;
+                        setShowWorkflowSuggestions(shouldShow);
+                        if (shouldShow) {
+                          setTimeout(() => checkDropdownPosition(workflowInputRef, setWorkflowDropdownAbove), 0);
+                        }
+                      }}
                       onBlur={() => setTimeout(() => setShowWorkflowSuggestions(false), 150)}
                       placeholder="Enter workflow name..."
                       className="add-item-input"
@@ -688,13 +725,20 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
                   )}
                 </div>
                 <div className="add-item-form">
-                  <div className="input-with-suggestions">
+                  <div className={`input-with-suggestions ${showBranchSuggestions ? 'has-suggestions' : ''} ${branchDropdownAbove ? 'dropdown-above' : ''}`}>
                     <input
+                      ref={branchInputRef}
                       type="text"
                       value={newBranch}
                       onChange={(e) => handleBranchInputChange(e.target.value)}
                       onKeyDown={handleBranchKeyDown}
-                      onFocus={() => setShowBranchSuggestions(newBranch.trim().length > 0 && availableBranches.length > 0)}
+                      onFocus={() => {
+                        const shouldShow = newBranch.trim().length > 0 && availableBranches.length > 0;
+                        setShowBranchSuggestions(shouldShow);
+                        if (shouldShow) {
+                          setTimeout(() => checkDropdownPosition(branchInputRef, setBranchDropdownAbove), 0);
+                        }
+                      }}
                       onBlur={() => setTimeout(() => setShowBranchSuggestions(false), 150)}
                       placeholder="Enter branch name..."
                       className="add-item-input"
