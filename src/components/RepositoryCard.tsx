@@ -11,6 +11,7 @@ interface Repository {
   tracked_workflows: string[];
   auto_refresh_interval: number;
   display_name?: string;
+  github_server_id: number;
 }
 
 interface BranchStats {
