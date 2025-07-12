@@ -35,9 +35,10 @@ jobs:
           force: true
   build:
     needs: release
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.run.os }}
     strategy:
       matrix:
+        run:
           - os: ubuntu-latest
             platform: linux
             arch: x64
@@ -51,8 +52,8 @@ jobs:
             platform: windows
             arch: x64
     env:
-      BUILD_PLATFORM: ${{ matrix.platform }}
-      BUILD_ARCH: ${{ matrix.arch }}
+      BUILD_PLATFORM: ${{ matrix.run.platform }}
+      BUILD_ARCH: ${{ matrix.run.arch }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
