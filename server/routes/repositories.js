@@ -4,6 +4,14 @@ import { db } from '../database.js';
 
 const router = express.Router();
 
+// Simple authentication middleware for test/demo
+router.use((req, res, next) => {
+  if (!req.headers.authorization) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+});
+
 // Search repositories on a specific GitHub server
 router.get('/search', async (req, res) => {
   const { q, userId, serverId } = req.query;
