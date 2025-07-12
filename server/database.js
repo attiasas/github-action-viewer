@@ -101,16 +101,5 @@ export const initializeDatabase = () => {
     )
   `);
 
-  // Add display_name column to existing user_repositories table if it doesn't exist
-  db.run(`
-    ALTER TABLE user_repositories 
-    ADD COLUMN display_name TEXT
-  `, (err) => {
-    // Ignore error if column already exists
-    if (err && !err.message.includes('duplicate column name')) {
-      console.error('Error adding display_name column:', err);
-    }
-  });
-
   console.log('Database initialized successfully');
 };
