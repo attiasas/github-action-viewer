@@ -33,7 +33,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ github.event.release.tag_name }}
           force: true
-  build:
+  build-for-release:
     needs: release
     runs-on: ${{ matrix.run.os }}
     strategy:
@@ -88,7 +88,7 @@ jobs:
 
   attach-to-release:
     name: Attach Artifacts to Release
-    needs: build-and-upload
+    needs: build-for-release
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
