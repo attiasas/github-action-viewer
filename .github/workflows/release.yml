@@ -73,7 +73,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: github-action-viewer-${{ env.BUILD_PLATFORM }}-${{ env.BUILD_ARCH }}-${{ github.event.release.tag_name }}
-          path: build/github-action-viewer${{ env.BUILD_PLATFORM == 'windows' && '.exe' || '' }}
+          path: build/github-action-viewer${{ env.BUILD_PLATFORM == 'windows' && '-${{ env.VERSION }}-${{ env.BUILD_PLATFORM }}-${{ env.BUILD_ARCH }}.tar.gz' || '' }}
           if-no-files-found: error
 
   attach-to-release:
