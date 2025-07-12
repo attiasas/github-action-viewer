@@ -13,7 +13,7 @@ dist-ssr
 *.local
 
 # Database files
-server/database.sqlite*
+*.sqlite*
 
 # Environment variables
 .env

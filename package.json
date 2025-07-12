@@ -1,7 +1,7 @@
 {
   "name": "github-action-viewer",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,10 +11,10 @@
     "build:binary": "./buildForRelease.sh",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "NODE_ENV=production node server/index.js"
+    "start": "NODE_ENV=production node server/index.js",
+    "test:backend": "vitest run server/tests"
   },
   "dependencies": {
-    "@types/node": "^24.0.11",
     "axios": "^1.10.0",
     "cors": "^2.8.5",
     "dotenv": "^17.1.0",
@@ -31,12 +31,16 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "@vitest/ui": "^3.2.4",
     "eslint": "^9.30.1",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
+    "jest": "^30.0.4",
+    "supertest": "^7.1.3",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.35.1",
-    "vite": "^7.0.3"
+    "vite": "^7.0.3",
+    "vitest": "^3.2.4"
   }
 }

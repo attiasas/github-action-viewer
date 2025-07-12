@@ -12,6 +12,7 @@ show_usage() {
     echo "Options:"
     echo "  -p, --platform PLATFORM    Target platform (macos, linux, windows)"
     echo "  -a, --arch ARCH            Target architecture (x64, arm64)"
+    echo "  -v, --version VERSION      Specify version to use (default: 1.0.0)"
     echo "  -h, --help                 Show this help message"
     echo ""
     echo "Examples:"
@@ -23,9 +24,11 @@ show_usage() {
     echo "Supported architectures: x64, arm64"
 }
 
+
 # Parse command line arguments
 FORCE_PLATFORM=""
 FORCE_ARCH=""
+FORCE_VERSION=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -35,6 +38,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -a|--arch)
             FORCE_ARCH="$2"
+            shift 2
+            ;;
+        -v|--version)
+            FORCE_VERSION="$2"
             shift 2
             ;;
         -h|--help)
@@ -59,11 +66,18 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+
 # Configuration
 APP_NAME="github-action-viewer"
 BUILD_DIR="build"
 DIST_DIR="dist"
 VERSION="1.0.0"
+
+# If version is forced, use it
+if [ -n "$FORCE_VERSION" ]; then
+    VERSION="$FORCE_VERSION"
+    echo -e "${BLUE}🔖 Using version: $VERSION${NC}"
+fi
 
 # Detect or use forced platform
 if [ -n "$FORCE_PLATFORM" ]; then

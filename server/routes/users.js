@@ -51,6 +51,10 @@ router.put('/settings/:userId', (req, res) => {
   const { userId } = req.params;
   const { theme, notifications_enabled } = req.body;
 
+  if (typeof theme !== 'string' || typeof notifications_enabled !== 'boolean') {
+    return res.status(400).json({ error: 'theme (string) and notifications_enabled (boolean) are required' });
+  }
+
   db.run(
     `UPDATE user_settings 
      SET theme = ?, notifications_enabled = ?, updated_at = CURRENT_TIMESTAMP

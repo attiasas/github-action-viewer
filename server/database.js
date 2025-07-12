@@ -32,10 +32,12 @@ const getUserDataDir = () => {
   return dataDir;
 };
 
-// Use user data directory for database in production, local directory in development
-const dbPath = process.env.NODE_ENV === 'production' 
+// Use user data directory for database in production, test DB in test, local directory in development
+const dbPath = process.env.NODE_ENV === 'production'
   ? path.join(getUserDataDir(), 'database.sqlite')
-  : path.join(__dirname, 'database.sqlite');
+  : process.env.NODE_ENV === 'test'
+    ? path.join(__dirname, 'database.test.sqlite')
+    : path.join(__dirname, 'database.sqlite');
 
 export const db = new sqlite3.Database(dbPath);
 
@@ -98,17 +100,6 @@ export const initializeDatabase = () => {
       FOREIGN KEY (user_id) REFERENCES users (id)
     )
   `);
-
-  // Add display_name column to existing user_repositories table if it doesn't exist
-  db.run(`
-    ALTER TABLE user_repositories 
-    ADD COLUMN display_name TEXT
-  `, (err) => {
-    // Ignore error if column already exists
-    if (err && !err.message.includes('duplicate column name')) {
-      console.error('Error adding display_name column:', err);
-    }
-  });
 
   console.log('Database initialized successfully');
 };
