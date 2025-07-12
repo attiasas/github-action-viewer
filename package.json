@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "NODE_ENV=production node server/index.js",
-    "test:backend": "node --experimental-vm-modules ./node_modules/.bin/jest --config jest.backend.config.js",
+    "test:backend": "npx jest --experimental-vm-modules --config jest.backend.config.js",
     "test:frontend": "vitest run",
     "test": "npm run test:backend && npm run test:frontend"
   },
