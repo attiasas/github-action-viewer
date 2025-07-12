@@ -39,7 +39,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        include:
           - os: ubuntu-latest
             platform: linux
             arch: x64
