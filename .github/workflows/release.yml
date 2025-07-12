@@ -51,6 +51,13 @@ jobs:
       BUILD_PLATFORM: ${{ matrix.run.platform }}
       BUILD_ARCH: ${{ matrix.run.arch }}
     steps:
+      - name: Get portable executable path
+        run: |
+          if [ "$BUILD_PLATFORM" = "windows" ]; then
+            echo "ARTIFACT_PATH=build/github-action-viewer-${{ github.event.release.tag_name }}-windows-x64.tar.gz" >> $GITHUB_ENV
+          else
+            echo "ARTIFACT_PATH=build/github-action-viewer" >> $GITHUB_ENV
+          fi
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -73,7 +80,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: github-action-viewer-${{ env.BUILD_PLATFORM }}-${{ env.BUILD_ARCH }}-${{ github.event.release.tag_name }}
-          path: build/github-action-viewer${{ env.BUILD_PLATFORM == 'windows' && '-${{ env.VERSION }}-${{ env.BUILD_PLATFORM }}-${{ env.BUILD_ARCH }}.tar.gz' || '' }}
+          path: ${{ env.ARTIFACT_PATH }}
           if-no-files-found: error
 
   attach-to-release:
