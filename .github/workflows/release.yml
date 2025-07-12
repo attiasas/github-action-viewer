@@ -8,12 +8,6 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - name: Extract version (strip leading v)
-        run: |
-          RAW_VERSION="${{ github.event.release.tag_name }}"
-          VERSION=${RAW_VERSION#v}
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -28,15 +22,15 @@ jobs:
           node-version: '20'
           
       - name: Update version
-        run: echo ${{ env.VERSION }} | xargs npm version
+        run: echo ${{ github.event.release.tag_name }} | xargs npm version --no-git-tag-version
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Push changes
+      #   uses: ad-m/github-push-action@master
+      #   with:
+      #     github_token: ${{ secrets.GITHUB_TOKEN }}
           
   build-for-release:
     needs: release
@@ -57,12 +51,6 @@ jobs:
       BUILD_PLATFORM: ${{ matrix.run.platform }}
       BUILD_ARCH: ${{ matrix.run.arch }}
     steps:
-      - name: Extract version (strip leading v)
-        run: |
-          RAW_VERSION="${{ github.event.release.tag_name }}"
-          VERSION=${RAW_VERSION#v}
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -78,13 +66,13 @@ jobs:
         run: chmod +x ./buildForRelease.sh
 
       - name: Build for release
-        run: ./buildForRelease.sh -p ${{ env.BUILD_PLATFORM }} -a ${{ env.BUILD_ARCH }} -v ${{ env.VERSION }}
+        run: ./buildForRelease.sh -p ${{ env.BUILD_PLATFORM }} -a ${{ env.BUILD_ARCH }} -v ${{ github.event.release.tag_name }}
         shell: bash
       
       - name: Upload portable executable
         uses: actions/upload-artifact@v4
         with:
-          name: github-action-viewer-${{ env.BUILD_PLATFORM }}-${{ env.BUILD_ARCH }}-${{ env.VERSION }}
+          name: github-action-viewer-${{ env.BUILD_PLATFORM }}-${{ env.BUILD_ARCH }}-${{ github.event.release.tag_name }}
           path: build/github-action-viewer${{ env.BUILD_PLATFORM == 'windows' && '.exe' || '' }}
           if-no-files-found: error
 
