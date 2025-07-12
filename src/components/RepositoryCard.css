@@ -302,3 +302,21 @@
   color: var(--text-secondary);
   font-style: italic;
 }
+
+.repository-card.running {
+  border-left: 4px solid #2196f3;
+  background: linear-gradient(90deg, rgba(33,150,243,0.10) 0%, rgba(33,150,243,0.04) 100%);
+  box-shadow: 0 0 8px 0 rgba(33,150,243,0.15);
+}
+
+.status-summary.running .status-icon,
+.status-summary.running .status-text {
+  color: #1976d2 !important;
+  font-weight: bold;
+  animation: runningPulse 1.2s infinite alternate;
+}
+
+@keyframes runningPulse {
+  0% { filter: brightness(1); }
+  100% { filter: brightness(1.5); }
+}

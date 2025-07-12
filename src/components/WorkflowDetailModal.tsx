@@ -520,7 +520,7 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
     if (conclusion === 'success') return 'Success';
     if (conclusion === 'failure') return 'Failed';
     if (conclusion === 'cancelled') return 'Cancelled';
-    if (status === 'in_progress') return 'Pending';
+    if (status === 'in_progress') return 'Running';
     if (status === 'queued') return 'Pending';
     if (status === 'pending') return 'Pending';
     if (status === 'completed' && !conclusion) return 'Pending'; // Completed but no conclusion means still pending
@@ -533,34 +533,42 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
     if (conclusion === 'success') return '✓';
     if (conclusion === 'failure') return '✗';
     if (conclusion === 'cancelled') return '⊘';
-    if (status === 'in_progress') return '⟳'; // Use spinning icon for active runs
+    if (status === 'in_progress') return (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2196f3" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle' }}>
+        <circle cx="12" cy="12" r="10" stroke="#2196f3" strokeWidth="3" fill="none"/>
+        <path d="M12 6v6l4 2" stroke="#1976d2"/>
+      </svg>
+    );
     if (status === 'queued') return '○';
     if (status === 'pending') return '○';
-    if (status === 'completed' && !conclusion) return '○'; // Still pending if no conclusion
-    if (status === 'completed') return '○'; // Default to pending icon until we have a conclusion
+    if (status === 'completed' && !conclusion) return '○';
+    if (status === 'completed') return '○';
     return '?';
-  };
-
-  const truncateSha = (sha: string) => {
-    return sha?.substring(0, 7) || '';
-  };
-
-  const getStatusPriority = (status: string, conclusion: string | null) => {
-    if (conclusion === 'failure') return 1;
-    if (status === 'in_progress' || status === 'queued') return 2;
-    if (conclusion === 'cancelled') return 3;
-    if (conclusion === 'success') return 4;
-    return 5;
   };
 
   const normalizeStatus = (status: string, conclusion: string | null) => {
     if (conclusion === 'success') return 'success';
     if (conclusion === 'failure') return 'failure';
     if (conclusion === 'cancelled') return 'cancelled';
-    if (status === 'in_progress' || status === 'queued' || status === 'pending') return 'pending';
+    if (status === 'in_progress') return 'running';
+    if (status === 'queued' || status === 'pending') return 'pending';
     if (status === 'completed' && !conclusion) return 'pending'; // Treat completed without conclusion as pending
     if (status === 'completed') return 'pending'; // Default completed to pending until we have a conclusion
     return 'unknown';
+  };
+
+  // Add missing getStatusPriority and truncateSha for workflow sorting and commit display
+  const getStatusPriority = (status: string, conclusion: string | null) => {
+    if (status === 'in_progress') return 1;
+    if (conclusion === 'failure') return 2;
+    if (conclusion === 'cancelled') return 3;
+    if (conclusion === 'success') return 4;
+    if (status === 'queued' || status === 'pending') return 5;
+    return 6;
+  };
+
+  const truncateSha = (sha: string) => {
+    return sha?.substring(0, 7) || '';
   };
 
   const toggleBranch = (branchName: string) => {
@@ -794,16 +802,24 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
                           </span>
                           <div className="branch-stats">
                             {(() => {
-                              const stats = { success: 0, failure: 0, pending: 0, cancelled: 0 };
+                              const stats = { success: 0, failure: 0, pending: 0, cancelled: 0, running: 0 };
                               Object.values(branchData.workflows).forEach(workflow => {
                                 const normalizedStatus = normalizeStatus(workflow.status, workflow.conclusion);
                                 if (normalizedStatus === 'success') stats.success++;
                                 else if (normalizedStatus === 'failure') stats.failure++;
                                 else if (normalizedStatus === 'pending') stats.pending++;
                                 else if (normalizedStatus === 'cancelled') stats.cancelled++;
+                                else if (normalizedStatus === 'running') stats.running++;
                               });
                               return (
                                 <>
+                                  {stats.running > 0 && <span className="stat running" style={{ color: '#1976d2', fontWeight: 'bold' }}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2196f3" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: 2 }}>
+                                      <circle cx="12" cy="12" r="10" stroke="#2196f3" strokeWidth="3" fill="none"/>
+                                      <path d="M12 6v6l4 2" stroke="#1976d2"/>
+                                    </svg>
+                                    {stats.running}
+                                  </span>}
                                   {stats.success > 0 && <span className="stat success">✓{stats.success}</span>}
                                   {stats.failure > 0 && <span className="stat failure">✗{stats.failure}</span>}
                                   {stats.pending > 0 && <span className="stat pending">○{stats.pending}</span>}

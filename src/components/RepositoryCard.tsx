@@ -19,6 +19,7 @@ interface BranchStats {
   failure: number;
   pending: number;
   cancelled: number;
+  running: number;
   workflows: Record<string, {
     status: string;
     conclusion: string | null;
@@ -39,6 +40,7 @@ interface ActionStatistics {
     failure: number;
     pending: number;
     cancelled: number;
+    running: number;
   };
   status: string;
   hasPermissionError?: boolean;
@@ -229,6 +231,7 @@ export default function RepositoryCard({
       case 'failure': return '#dc3545';
       case 'pending': return '#ffc107';
       case 'error': return '#dc3545';
+      case 'running': return '#007bff';
       default: return '#6c757d';
     }
   };
@@ -239,6 +242,7 @@ export default function RepositoryCard({
       case 'failure': return '✗';
       case 'pending': return '○';
       case 'error': return '⚠';
+      case 'running': return '▶';
       default: return '?';
     }
   };
@@ -320,12 +324,25 @@ export default function RepositoryCard({
                   )}
                 </div>
                 <div className="status-section">
-                  <span className="status-icon" style={{ color: getStatusColor(stats.status) }}>
-                    {stats.status === 'success' && stats.overall.failure === 0 && stats.overall.pending === 0 ? '✓' : getStatusIcon(stats.status)}
-                  </span>
-                  <span className="status-text" style={{ color: getStatusColor(stats.status) }}>
-                    {stats.status === 'success' && stats.overall.failure === 0 && stats.overall.pending === 0 ? 'SUCCESS' : stats.status.toUpperCase()}
-                  </span>
+                  {/* Show running first if present */}
+                  {stats.overall.running > 0 ? (
+                    <>
+                      <span className="status-icon" style={{ color: getStatusColor('running') }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" stroke="#2196f3" strokeWidth="3" fill="none"/><path d="M12 6v6l4 2" stroke="#1976d2"/></svg>
+                      </span>
+                      <span className="status-text" style={{ color: getStatusColor('running') }}>RUNNING</span>
+                    </>
+                  ) : stats.status === 'success' && stats.overall.failure === 0 && stats.overall.pending === 0 ? (
+                    <>
+                      <span className="status-icon" style={{ color: getStatusColor('success') }}>✓</span>
+                      <span className="status-text" style={{ color: getStatusColor('success') }}>SUCCESS</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="status-icon" style={{ color: getStatusColor(stats.status) }}>{getStatusIcon(stats.status)}</span>
+                      <span className="status-text" style={{ color: getStatusColor(stats.status) }}>{stats.status.toUpperCase()}</span>
+                    </>
+                  )}
                 </div>
               </div>
             ) : (

@@ -633,6 +633,19 @@
   box-shadow: 0 2px 8px rgba(173, 181, 189, 0.15);
 }
 
+/* Running Status */
+.status-badge.status-running {
+  background: linear-gradient(90deg, rgba(33,150,243,0.12) 0%, rgba(33,150,243,0.06) 100%);
+  border: 1.5px solid #2196f3;
+  color: #1976d2;
+  font-weight: bold;
+  box-shadow: 0 0 4px 0 rgba(33,150,243,0.10);
+}
+
+.status-badge.status-running .status-icon {
+  color: #1976d2;
+}
+
 /* Status Badge Hover Effects */
 .status-badge:hover {
   transform: translateY(-1px);

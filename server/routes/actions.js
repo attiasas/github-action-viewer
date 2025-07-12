@@ -183,12 +183,13 @@ async function getRepositoryStats(userId, repoId, forceRefresh = false) {
       serverName: repository.server_name,
       serverUrl: repository.server_url,
       branches: {},
-      overall: { success: 0, failure: 0, pending: 0, cancelled: 0 }
+      overall: { success: 0, failure: 0, pending: 0, cancelled: 0, running: 0 }
     };
 
     const minRefreshInterval = forceRefresh ? 0 : (repository.auto_refresh_interval * 1000);
     let hasFailure = false;
     let hasPending = false;
+    let hasRunning = false;
     let hasPermissionError = false;
 
     // Process each branch
@@ -198,6 +199,7 @@ async function getRepositoryStats(userId, repoId, forceRefresh = false) {
         failure: 0,
         pending: 0,
         cancelled: 0,
+        running: 0,
         workflows: {}
       };
 
@@ -229,6 +231,7 @@ async function getRepositoryStats(userId, repoId, forceRefresh = false) {
             const normalizedStatus = status === 'success' ? 'success' 
               : status === 'failure' ? 'failure'
               : status === 'cancelled' ? 'cancelled'
+              : status === 'in_progress' ? 'running'
               : 'pending';
 
             // Count this workflow's status for the branch
@@ -247,6 +250,8 @@ async function getRepositoryStats(userId, repoId, forceRefresh = false) {
             // Track status flags
             if (normalizedStatus === 'failure') {
               hasFailure = true;
+            } else if (normalizedStatus === 'running') {
+              hasRunning = true;
             } else if (normalizedStatus === 'pending') {
               hasPending = true;
             }
@@ -264,6 +269,8 @@ async function getRepositoryStats(userId, repoId, forceRefresh = false) {
       repoStats.hasPermissionError = true;
     } else if (hasFailure) {
       repoStats.status = 'failure';
+    } else if (hasRunning) {
+      repoStats.status = 'running';
     } else if (hasPending) {
       repoStats.status = 'pending';
     } else if (repoStats.overall.success > 0) {
@@ -375,7 +382,7 @@ router.get('/stats/:userId', async (req, res) => {
           serverName: repository.server_name,
           serverUrl: repository.server_url,
           branches: {},
-          overall: { success: 0, failure: 0, pending: 0, cancelled: 0 },
+          overall: { success: 0, failure: 0, pending: 0, cancelled: 0, running: 0 },
           status: 'error',
           hasError: true,
           error: error.message

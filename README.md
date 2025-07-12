@@ -1,4 +1,4 @@
-![GitHub Actions Viewer](./github-actions-viewer-banner.svg)
+![GitHub Actions Viewer](public/github-actions-viewer-banner.svg)
 
 # GitHub Actions Viewer
 
