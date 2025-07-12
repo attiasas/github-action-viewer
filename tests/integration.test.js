@@ -1,3 +1,4 @@
+process.env.NODE_ENV = 'test';
 import request from 'supertest';
 import express from 'express';
 import repoRoutes from './__mocks__/repositories.mock.js';
