@@ -6,9 +6,9 @@ import { globalIgnores } from 'eslint/config'
 
 export default [
   globalIgnores(['dist']),
-  ...js.configs.recommended,
-  ...reactHooks.configs['recommended-latest'],
-  ...reactRefresh.configs.vite,
+  js.configs.recommended,
+  reactHooks.configs['recommended-latest'],
+  reactRefresh.configs.vite,
   {
     files: ['**/*.{js,jsx,tsx}'],
     languageOptions: {
