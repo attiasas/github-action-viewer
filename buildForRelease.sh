@@ -152,7 +152,7 @@ if [ -n "$FORCE_ARCH" ]; then
 fi
 
 BUILD_NAME="${APP_NAME}-${VERSION}-${PLATFORM_NAME}-${ARCH_NAME}"
-BINARY_NAME="${APP_NAME}"
+BINARY_NAME="${APP_NAME}-${VERSION}-${PLATFORM_NAME}-${ARCH_NAME}"
 
 if [ "$PLATFORM_NAME" = "windows" ]; then
     BINARY_NAME="${BINARY_NAME}.exe"
@@ -208,7 +208,7 @@ echo -e "${YELLOW}🏗️  Building frontend...${NC}"
 npm run build
 
 # Create build directory structure
-BUILD_PATH="$BUILD_DIR/$BUILD_NAME"
+BUILD_PATH="$BUILD_DIR/$APP_NAME"
 mkdir -p "$BUILD_PATH"
 
 # Copy built frontend
@@ -579,7 +579,7 @@ EOF
 # Create archive
 echo -e "${YELLOW}📦 Creating archive...${NC}"
 cd $BUILD_DIR
-tar -czf "${BUILD_NAME}.tar.gz" "$BUILD_NAME"
+tar -czf "${BUILD_NAME}.tar.gz" "$APP_NAME"
 cd - > /dev/null
 
 # Create final executable script (Unix-like systems)
