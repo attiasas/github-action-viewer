@@ -138,6 +138,13 @@ export default function RepositoryCard({
     
     if (!force && statsRef.current && timeSinceLastRefresh < minInterval) {
       // Return cached stats
+      setRefreshHistory(prev => {
+        if (prev.length === 0 && statsRef.current) {
+          return [{...statsRef.current.overall}];
+        }
+        // If we have cached stats, just return them
+        return prev;
+      });
       return statsRef.current;
     }
 
@@ -156,10 +163,15 @@ export default function RepositoryCard({
         const newStats = await response.json();
         setStats(newStats);
         lastRefreshRef.current = now;
-        // Update refresh history (max 10)
+        // Only add to refresh history if this was a forced refresh
+        
         setRefreshHistory(prev => {
-          const next = [...prev, {...newStats.overall}];
-          return next.length > MAX_HISTORY ? next.slice(next.length - MAX_HISTORY) : next;
+          if (force || prev.length === 0) {
+            const next = [...prev, {...newStats.overall}];
+            return next.length > MAX_HISTORY ? next.slice(next.length - MAX_HISTORY) : next;
+          }
+          // If we have cached stats, just return them
+          return prev;
         });
         // Notify parent if callback provided
         if (onStatsUpdateRef.current) {
@@ -226,7 +238,13 @@ export default function RepositoryCard({
       getRepositoryStats(false);
     } else if (statsRef.current) {
       // If initialStats provided, seed history
-      setRefreshHistory(prev => prev.length === 0 ? [{...statsRef.current!.overall}] : prev);
+      setRefreshHistory(prev => {
+        if (prev.length === 0) {
+          return [{...statsRef.current!.overall}];
+        }
+        // If we have cached stats, just return them
+        return prev;
+      });
     }
   }, [getRepositoryStats]);
 
