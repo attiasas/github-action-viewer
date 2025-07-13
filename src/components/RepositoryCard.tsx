@@ -71,6 +71,16 @@ export default function RepositoryCard({
   const [error, setError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(repository.auto_refresh_interval);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  // Histogram settings from localStorage
+  const showHistogram = (() => {
+    const stored = localStorage.getItem('gav_showHistogram');
+    if (stored === null) return true;
+    return stored === 'true';
+  })();
+  const histogramType = (() => {
+    return localStorage.getItem('gav_histogramType') || 'refresh';
+  })();
+
   // Store last N refreshes' overall status counts (N depends on available width)
   const BAR_WIDTH = 4;
   const BAR_GAP = 1;
@@ -327,39 +337,41 @@ export default function RepositoryCard({
               )}
             </div>
           </div>
-          {/* Status history stacked bar chart */}
-          <div ref={histogramRef} style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', minWidth: 48, margin: '0 8px', maxWidth: '100%' }} title={`Workflow status history (last ${MAX_HISTORY} refreshes)`}>
-            {refreshHistory.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'flex-end', height: 28, width: '100%', gap: BAR_GAP }}>
-                {refreshHistory.slice(-MAX_HISTORY).map((hist, idx) => {
-                  const total = hist.success + hist.failure + hist.pending + hist.running + hist.cancelled;
-                  if (total === 0) return (
-                    <div key={idx} style={{ width: BAR_WIDTH, height: 24, background: '#e0e0e0', borderRadius: 2, opacity: 0.5 }} title="No data" />
-                  );
-                  // Each bar is BAR_WIDTH px wide, 24px tall
-                  const barHeight = 24;
-                  const getH = (n: number) => Math.round((n / total) * barHeight);
-                  // Order: running, pending, success, failure, cancelled (top to bottom)
-                  const segments = [
-                    { key: 'running', count: hist.running, color: '#2196f3' },
-                    { key: 'pending', count: hist.pending, color: '#ffc107' },
-                    { key: 'success', count: hist.success, color: '#28a745' },
-                    { key: 'failure', count: hist.failure, color: '#dc3545' },
-                    { key: 'cancelled', count: hist.cancelled, color: '#6c757d' },
-                  ];
-                  return (
-                    <div key={idx} style={{ width: BAR_WIDTH, height: barHeight, display: 'flex', flexDirection: 'column-reverse', borderRadius: 2, overflow: 'hidden', boxShadow: '0 0 0 1px var(--border-color)' }}>
-                      {segments.map(seg => {
-                        if (seg.count === 0) return null;
-                        const h = getH(seg.count);
-                        return <div key={seg.key} style={{ height: h, width: '100%', background: seg.color }} title={`${seg.key}: ${seg.count}`}/>;
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          {/* Status history stacked bar chart (only if enabled) */}
+          {showHistogram && histogramType === 'refresh' && (
+            <div ref={histogramRef} style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', minWidth: 48, margin: '0 8px', maxWidth: '100%' }} title={`Workflow status history (last ${MAX_HISTORY} refreshes)`}>
+              {refreshHistory.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'flex-end', height: 28, width: '100%', gap: BAR_GAP }}>
+                  {refreshHistory.slice(-MAX_HISTORY).map((hist, idx) => {
+                    const total = hist.success + hist.failure + hist.pending + hist.running + hist.cancelled;
+                    if (total === 0) return (
+                      <div key={idx} style={{ width: BAR_WIDTH, height: 24, background: '#e0e0e0', borderRadius: 2, opacity: 0.5 }} title="No data" />
+                    );
+                    // Each bar is BAR_WIDTH px wide, 24px tall
+                    const barHeight = 24;
+                    const getH = (n: number) => Math.round((n / total) * barHeight);
+                    // Order: running, pending, success, failure, cancelled (top to bottom)
+                    const segments = [
+                      { key: 'running', count: hist.running, color: '#2196f3' },
+                      { key: 'pending', count: hist.pending, color: '#ffc107' },
+                      { key: 'success', count: hist.success, color: '#28a745' },
+                      { key: 'failure', count: hist.failure, color: '#dc3545' },
+                      { key: 'cancelled', count: hist.cancelled, color: '#6c757d' },
+                    ];
+                    return (
+                      <div key={idx} style={{ width: BAR_WIDTH, height: barHeight, display: 'flex', flexDirection: 'column-reverse', borderRadius: 2, overflow: 'hidden', boxShadow: '0 0 0 1px var(--border-color)' }}>
+                        {segments.map(seg => {
+                          if (seg.count === 0) return null;
+                          const h = getH(seg.count);
+                          return <div key={seg.key} style={{ height: h, width: '100%', background: seg.color }} title={`${seg.key}: ${seg.count}`}/>;
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
           <button 
             className="remove-btn"
             onClick={handleRemove}
