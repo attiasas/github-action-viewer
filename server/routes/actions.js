@@ -524,7 +524,7 @@ router.post('/refresh/:userId/:repoId', async (req, res) => {
   const { userId, repoId } = req.params;
   const forceRefresh = req.query.force === 'true';
   
-  console.log(`� [Backend] Single refresh for repoId: ${repoId}, user: ${userId}, force: ${forceRefresh}`);
+  console.log(`🔄 [Backend] Single refresh for repoId: ${repoId}, user: ${userId}, force: ${forceRefresh}`);
 
   try {
     const repoStats = await getRepositoryStats(userId, repoId, forceRefresh);
