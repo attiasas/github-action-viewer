@@ -58,6 +58,8 @@ jobs:
           else
             echo "ARTIFACT_PATH=build/github-action-viewer" >> $GITHUB_ENV
           fi
+        shell: bash
+        
       - name: Checkout repository
         uses: actions/checkout@v4
 
