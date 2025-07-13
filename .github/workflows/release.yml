@@ -22,7 +22,7 @@ jobs:
           node-version: '20'
           
       - name: Update version
-        run: echo ${{ github.event.release.tag_name }} | xargs npm version --no-git-tag-version
+        run: echo ${{ github.event.release.tag_name }} | xargs npm version
 
       - name: Install dependencies
         run: npm ci
