@@ -50,13 +50,14 @@ jobs:
     env:
       BUILD_PLATFORM: ${{ matrix.run.platform }}
       BUILD_ARCH: ${{ matrix.run.arch }}
+      
     steps:
       - name: Get portable executable path
         run: |
           if [ "$BUILD_PLATFORM" = "windows" ]; then
-            echo "ARTIFACT_PATH=build/github-action-viewer-${{ github.event.release.tag_name }}-windows-x64.tar.gz" >> $GITHUB_ENV
+            echo "ARTIFACT_PATH=build/github-action-viewer-${{ github.event.release.tag_name }}-${{ BUILD_PLATFORM }}-${{ BUILD_ARCH }}.tar.gz" >> $GITHUB_ENV
           else
-            echo "ARTIFACT_PATH=build/github-action-viewer" >> $GITHUB_ENV
+            echo "ARTIFACT_PATH=build/github-action-viewer-${{ github.event.release.tag_name }}-${{ BUILD_PLATFORM }}-${{ BUILD_ARCH }}" >> $GITHUB_ENV
           fi
         shell: bash
         
