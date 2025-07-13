@@ -71,6 +71,36 @@ export default function RepositoryCard({
   const [error, setError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(repository.auto_refresh_interval);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  // Store last N refreshes' overall status counts (N depends on available width)
+  const BAR_WIDTH = 4;
+  const BAR_GAP = 1;
+  const [histogramWidth, setHistogramWidth] = useState(48); // default fallback
+  const histogramRef = useRef<HTMLDivElement | null>(null);
+  const MAX_HISTORY = Math.floor((histogramWidth + BAR_GAP) / (BAR_WIDTH + BAR_GAP));
+  const [refreshHistory, setRefreshHistory] = useState<Array<{success:number;failure:number;pending:number;running:number;cancelled:number;}>>(
+    initialStats ? [{...initialStats.overall}] : []
+  );
+  // Dynamically measure available width for histogram
+  useEffect(() => {
+    if (!histogramRef.current) return;
+    const node = histogramRef.current;
+    const updateWidth = () => {
+      setHistogramWidth(node.offsetWidth);
+    };
+    updateWidth();
+    // Use ResizeObserver if available
+    let ro: ResizeObserver | null = null;
+    if (window.ResizeObserver) {
+      ro = new ResizeObserver(() => updateWidth());
+      ro.observe(node);
+    } else {
+      window.addEventListener('resize', updateWidth);
+    }
+    return () => {
+      if (ro) ro.disconnect();
+      else window.removeEventListener('resize', updateWidth);
+    };
+  }, []);
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const lastRefreshRef = useRef<number>(0);
@@ -116,12 +146,15 @@ export default function RepositoryCard({
         const newStats = await response.json();
         setStats(newStats);
         lastRefreshRef.current = now;
-        
+        // Update refresh history (max 10)
+        setRefreshHistory(prev => {
+          const next = [...prev, {...newStats.overall}];
+          return next.length > MAX_HISTORY ? next.slice(next.length - MAX_HISTORY) : next;
+        });
         // Notify parent if callback provided
         if (onStatsUpdateRef.current) {
           onStatsUpdateRef.current(newStats);
         }
-        
         return newStats;
       } else {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -134,7 +167,7 @@ export default function RepositoryCard({
     } finally {
       setIsRefreshing(false);
     }
-  }, [user, repository]);
+  }, [user, repository, MAX_HISTORY]);
 
   // Auto-refresh timer
   useEffect(() => {
@@ -181,6 +214,9 @@ export default function RepositoryCard({
   useEffect(() => {
     if (!statsRef.current) {
       getRepositoryStats(false);
+    } else if (statsRef.current) {
+      // If initialStats provided, seed history
+      setRefreshHistory(prev => prev.length === 0 ? [{...statsRef.current!.overall}] : prev);
     }
   }, [getRepositoryStats]);
 
@@ -260,7 +296,7 @@ export default function RepositoryCard({
         onClick={handleCardClick}
       >
         <div className="repository-controls">
-          <div className="controls-left">
+          <div className="controls-left" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button 
               className="refresh-btn"
               onClick={handleManualRefresh}
@@ -283,8 +319,7 @@ export default function RepositoryCard({
                 <path d="m3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
               </svg>
             </button>
-            
-            <div className="refresh-info">
+            <div className="refresh-info" style={{ width: 80, minWidth: 80, textAlign: 'right', flex: '0 0 80px' }}>
               {isRefreshing ? (
                 <span className="refreshing">Refreshing...</span>
               ) : (
@@ -292,7 +327,39 @@ export default function RepositoryCard({
               )}
             </div>
           </div>
-          
+          {/* Status history stacked bar chart */}
+          <div ref={histogramRef} style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', minWidth: 48, margin: '0 8px', maxWidth: '100%' }} title={`Workflow status history (last ${MAX_HISTORY} refreshes)`}>
+            {refreshHistory.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'flex-end', height: 28, width: '100%', gap: BAR_GAP }}>
+                {refreshHistory.slice(-MAX_HISTORY).map((hist, idx) => {
+                  const total = hist.success + hist.failure + hist.pending + hist.running + hist.cancelled;
+                  if (total === 0) return (
+                    <div key={idx} style={{ width: BAR_WIDTH, height: 24, background: '#e0e0e0', borderRadius: 2, opacity: 0.5 }} title="No data" />
+                  );
+                  // Each bar is BAR_WIDTH px wide, 24px tall
+                  const barHeight = 24;
+                  const getH = (n: number) => Math.round((n / total) * barHeight);
+                  // Order: running, pending, success, failure, cancelled (top to bottom)
+                  const segments = [
+                    { key: 'running', count: hist.running, color: '#2196f3' },
+                    { key: 'pending', count: hist.pending, color: '#ffc107' },
+                    { key: 'success', count: hist.success, color: '#28a745' },
+                    { key: 'failure', count: hist.failure, color: '#dc3545' },
+                    { key: 'cancelled', count: hist.cancelled, color: '#6c757d' },
+                  ];
+                  return (
+                    <div key={idx} style={{ width: BAR_WIDTH, height: barHeight, display: 'flex', flexDirection: 'column-reverse', borderRadius: 2, overflow: 'hidden', boxShadow: '0 0 0 1px var(--border-color)' }}>
+                      {segments.map(seg => {
+                        if (seg.count === 0) return null;
+                        const h = getH(seg.count);
+                        return <div key={seg.key} style={{ height: h, width: '100%', background: seg.color }} title={`${seg.key}: ${seg.count}`}/>;
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
           <button 
             className="remove-btn"
             onClick={handleRemove}
