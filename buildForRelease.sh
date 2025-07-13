@@ -383,12 +383,12 @@ REM Get script directory
 set SCRIPT_DIR=%~dp0
 cd /d "%SCRIPT_DIR%"
 
-echo 🚀 Starting %APP_NAME%...
+echo [INFO] Starting %APP_NAME%...
 
 REM Check if Node.js is available
 where node >nul 2>&1
 if %errorlevel% neq 0 (
-    echo ❌ Node.js is required but not installed
+    echo [ERROR] Node.js is required but not installed
     echo Please install Node.js from https://nodejs.org
     pause
     exit /b 1
@@ -398,48 +398,46 @@ REM Check Node.js version
 for /f "tokens=1 delims=." %%i in ('node -v') do set NODE_MAJOR=%%i
 set NODE_MAJOR=%NODE_MAJOR:v=%
 if %NODE_MAJOR% lss 18 (
-    echo ⚠️  Node.js version %NODE_MAJOR% detected. Version 18+ recommended.
+    echo [WARN] Node.js version %NODE_MAJOR% detected. Version 18+ recommended.
 )
 
-REM Function to check if port is in use
-:check_port
-netstat -an | find ":%1 " | find "LISTENING" >nul 2>&1
-exit /b %errorlevel%
-
-REM Check if port is already in use
-call :check_port %PORT%
-if %errorlevel% equ 0 (
-    echo ⚠️  Port %PORT% is already in use. Trying to find an available port...
-    
-    REM Find available port starting from 3001
+REM Check if port is already in use or find an available one
+set PORT_FOUND=1
+for /f "tokens=*" %%p in ('netstat -an ^| find ":%PORT% "') do (
+    echo %%p | find /I "LISTENING" >nul && set PORT_FOUND=0
+)
+if %PORT_FOUND%==0 (
+    echo [WARN] Port %PORT% is already in use. Trying to find an available port...
+    set PORT_SELECTED=
     for /l %%i in (3001,1,3010) do (
-        call :check_port %%i
-        if !errorlevel! neq 0 (
-            set PORT=%%i
-            goto :found_port
+        set PORT_FREE=1
+        for /f "tokens=*" %%p in ('netstat -an ^| find ":%%i "') do (
+            echo %%p | find /I "LISTENING" >nul && set PORT_FREE=0
         )
+        if !PORT_FREE! neq 0 if not defined PORT_SELECTED set PORT_SELECTED=%%i
     )
-    
-    echo ❌ Could not find an available port
-    pause
-    exit /b 1
+    if defined PORT_SELECTED (
+        set PORT=%PORT_SELECTED%
+    ) else (
+        echo [ERROR] Could not find an available port
+        pause
+        exit /b 1
+    )
 )
-
-:found_port
 REM Set environment variables
 set NODE_ENV=production
 set PORT=%PORT%
 
 REM Start the application
-echo ✅ Starting server on port %PORT%...
-echo 🌐 Open your browser and navigate to: http://localhost:%PORT%
-echo 💡 Press Ctrl+C to stop the server
+echo [OK] Starting server on port %PORT%...
+echo [INFO] Open your browser and navigate to: http://localhost:%PORT%
+echo [INFO] Press Ctrl+C to stop the server
 echo.
 
 REM Open browser after a short delay (only if NO_BROWSER is not set)
 if not defined NO_BROWSER (
     timeout /t 2 /nobreak >nul 2>&1
-    start http://localhost:%PORT% 2>nul || echo Note: Could not open browser automatically
+    start http://localhost:%PORT% 2>nul || echo [INFO] Note: Could not open browser automatically
 )
 
 REM Start the Node.js server
@@ -448,7 +446,7 @@ node server/index.js
 REM Keep window open if there's an error
 if %errorlevel% neq 0 (
     echo.
-    echo Server exited with error code %errorlevel%
+    echo [ERROR] Server exited with error code %errorlevel%
     pause
 )
 EOF
