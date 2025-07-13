@@ -627,7 +627,7 @@ ARCHIVE_START=$(awk '/^__ARCHIVE_START__$/{print NR + 1; exit 0; }' "$0")
 tail -n +$ARCHIVE_START "$0" | tar -xzf - -C "$TEMP_DIR"
 
 # Find the extracted directory
-EXTRACTED_DIR=$(find "$TEMP_DIR" -name "github-action-viewer-*" -type d | head -n 1)
+EXTRACTED_DIR=$(find "$TEMP_DIR" -name "github-action-viewer" -type d | head -n 1)
 if [ -z "$EXTRACTED_DIR" ]; then
     echo -e "${RED}❌ Failed to extract application${NC}"
     exit 1
