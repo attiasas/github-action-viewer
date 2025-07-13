@@ -28,18 +28,36 @@ export default function SettingsPage() {
   const [serverError, setServerError] = useState('');
   const [serverSuccess, setServerSuccess] = useState('');
 
+  // Histogram settings state
+  const [showHistogram, setShowHistogram] = useState(() => {
+    const stored = localStorage.getItem('gav_showHistogram');
+    if (stored === null) return true; // default to true if not set
+    return stored === 'true';
+  });
+  const [histogramType, setHistogramType] = useState(() => {
+    return localStorage.getItem('gav_histogramType') || 'refresh';
+  });
+
   const loadSettings = useCallback(async () => {
     if (!user) return;
-    
     setIsLoading(true);
     try {
       // Load any necessary settings here if needed in the future
+      // Histogram settings are loaded from localStorage above
     } catch (error) {
       console.error('Error loading settings:', error);
     } finally {
       setIsLoading(false);
     }
   }, [user]);
+  // Persist histogram settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('gav_showHistogram', String(showHistogram));
+  }, [showHistogram]);
+
+  useEffect(() => {
+    localStorage.setItem('gav_histogramType', histogramType);
+  }, [histogramType]);
 
   useEffect(() => {
     loadSettings();
@@ -164,6 +182,36 @@ export default function SettingsPage() {
                     <span className="info-label">User ID</span>
                     <span className="info-value">{user?.id}</span>
                   </div>
+                </div>
+                <div className="histogram-settings">
+                  <div className="info-item">
+                    <label className="info-label" htmlFor="showHistogramSwitch">
+                      <input
+                        id="showHistogramSwitch"
+                        type="checkbox"
+                        checked={showHistogram}
+                        onChange={e => setShowHistogram(e.target.checked)}
+                        style={{ marginRight: 8 }}
+                      />
+                      Show Repository Card Histogram
+                    </label>
+                  </div>
+                  {showHistogram && (
+                    <div className="info-item" style={{ marginTop: 8 }}>
+                      <label className="info-label" htmlFor="histogramTypeSelect">
+                        Histogram Type
+                        <select
+                          id="histogramTypeSelect"
+                          value={histogramType}
+                          onChange={e => setHistogramType(e.target.value)}
+                          style={{ marginLeft: 8 }}
+                        >
+                          <option value="refresh">Refresh Histogram</option>
+                          {/* Future options can be added here */}
+                        </select>
+                      </label>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
