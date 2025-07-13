@@ -7,7 +7,7 @@ This document explains how to build and distribute the GitHub Actions Viewer app
 To build the application for distribution:
 
 ```bash
-./build.sh
+./buildForRelease.sh
 ```
 
 Or using npm:
@@ -20,7 +20,7 @@ npm run build:binary
 
 The build script creates several artifacts in the `build/` directory:
 
-1. **Application Directory**: `github-action-viewer-{version}-{platform}-{arch}/`
+1. **Application Directory**: `github-action-viewer/`
    - Contains the complete application ready to run
    - Includes all dependencies and built frontend
 
@@ -28,7 +28,7 @@ The build script creates several artifacts in the `build/` directory:
    - Compressed archive of the application directory
    - Suitable for distribution
 
-3. **Portable Executable**: `github-action-viewer` (Unix/Linux/macOS)
+3. **Portable Executable**: `github-action-viewer-{version}-{platform}-{arch}` (Unix/Linux/macOS)
    - Self-extracting executable that contains the entire application
    - Single file that can be run anywhere
 
@@ -37,7 +37,7 @@ The build script creates several artifacts in the `build/` directory:
 ### From the Application Directory
 
 ```bash
-cd build/github-action-viewer-{version}-{platform}-{arch}/
+cd build/github-action-viewer/
 ./start.sh              # Unix/Linux/macOS
 start.bat               # Windows
 ```
@@ -45,14 +45,14 @@ start.bat               # Windows
 ### From the Portable Executable
 
 ```bash
-./build/github-action-viewer
+./build/github-action-viewer-{version}-{platform}-{arch}
 ```
 
 ### From the Archive
 
 ```bash
 tar -xzf build/github-action-viewer-{version}-{platform}-{arch}.tar.gz
-cd github-action-viewer-{version}-{platform}-{arch}/
+cd github-action-viewer/
 ./start.sh              # Unix/Linux/macOS
 start.bat               # Windows
 ```
@@ -96,7 +96,7 @@ The application stores its database in platform-specific locations:
 
 ## Development vs Production
 
-- **Development**: Database stored in `server/database.sqlite`
+- **Development**: Database stored in `database.test.sqlite`
 - **Production**: Database stored in user data directory
 - Controlled by `NODE_ENV` environment variable
 
