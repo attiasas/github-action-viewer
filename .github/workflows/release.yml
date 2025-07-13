@@ -26,6 +26,7 @@ jobs:
         run: |
            echo ${{ github.event.release.tag_name }} | xargs npm version --no-git-tag-version
            git add package.json
+           git add package-lock.json
            git commit -m "bump version to ${{ github.event.release.tag_name }}"
            git tag ${{ github.event.release.tag_name }}
 
