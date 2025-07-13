@@ -401,38 +401,29 @@ if %NODE_MAJOR% lss 18 (
     echo [WARN] Node.js version %NODE_MAJOR% detected. Version 18+ recommended.
 )
 
-REM Function to check if port is in use
-:check_port
-REM Improved port check for Windows (returns 0 if port is in use, 1 if free)
-netstat -an | findstr /R /C:":%1 .*LISTENING" >nul 2>&1
-if %errorlevel%==0 (
-    REM Port is in use
-    exit /b 0
-) else (
-    REM Port is free
-    exit /b 1
+REM Check if port is already in use or find an available one
+set PORT_FOUND=1
+for /f "tokens=*" %%p in ('netstat -an ^| find ":%PORT% "') do (
+    echo %%p | find /I "LISTENING" >nul && set PORT_FOUND=0
 )
-
-REM Check if port is already in use
-call :check_port %PORT%
-if %errorlevel% equ 0 (
+if %PORT_FOUND%==0 (
     echo [WARN] Port %PORT% is already in use. Trying to find an available port...
-    
-    REM Find available port starting from 3001
+    set PORT_SELECTED=
     for /l %%i in (3001,1,3010) do (
-        call :check_port %%i
-        if !errorlevel! neq 0 (
-            set PORT=%%i
-            goto :found_port
+        set PORT_FREE=1
+        for /f "tokens=*" %%p in ('netstat -an ^| find ":%%i "') do (
+            echo %%p | find /I "LISTENING" >nul && set PORT_FREE=0
         )
+        if !PORT_FREE! neq 0 if not defined PORT_SELECTED set PORT_SELECTED=%%i
     )
-    
-    echo [ERROR] Could not find an available port
-    pause
-    exit /b 1
+    if defined PORT_SELECTED (
+        set PORT=%PORT_SELECTED%
+    ) else (
+        echo [ERROR] Could not find an available port
+        pause
+        exit /b 1
+    )
 )
-
-:found_port
 REM Set environment variables
 set NODE_ENV=production
 set PORT=%PORT%
