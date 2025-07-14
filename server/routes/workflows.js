@@ -137,7 +137,7 @@ async function getRepositoryStats(userId, repoId, forceRefresh = false) {
         );
       }
     } catch (error) {
-      console.error(`💥 [Backend] Error fetching workflows for ${repository.repository_name}:`, error.message);
+      console.error(`❌ [Backend] Error fetching workflows for ${repository.repository_name}:`, error.message);
     }
 
     // Build repository stats
@@ -223,7 +223,7 @@ async function getRepositoryStats(userId, repoId, forceRefresh = false) {
           }
         }
       } catch (error) {
-        console.error(`💥 [Backend] Error processing branch ${branch}:`, error.message);
+        console.error(`❌ [Backend] Error processing branch ${branch}:`, error.message);
         repoStats.branches[branch].error = error.message;
       }
     }
@@ -247,7 +247,7 @@ async function getRepositoryStats(userId, repoId, forceRefresh = false) {
     return repoStats;
 
   } catch (error) {
-    console.error('💥 [Backend] Error getting repository stats:', error);
+    console.error('❌ [Backend] Error getting repository stats:', error);
     throw error;
   }
 }
