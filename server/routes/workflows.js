@@ -9,6 +9,8 @@ const router = express.Router();
 const workflowCache = new Map();
 const MIN_REFRESH_INTERVAL = 30 * 1000; // Minimum 30 seconds between API calls
 
+var requestIdCounter = 0;
+
 // Cache structure for each workflow entry:
 // {
 //   key: "serverUrl_owner/repo_branch_workflowName",
@@ -221,7 +223,7 @@ async function getRepositoryStats(userId, repoId, forceRefresh = false) {
           }
         }
       } catch (error) {
-        console.error(`Error processing branch ${branch}:`, error.message);
+        console.error(`💥 [Backend] Error processing branch ${branch}:`, error.message);
         repoStats.branches[branch].error = error.message;
       }
     }
@@ -245,49 +247,18 @@ async function getRepositoryStats(userId, repoId, forceRefresh = false) {
     return repoStats;
 
   } catch (error) {
-    console.error('Error getting repository stats:', error);
+    console.error('💥 [Backend] Error getting repository stats:', error);
     throw error;
   }
 }
-
-// Get workflow runs for a specific repository and branch
-router.get('/runs/:owner/:repo', async (req, res) => {
-  const { owner, repo } = req.params;
-  const { userId, serverId, branch, workflowId } = req.query;
-
-  if (!userId || !serverId) {
-    return res.status(400).json({ error: 'userId and serverId are required' });
-  }
-
-  console.log(`🚀 [Backend] Fetching workflow runs for user: ${userId}, serverId: ${serverId}, owner: ${owner}, repo: ${repo}, branch: ${branch}, workflowId: ${workflowId}`);
-
-  try {
-    const server = await GetServerDetails(userId, serverId);
-
-    if (!server) {
-      return res.status(404).json({ error: 'GitHub server not found' });
-    }
-
-    const runs = await FetchRepositoryRuns(server.server_url, server.api_token, owner, repo, branch, workflowId);
-
-    console.log(`✅ [Backend] Fetched ${runs.length} workflow runs for ${owner}/${repo}`);
-
-    res.json(runs);
-  } catch (error) {
-    console.error('❌ [Backend] GitHub API error:', error.response?.data || error.message);
-    res.status(error.response?.status || 500).json({
-      error: 'Failed to fetch workflow runs',
-      details: error.response?.data?.message || error.message
-    });
-  }
-});
 
 // Get detailed workflow status for a specific repository
 router.get('/workflow-status/:userId/:repoId', async (req, res) => {
   const { userId, repoId } = req.params;
   const forceRefresh = req.query.force === 'true';
-
-  console.log(`📊 [Backend] Getting workflows status for repoId: ${repoId}, user: ${userId}, force: ${forceRefresh}`);
+  // Generate a unique request ID for logging
+  const requestId = `req_${++requestIdCounter}`;
+  console.log(`📊 [${requestId}] Getting workflows status for repoId: ${repoId}, user: ${userId}, force: ${forceRefresh}`);
 
   try {
     // Get repository information
@@ -314,7 +285,7 @@ router.get('/workflow-status/:userId/:repoId', async (req, res) => {
         );
       }
     } catch (error) {
-      console.error(`Error fetching workflows for ${repository.repository_name}:`, error.message);
+      console.error(`❌ [${requestId}] Error fetching workflows for ${repository.repository_name}:`, error.message);
     }
 
     // Build detailed workflow status
@@ -367,12 +338,12 @@ router.get('/workflow-status/:userId/:repoId', async (req, res) => {
       }
     }
 
-    console.log(`✅ [Backend] Detailed workflow status fetched for repoId: ${repoId}`);
+    console.log(`✅ [${requestId}] Detailed workflow status fetched for repoId: ${repoId}`);
 
     res.json(detailedStatus);
 
   } catch (error) {
-    console.error('❌ [Backend] Error fetching detailed workflow status:', error);
+    console.error(`❌ [${requestId}] Error fetching detailed workflow status:`, error);
     res.status(500).json({ 
       error: 'Failed to fetch detailed workflow status',
       details: error.message 
@@ -384,15 +355,16 @@ router.get('/workflow-status/:userId/:repoId', async (req, res) => {
 router.post('/refresh/:userId/:repoId', async (req, res) => {
   const { userId, repoId } = req.params;
   const forceRefresh = req.query.force === 'true';
-  
-  console.log(`🔄 [Backend] Single refresh for repoId: ${repoId}, user: ${userId}, force: ${forceRefresh}`);
+  // Generate a unique request ID for logging
+  const requestId = `req_${++requestIdCounter}`;
+  console.log(`🔄 [${requestId}] Single refresh for repoId: ${repoId}, user: ${userId}, force: ${forceRefresh}`);
 
   try {
     const repoStats = await getRepositoryStats(userId, repoId, forceRefresh);
-    console.log(`✅ [Backend] Single refresh completed for repoId: ${repoId}`);
+    console.log(`✅ [${requestId}] Single refresh completed for repoId: ${repoId}`);
     res.json(repoStats);
   } catch (error) {
-    console.error(`❌ [Backend] Single refresh failed for repoId: ${repoId}:`, error);
+    console.error(`❌ [${requestId}] Single refresh failed for repoId: ${repoId}:`, error);
     res.status(500).json({ 
       error: 'Failed to refresh repository',
       details: error.message 
