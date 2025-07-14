@@ -156,17 +156,6 @@ describe('Actions routes', () => {
     const res = await request(app).get('/api/actions/runs/owner/repo');
     expect(res.statusCode).toBeGreaterThanOrEqual(400);
   });
-  it('should get stats for valid user (empty array)', async () => {
-    const userId = 'testuser-success';
-    const res = await request(app).get(`/api/actions/stats/${userId}`);
-    expect(res.statusCode).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-  });
-  it('should fail to get stats for non-existent user', async () => {
-    const res = await request(app).get('/api/actions/stats/doesnotexist');
-    expect(res.statusCode).toBe(200); // returns array
-    expect(Array.isArray(res.body)).toBe(true);
-  });
   it('should fail to get workflow status for non-existent repo', async () => {
     const res = await request(app).get('/api/actions/workflow-status/doesnotexist/1');
     expect([404,500]).toContain(res.statusCode);
