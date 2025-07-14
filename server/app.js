@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 import { initializeDatabase } from './database.js';
 import authRoutes from './routes/auth.js';
 import repositoryRoutes from './routes/repositories.js';
-import actionsRoutes from './routes/actions.js';
+import actionsRoutes from './routes/workflows.js';
 import userRoutes from './routes/users.js';
 
 const __filename = fileURLToPath(import.meta.url);
