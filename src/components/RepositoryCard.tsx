@@ -368,13 +368,13 @@ export default function RepositoryCard({
                     // Each bar is BAR_WIDTH px wide, 24px tall
                     const barHeight = 24;
                     const getH = (n: number) => Math.round((n / total) * barHeight);
-                    // Order: running, pending, success, failure, cancelled (top to bottom)
+                    // Order: running, failure, pending, cancelled, success (top to bottom)
                     const segments = [
-                      { key: 'running', count: hist.running, color: '#2196f3' },
-                      { key: 'pending', count: hist.pending, color: '#ffc107' },
                       { key: 'success', count: hist.success, color: '#28a745' },
-                      { key: 'failure', count: hist.failure, color: '#dc3545' },
                       { key: 'cancelled', count: hist.cancelled, color: '#6c757d' },
+                      { key: 'pending', count: hist.pending, color: '#ffc107' },
+                      { key: 'failure', count: hist.failure, color: '#dc3545' },
+                      { key: 'running', count: hist.running, color: '#2196f3' },
                     ];
                     return (
                       <div key={idx} style={{ width: BAR_WIDTH, height: barHeight, display: 'flex', flexDirection: 'column-reverse', borderRadius: 2, overflow: 'hidden', boxShadow: '0 0 0 1px var(--border-color)' }}>
