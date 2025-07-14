@@ -1,6 +1,6 @@
 import express from 'express';
 import axios from 'axios';
-import { db } from '../database.js';
+import { GetTrackedRepositoryWithServerDetails, GetServerDetails } from '../utils/database.js';
 
 const router = express.Router();
 
@@ -125,19 +125,7 @@ async function getWorkflowData(serverUrl, apiToken, repository, branch, workflow
 async function getRepositoryStats(userId, repoId, forceRefresh = false) {
   try {
     // Get repository information
-    const repository = await new Promise((resolve, reject) => {
-      db.get(
-        `SELECT ur.*, gs.server_url, gs.api_token, gs.server_name
-         FROM user_repositories ur 
-         JOIN github_servers gs ON ur.github_server_id = gs.id 
-         WHERE ur.user_id = ? AND ur.id = ?`,
-        [userId, repoId],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        }
-      );
-    });
+    const repository = await GetTrackedRepositoryWithServerDetails(userId, repoId);
 
     if (!repository) {
       throw new Error('Repository not found');
@@ -297,16 +285,7 @@ router.get('/runs/:owner/:repo', async (req, res) => {
   }
 
   try {
-    const server = await new Promise((resolve, reject) => {
-      db.get(
-        'SELECT server_url, api_token FROM github_servers WHERE id = ? AND user_id = ?',
-        [serverId, userId],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        }
-      );
-    });
+    const server = await GetServerDetails(userId, serverId);
 
     if (!server) {
       return res.status(404).json({ error: 'GitHub server not found' });
@@ -350,19 +329,7 @@ router.get('/stats/:userId', async (req, res) => {
 
   try {
     // Get user's tracked repositories with GitHub server information
-    const repositories = await new Promise((resolve, reject) => {
-      db.all(
-        `SELECT ur.*, gs.server_url, gs.api_token, gs.server_name
-         FROM user_repositories ur 
-         JOIN github_servers gs ON ur.github_server_id = gs.id 
-         WHERE ur.user_id = ?`,
-        [userId],
-        (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows);
-        }
-      );
-    });
+    const repositories = await GetTrackedRepositories(userId);
 
     console.log(`📊 [Backend] Processing ${repositories.length} repositories for user: ${userId}`);
     const stats = [];
@@ -408,19 +375,7 @@ router.get('/workflow-status/:userId/:repoId', async (req, res) => {
 
   try {
     // Get repository information
-    const repository = await new Promise((resolve, reject) => {
-      db.get(
-        `SELECT ur.*, gs.server_url, gs.api_token, gs.server_name
-         FROM user_repositories ur 
-         JOIN github_servers gs ON ur.github_server_id = gs.id 
-         WHERE ur.user_id = ? AND ur.id = ?`,
-        [userId, repoId],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        }
-      );
-    });
+    const repository = await GetTrackedRepositoryWithServerDetails(userId, repoId);
 
     if (!repository) {
       return res.status(404).json({ error: 'Repository not found' });
