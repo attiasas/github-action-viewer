@@ -1,5 +1,6 @@
 import express from 'express';
-import axios from 'axios';
+
+import { FetchRepositoryWorkflows, FetchWorkflowsLatestRuns } from '../utils/github.js';
 import { GetTrackedRepositoryWithServerDetails, GetServerDetails } from '../utils/database.js';
 
 const router = express.Router();
@@ -41,7 +42,7 @@ function shouldRefreshWorkflow(key, minRefreshInterval = MIN_REFRESH_INTERVAL) {
   return (now - entry.lastRefresh) >= minRefreshInterval;
 }
 
-// Get or update workflow data from cache
+// Get (update if needed) workflow data from cache
 async function getWorkflowData(serverUrl, apiToken, repository, branch, workflowName, workflowId, workflowPath, minRefreshInterval = MIN_REFRESH_INTERVAL) {
   const key = generateWorkflowKey(serverUrl, repository, branch, workflowName);
   
@@ -52,25 +53,11 @@ async function getWorkflowData(serverUrl, apiToken, repository, branch, workflow
 
   // Refresh data from API
   try {
-    const [owner, repoName] = repository.split('/');
-    const baseUrl = serverUrl.replace(/\/$/, '');
-    const apiUrl = baseUrl.includes('github.com') 
-      ? 'https://api.github.com' 
-      : `${baseUrl}/api/v3`;
-
-    // Get latest run for this workflow on this branch
-    const response = await axios.get(`${apiUrl}/repos/${owner}/${repoName}/actions/workflows/${workflowId}/runs`, {
-      params: { branch, per_page: 1 },
-      headers: {
-        'Authorization': `token ${apiToken}`,
-        'Accept': 'application/vnd.github.v3+json'
-      }
-    });
-
-    const runs = response.data.workflow_runs;
+    const runs = await FetchWorkflowsLatestRuns(serverUrl, apiToken, repository, branch, workflowId);
     let workflowData = null;
 
     if (runs.length > 0) {
+      // Use the latest run data
       const latestRun = runs[0];
       workflowData = {
         id: latestRun.id,
@@ -124,32 +111,20 @@ async function getWorkflowData(serverUrl, apiToken, repository, branch, workflow
 // Get repository statistics from workflow cache
 async function getRepositoryStats(userId, repoId, forceRefresh = false) {
   try {
-    // Get repository information
+    // Get repository information from the database
     const repository = await GetTrackedRepositoryWithServerDetails(userId, repoId);
 
     if (!repository) {
       throw new Error('Repository not found');
     }
 
-    const [owner, repoName] = repository.repository_name.split('/');
     const trackedBranches = JSON.parse(repository.tracked_branches);
     const trackedWorkflows = JSON.parse(repository.tracked_workflows);
-
-    const baseUrl = repository.server_url.replace(/\/$/, '');
-    const apiUrl = baseUrl.includes('github.com') 
-      ? 'https://api.github.com' 
-      : `${baseUrl}/api/v3`;
 
     // Get all workflows for the repository
     let allWorkflows = [];
     try {
-      const workflowsResponse = await axios.get(`${apiUrl}/repos/${owner}/${repoName}/actions/workflows`, {
-        headers: {
-          'Authorization': `token ${repository.api_token}`,
-          'Accept': 'application/vnd.github.v3+json'
-        }
-      });
-      allWorkflows = workflowsResponse.data.workflows;
+      allWorkflows = await FetchRepositoryWorkflows(repository.server_url, repository.api_token, repository.repository_name);
 
       // Filter workflows if tracking specific ones
       if (trackedWorkflows.length > 0) {
@@ -160,7 +135,7 @@ async function getRepositoryStats(userId, repoId, forceRefresh = false) {
         );
       }
     } catch (error) {
-      console.error(`Error fetching workflows for ${repository.repository_name}:`, error.message);
+      console.error(`💥 [Backend] Error fetching workflows for ${repository.repository_name}:`, error.message);
     }
 
     // Build repository stats
@@ -284,6 +259,8 @@ router.get('/runs/:owner/:repo', async (req, res) => {
     return res.status(400).json({ error: 'userId and serverId are required' });
   }
 
+  console.log(`🚀 [Backend] Fetching workflow runs for user: ${userId}, serverId: ${serverId}, owner: ${owner}, repo: ${repo}, branch: ${branch}, workflowId: ${workflowId}`);
+
   try {
     const server = await GetServerDetails(userId, serverId);
 
@@ -291,79 +268,16 @@ router.get('/runs/:owner/:repo', async (req, res) => {
       return res.status(404).json({ error: 'GitHub server not found' });
     }
 
-    const baseUrl = server.server_url.replace(/\/$/, '');
-    const apiUrl = baseUrl.includes('github.com') 
-      ? 'https://api.github.com' 
-      : `${baseUrl}/api/v3`;
+    const runs = await FetchRepositoryRuns(server.server_url, server.api_token, owner, repo, branch, workflowId);
 
-    let url = `${apiUrl}/repos/${owner}/${repo}/actions/runs`;
-    const params = { per_page: 50 };
-    
-    if (branch) params.branch = branch;
-    if (workflowId) url = `${apiUrl}/repos/${owner}/${repo}/actions/workflows/${workflowId}/runs`;
+    console.log(`✅ [Backend] Fetched ${runs.length} workflow runs for ${owner}/${repo}`);
 
-    const response = await axios.get(url, {
-      params,
-      headers: {
-        'Authorization': `token ${server.api_token}`,
-        'Accept': 'application/vnd.github.v3+json'
-      }
-    });
-
-    res.json(response.data);
+    res.json(runs);
   } catch (error) {
-    console.error('GitHub API error:', error.response?.data || error.message);
+    console.error('❌ [Backend] GitHub API error:', error.response?.data || error.message);
     res.status(error.response?.status || 500).json({
       error: 'Failed to fetch workflow runs',
       details: error.response?.data?.message || error.message
-    });
-  }
-});
-
-// Get aggregated action statistics for all tracked repositories
-router.get('/stats/:userId', async (req, res) => {
-  const { userId } = req.params;
-  const { force } = req.query;
-  
-  console.log(`📊 [Backend] Getting stats for user: ${userId} (force: ${force === 'true'})`);
-
-  try {
-    // Get user's tracked repositories with GitHub server information
-    const repositories = await GetTrackedRepositories(userId);
-
-    console.log(`📊 [Backend] Processing ${repositories.length} repositories for user: ${userId}`);
-    const stats = [];
-
-    // Process each repository
-    for (const repository of repositories) {
-      try {
-        const repoStats = await getRepositoryStats(userId, repository.id, force === 'true');
-        stats.push(repoStats);
-      } catch (error) {
-        console.error(`❌ [Backend] Error processing repository ${repository.repository_name}:`, error);
-        // Add error entry for this repository
-        stats.push({
-          repository: repository.repository_name,
-          repositoryUrl: repository.repository_url,
-          repoId: repository.id,
-          serverName: repository.server_name,
-          serverUrl: repository.server_url,
-          branches: {},
-          overall: { success: 0, failure: 0, pending: 0, cancelled: 0, running: 0 },
-          status: 'error',
-          hasError: true,
-          error: error.message
-        });
-      }
-    }
-
-    console.log(`✅ [Backend] Completed stats for user: ${userId} - processed ${stats.length} repositories`);
-    res.json(stats);
-  } catch (error) {
-    console.error(`💥 [Backend] Stats call failed for user: ${userId}:`, error);
-    res.status(500).json({ 
-      error: 'Failed to fetch action statistics',
-      details: error.message 
     });
   }
 });
@@ -373,6 +287,8 @@ router.get('/workflow-status/:userId/:repoId', async (req, res) => {
   const { userId, repoId } = req.params;
   const forceRefresh = req.query.force === 'true';
 
+  console.log(`📊 [Backend] Getting workflows status for repoId: ${repoId}, user: ${userId}, force: ${forceRefresh}`);
+
   try {
     // Get repository information
     const repository = await GetTrackedRepositoryWithServerDetails(userId, repoId);
@@ -381,25 +297,13 @@ router.get('/workflow-status/:userId/:repoId', async (req, res) => {
       return res.status(404).json({ error: 'Repository not found' });
     }
 
-    const [owner, repoName] = repository.repository_name.split('/');
     const trackedBranches = JSON.parse(repository.tracked_branches);
     const trackedWorkflows = JSON.parse(repository.tracked_workflows);
-
-    const baseUrl = repository.server_url.replace(/\/$/, '');
-    const apiUrl = baseUrl.includes('github.com') 
-      ? 'https://api.github.com' 
-      : `${baseUrl}/api/v3`;
 
     // Get all workflows for the repository
     let allWorkflows = [];
     try {
-      const workflowsResponse = await axios.get(`${apiUrl}/repos/${owner}/${repoName}/actions/workflows`, {
-        headers: {
-          'Authorization': `token ${repository.api_token}`,
-          'Accept': 'application/vnd.github.v3+json'
-        }
-      });
-      allWorkflows = workflowsResponse.data.workflows;
+      allWorkflows = await FetchRepositoryWorkflows(repository.server_url, repository.api_token, repository.repository_name);
 
       // Filter workflows if tracking specific ones
       if (trackedWorkflows.length > 0) {
@@ -463,10 +367,12 @@ router.get('/workflow-status/:userId/:repoId', async (req, res) => {
       }
     }
 
+    console.log(`✅ [Backend] Detailed workflow status fetched for repoId: ${repoId}`);
+
     res.json(detailedStatus);
 
   } catch (error) {
-    console.error('Error fetching detailed workflow status:', error);
+    console.error('❌ [Backend] Error fetching detailed workflow status:', error);
     res.status(500).json({ 
       error: 'Failed to fetch detailed workflow status',
       details: error.message 
@@ -486,7 +392,7 @@ router.post('/refresh/:userId/:repoId', async (req, res) => {
     console.log(`✅ [Backend] Single refresh completed for repoId: ${repoId}`);
     res.json(repoStats);
   } catch (error) {
-    console.error(`💥 [Backend] Single refresh failed for repoId: ${repoId}:`, error);
+    console.error(`❌ [Backend] Single refresh failed for repoId: ${repoId}:`, error);
     res.status(500).json({ 
       error: 'Failed to refresh repository',
       details: error.message 
