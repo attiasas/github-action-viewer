@@ -11,11 +11,13 @@ export class TrackedRepository {
 }
 
 export class RepositoryMetadata {
-  constructor(id, name, trackedBranches, trackedWorkflows) {
+  constructor(id, name, url, trackedBranches, trackedWorkflows) {
     this.id = id;
     this.name = name;
+    this.url = url;
     this.trackedBranches = trackedBranches;
-    this.trackedWorkflows = trackedWorkflows;
+    this.trackedWorkflowsPaths = trackedWorkflows;
+    this.trackedWorkflows = [];
   }
 }
 
@@ -37,6 +39,7 @@ export async function GetUserTrackedRepositories(userId) {
     new RepositoryMetadata(
       row.id,
       row.repository_name,
+      row.repository_url,
       JSON.parse(row.tracked_branches),
       JSON.parse(row.tracked_workflows),
     ),
@@ -66,6 +69,7 @@ export async function GetUserTrackedRepositoryData(userId, repoId) {
     new RepositoryMetadata(
       row.id,
       row.repository_name,
+      row.repository_url,
       JSON.parse(row.tracked_branches),
       JSON.parse(row.tracked_workflows),
     ),

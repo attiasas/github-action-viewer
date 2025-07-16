@@ -73,7 +73,7 @@ class WorkflowRunsCache {
     let workflowMap = this._getOrCreate(branchMap, branch);
     // Always keep only the latest X runs (sorted by created_at desc)
     let sortedRuns = [...runs].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    let item = new CachedItem(workflow, sortedRuns.slice(0, this.maxRunsPerWorkflow));
+    let item = new CachedItem(sortedRuns.slice(0, this.maxRunsPerWorkflow));
     workflowMap.set(workflow, item);
   }
 
@@ -92,13 +92,15 @@ class WorkflowRunsCache {
     let workflowMap = branchMap.get(branch);
     if (!workflowMap) return [];
     let runs = workflowMap.get(workflow) || [];
-    return runs.slice(0, count);
+    if (runs.data && runs.data.repository && runs.data.repository.trackedWorkflows) {
+        runs.data = runs.data.repository.trackedWorkflows.slice(0, count);
+    }
+    return runs
   }
 
   // Get the latest run for a workflow
   getLatestRun(params) {
-    let runs = this.getLatestRuns({ ...params, count: 1 });
-    return runs[0] || null;
+    return this.getLatestRuns({ ...params, count: 1 });
   }
 
   // Clear cache (for testing or reset)
