@@ -1,375 +1,259 @@
 import express from 'express';
 
-import { FetchRepositoryWorkflows, FetchWorkflowsLatestRuns } from '../utils/github.js';
-import { GetTrackedRepositoryWithServerDetails, GetServerDetails } from '../utils/database.js';
+import runsCache from '../cache/workflows.js';
+import { GetUserTrackedRepositoryData } from '../utils/database.js';
+import { FetchWorkflowRuns } from '../utils/github.js';
+
+// userId_serverId_repoId
+const refreshingRepositories = new Set();
 
 const router = express.Router();
 
-// RAM-based workflow cache using key structure: gitServer_repository_branch_workflow
-const workflowCache = new Map();
-const MIN_REFRESH_INTERVAL = 30 * 1000; // Minimum 30 seconds between API calls
-
-var requestIdCounter = 0;
-
-// Cache structure for each workflow entry:
-// {
-//   key: "serverUrl_owner/repo_branch_workflowName",
-//   data: {
-//     id: number,
-//     name: string,
-//     status: string,
-//     conclusion: string | null,
-//     created_at: string,
-//     updated_at: string,
-//     html_url: string,
-//     head_branch: string,
-//     head_sha: string,
-//     workflow_id: number,
-//     run_number: number
-//   },
-//   lastRefresh: timestamp,
-//   error: string | null
-// }
-
-// Generate cache key for workflow data
-function generateWorkflowKey(serverUrl, repository, branch, workflowName) {
-  return `${serverUrl}_${repository}_${branch}_${workflowName}`;
+// Enum for workflow normalized status
+const WorkflowStatusEnum = {
+    SUCCESS: 'success',
+    FAILURE: 'failure',
+    PENDING: 'pending',
+    RUNNING: 'running',
+    CANCELLED: 'cancelled',
+    ERROR: 'error',
+    NO_RUNS: 'no_runs',
+};
+// Enum for normalized status values of branch and repository
+const NormalizedStatusEnum = {
+    SUCCESS: 'success',
+    FAILURE: 'failure',
+    PENDING: 'pending',
+    RUNNING: 'running',
+    ERROR: 'error',
+    UNKNOWN: 'unknown' // no runs / cancelled
 }
 
-// Check if workflow data needs refresh
-function shouldRefreshWorkflow(key, minRefreshInterval = MIN_REFRESH_INTERVAL) {
-  const entry = workflowCache.get(key);
-  if (!entry) return true;
-  const now = Date.now();
-  return (now - entry.lastRefresh) >= minRefreshInterval;
-}
+export class RepositoryStatus {
+    constructor(id, name, url) {
+        this.id = id;
+        this.name = name;
+        this.url = url;
+        this.branches = {};
 
-// Get (update if needed) workflow data from cache
-async function getWorkflowData(serverUrl, apiToken, repository, branch, workflowName, workflowId, workflowPath, minRefreshInterval = MIN_REFRESH_INTERVAL) {
-  const key = generateWorkflowKey(serverUrl, repository, branch, workflowName);
-  
-  // Return cached data if fresh
-  if (!shouldRefreshWorkflow(key, minRefreshInterval)) {
-    return workflowCache.get(key);
-  }
+        this.status = NormalizedStatusEnum.UNKNOWN;
+        this.overall = { success: 0, failure: 0, pending: 0, cancelled: 0, running: 0 };
 
-  // Refresh data from API
-  try {
-    const runs = await FetchWorkflowsLatestRuns(serverUrl, apiToken, repository, branch, workflowId);
-    let workflowData = null;
-
-    if (runs.length > 0) {
-      // Use the latest run data
-      const latestRun = runs[0];
-      workflowData = {
-        id: latestRun.id,
-        name: latestRun.name,
-        status: latestRun.status,
-        conclusion: latestRun.conclusion,
-        created_at: latestRun.created_at,
-        updated_at: latestRun.updated_at,
-        html_url: latestRun.html_url,
-        head_branch: latestRun.head_branch,
-        head_sha: latestRun.head_sha,
-        workflow_id: latestRun.workflow_id,
-        run_number: latestRun.run_number
-      };
-    } else {
-      // No runs found for this workflow on this branch
-      workflowData = {
-        status: 'no_runs',
-        conclusion: null,
-        name: workflowName,
-        workflow_id: workflowId,
-        workflow_path: workflowPath
-      };
+        this.hasPermissionError = false; // true if any branch has permission error
+        this.hasError = false; // true if any branch has error
     }
-
-    // Cache the result
-    const cacheEntry = {
-      key,
-      data: workflowData,
-      lastRefresh: Date.now(),
-      error: null
-    };
-    
-    workflowCache.set(key, cacheEntry);
-    return cacheEntry;
-
-  } catch (error) {
-    // Cache the error
-    const errorEntry = {
-      key,
-      data: null,
-      lastRefresh: Date.now(),
-      error: error.message
-    };
-    
-    workflowCache.set(key, errorEntry);
-    return errorEntry;
-  }
 }
 
-// Get repository statistics from workflow cache
-async function getRepositoryStats(userId, repoId, forceRefresh = false) {
-  try {
-    // Get repository information from the database
-    const repository = await GetTrackedRepositoryWithServerDetails(userId, repoId);
+export class BranchStatus {
+    constructor(name) {
+        this.name = name;
+        this.workflows = {};
 
-    if (!repository) {
-      throw new Error('Repository not found');
+        this.status = NormalizedStatusEnum.UNKNOWN;
+        this.overall = { success: 0, failure: 0, pending: 0, cancelled: 0, running: 0 };
     }
+}
 
-    const trackedBranches = JSON.parse(repository.tracked_branches);
-    const trackedWorkflows = JSON.parse(repository.tracked_workflows);
+export class WorkflowStatus {
+    constructor(name, runNumber, commit, status, conclusion, createdAt, url) {
+        // GitHub workflow properties
+        this.name = name;
+        this.runNumber = runNumber;
+        this.commit = commit;
+        this.status = status;
+        this.normalizeStatus = normalizeWorkflowStatus(status);
+        this.conclusion = conclusion;
+        this.createdAt = createdAt;
+        this.url = url;
+    }
+}
 
-    // Get all workflows for the repository
-    let allWorkflows = [];
+// add middleware to fetch repository data
+router.use('/:userId/:repoId', async (req, res, next) => {
+    const { userId, repoId } = req.params;
     try {
-      allWorkflows = await FetchRepositoryWorkflows(repository.server_url, repository.api_token, repository.repository_name);
-
-      // Filter workflows if tracking specific ones
-      if (trackedWorkflows.length > 0) {
-        allWorkflows = allWorkflows.filter(workflow => 
-          trackedWorkflows.some(tracked => 
-            workflow.path.includes(tracked) || workflow.name === tracked
-          )
-        );
-      }
-    } catch (error) {
-      console.error(`❌ [Backend] Error fetching workflows for ${repository.repository_name}:`, error.message);
-    }
-
-    // Build repository stats
-    const repoStats = {
-      repository: repository.repository_name,
-      repositoryUrl: repository.repository_url,
-      repoId: repository.id,
-      serverName: repository.server_name,
-      serverUrl: repository.server_url,
-      branches: {},
-      overall: { success: 0, failure: 0, pending: 0, cancelled: 0, running: 0 }
-    };
-
-    const minRefreshInterval = forceRefresh ? 0 : (repository.auto_refresh_interval * 1000);
-    let hasFailure = false;
-    let hasPending = false;
-    let hasRunning = false;
-    let hasPermissionError = false;
-
-    // Process each branch
-    for (const branch of trackedBranches) {
-      repoStats.branches[branch] = {
-        success: 0,
-        failure: 0,
-        pending: 0,
-        cancelled: 0,
-        running: 0,
-        workflows: {}
-      };
-
-      try {
-        // Process each workflow in the branch
-        for (const workflow of allWorkflows) {
-          const workflowEntry = await getWorkflowData(
-            repository.server_url,
-            repository.api_token,
-            repository.repository_name,
-            branch,
-            workflow.name,
-            workflow.id,
-            workflow.path,
-            minRefreshInterval
-          );
-
-          if (workflowEntry.error) {
-            repoStats.branches[branch].error = workflowEntry.error;
-            if (workflowEntry.error.includes('Access denied') || workflowEntry.error.includes('not found')) {
-              hasPermissionError = true;
-            }
-            continue;
-          }
-
-          const workflowData = workflowEntry.data;
-          if (workflowData && workflowData.status !== 'no_runs') {
-            const status = workflowData.conclusion || workflowData.status;
-            const normalizedStatus = status === 'success' ? 'success' 
-              : status === 'failure' ? 'failure'
-              : status === 'cancelled' ? 'cancelled'
-              : status === 'in_progress' ? 'running'
-              : 'pending';
-
-            // Count this workflow's status for the branch
-            repoStats.branches[branch][normalizedStatus]++;
-            repoStats.overall[normalizedStatus]++;
-
-            // Store workflow details
-            repoStats.branches[branch].workflows[workflow.name] = {
-              status: workflowData.status,
-              conclusion: workflowData.conclusion,
-              created_at: workflowData.created_at,
-              html_url: workflowData.html_url,
-              normalizedStatus
-            };
-
-            // Track status flags
-            if (normalizedStatus === 'failure') {
-              hasFailure = true;
-            } else if (normalizedStatus === 'running') {
-              hasRunning = true;
-            } else if (normalizedStatus === 'pending') {
-              hasPending = true;
-            }
-          }
+        const repository = await GetUserTrackedRepositoryData(userId, repoId);
+        if (!repository) {
+            console.warn(`⚠️ [${req.requestId}] Repository not found for user ${userId} and repo ${repoId}`);
+            return res.status(404).json({ error: 'Repository not found' });
         }
-      } catch (error) {
-        console.error(`❌ [Backend] Error processing branch ${branch}:`, error.message);
-        repoStats.branches[branch].error = error.message;
-      }
-    }
-
-    // Set repository status
-    if (hasPermissionError) {
-      repoStats.status = 'error';
-      repoStats.hasPermissionError = true;
-    } else if (hasFailure) {
-      repoStats.status = 'failure';
-    } else if (hasRunning) {
-      repoStats.status = 'running';
-    } else if (hasPending) {
-      repoStats.status = 'pending';
-    } else if (repoStats.overall.success > 0) {
-      repoStats.status = 'success';
-    } else {
-      repoStats.status = 'unknown';
-    }
-
-    return repoStats;
-
-  } catch (error) {
-    console.error('❌ [Backend] Error getting repository stats:', error);
-    throw error;
-  }
-}
-
-// Get detailed workflow status for a specific repository
-router.get('/workflow-status/:userId/:repoId', async (req, res) => {
-  const { userId, repoId } = req.params;
-  const forceRefresh = req.query.force === 'true';
-  // Generate a unique request ID for logging
-  const requestId = `req_${++requestIdCounter}`;
-  console.log(`📊 [${requestId}] Getting workflows status for repoId: ${repoId}, user: ${userId}, force: ${forceRefresh}`);
-
-  try {
-    // Get repository information
-    const repository = await GetTrackedRepositoryWithServerDetails(userId, repoId);
-
-    if (!repository) {
-      return res.status(404).json({ error: 'Repository not found' });
-    }
-
-    const trackedBranches = JSON.parse(repository.tracked_branches);
-    const trackedWorkflows = JSON.parse(repository.tracked_workflows);
-
-    // Get all workflows for the repository
-    let allWorkflows = [];
-    try {
-      allWorkflows = await FetchRepositoryWorkflows(repository.server_url, repository.api_token, repository.repository_name);
-
-      // Filter workflows if tracking specific ones
-      if (trackedWorkflows.length > 0) {
-        allWorkflows = allWorkflows.filter(workflow => 
-          trackedWorkflows.some(tracked => 
-            workflow.path.includes(tracked) || workflow.name === tracked
-          )
-        );
-      }
+        req.repository = repository; // attach repository data to request
+        next();
     } catch (error) {
-      console.error(`❌ [${requestId}] Error fetching workflows for ${repository.repository_name}:`, error.message);
+        console.error(`❌ [${req.requestId}] Error fetching repository data:`, error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
-
-    // Build detailed workflow status
-    const detailedStatus = {
-      repository: repository.repository_name,
-      repositoryUrl: repository.repository_url,
-      repoId: repository.id,
-      branches: {}
-    };
-
-    const minRefreshInterval = forceRefresh ? 0 : (repository.auto_refresh_interval * 1000);
-
-    // Process each branch
-    for (const branch of trackedBranches) {
-      detailedStatus.branches[branch] = {
-        workflows: {},
-        error: null
-      };
-
-      try {
-        // Process each workflow in the branch
-        for (const workflow of allWorkflows) {
-          const workflowEntry = await getWorkflowData(
-            repository.server_url,
-            repository.api_token,
-            repository.repository_name,
-            branch,
-            workflow.name,
-            workflow.id,
-            workflow.path,
-            minRefreshInterval
-          );
-
-          if (workflowEntry.error) {
-            detailedStatus.branches[branch].error = workflowEntry.error;
-            continue;
-          }
-
-          // Add workflow path to the data
-          const workflowData = workflowEntry.data;
-          if (workflowData) {
-            workflowData.workflow_path = workflow.path;
-          }
-
-          detailedStatus.branches[branch].workflows[workflow.name] = workflowData;
-        }
-      } catch (error) {
-        console.error(`Error processing branch ${branch}:`, error.message);
-        detailedStatus.branches[branch].error = error.message;
-      }
-    }
-
-    console.log(`✅ [${requestId}] Detailed workflow status fetched for repoId: ${repoId}`);
-
-    res.json(detailedStatus);
-
-  } catch (error) {
-    console.error(`❌ [${requestId}] Error fetching detailed workflow status:`, error);
-    res.status(500).json({ 
-      error: 'Failed to fetch detailed workflow status',
-      details: error.message 
-    });
-  }
 });
 
-// Refresh a single repository
 router.post('/refresh/:userId/:repoId', async (req, res) => {
-  const { userId, repoId } = req.params;
-  const forceRefresh = req.query.force === 'true';
-  // Generate a unique request ID for logging
-  const requestId = `req_${++requestIdCounter}`;
-  console.log(`🔄 [${requestId}] Single refresh for repoId: ${repoId}, user: ${userId}, force: ${forceRefresh}`);
-
-  try {
-    const repoStats = await getRepositoryStats(userId, repoId, forceRefresh);
-    console.log(`✅ [${requestId}] Single refresh completed for repoId: ${repoId}`);
-    res.json(repoStats);
-  } catch (error) {
-    console.error(`❌ [${requestId}] Single refresh failed for repoId: ${repoId}:`, error);
-    res.status(500).json({ 
-      error: 'Failed to refresh repository',
-      details: error.message 
-    });
-  }
+    const { userId, repoId } = req.params;
+    console.log(`🔄 [${req.requestId}] Refreshing workflows for ${userId}/${repoId}`);
+    try {
+        // Check if repository is already being refreshed
+        const cacheKey = `${userId}_${req.repository.serverId}_${repoId}`;
+        if (refreshingRepositories.has(cacheKey)) {
+            console.warn(`⚠️ [${req.requestId}] Repository is already being refreshed: ${cacheKey}`);
+            return res.status(202).json({ error: 'Repository is already being refreshed' });
+        }
+        // Add to refreshing set
+        refreshingRepositories.add(cacheKey);
+        // Fetch workflows runs from GitHub
+        for (const branch of req.repository.trackedBranches) {
+            for (const workflow of req.repository.trackedWorkflows) {
+                try {
+                    const runs = await FetchWorkflowRuns(
+                        req.repository.serverUrl,
+                        req.repository.apiToken,
+                        req.repository.repositoryName,
+                        branch,
+                        workflow
+                    );
+                    // Update cache with fetched runs
+                    runsCache.updateRuns({
+                        gitServer: req.repository.serverUrl,
+                        repository: req.repository.repositoryName,
+                        branch,
+                        workflow,
+                        runs
+                    });
+                } catch (error) {
+                    console.error(`❌ [${req.requestId}] Error fetching runs for ${req.repository.repositoryName}/${branch}/${workflow}:`, error);
+                    // Update cache with error status
+                    runsCache.updateError({
+                        gitServer: req.repository.serverUrl,
+                        repository: req.repository.repositoryName,
+                        branch,
+                        workflow,
+                        error: error.message || 'Unknown error'
+                    });
+                }
+            }
+        }
+        console.log(`✅ [${req.requestId}] Workflows refreshed`);
+        res.status(200).json(getRepositoryStatusFromCache(req.repository));
+    } catch (error) {
+        console.error(`❌ [${req.requestId}] Error refreshing workflows:`, error);
+        res.status(500).json({ error: 'Failed to refresh workflows' });
+    } finally {
+        refreshingRepositories.delete(cacheKey);
+    }
 });
+
+router.get('/status/:userId/:repoId', async (req, res) => {
+    const { userId, repoId } = req.params;
+    const { allowCache } = req.query;
+    console.log(`🔍 [${req.requestId}] Fetching repository status for ${userId}/${repoId} (ignore refresh = ${allowCache})`);
+    try {
+        // Check if repository is being refreshed
+        const cacheKey = `${userId}_${req.repository.serverId}_${repoId}`;
+        if (refreshingRepositories.has(cacheKey)) {
+            if (allowCache === 'true') {
+                console.log(`ℹ️ [${req.requestId}] Returning cached status while refreshing`);
+                return res.status(200).json(getRepositoryStatusFromCache(req.repository));
+            }
+            console.warn(`⚠️ [${req.requestId}] Repository is currently being refreshed: ${cacheKey}`);
+            return res.status(202).json({ error: 'Repository is currently being refreshed' });
+        }
+        console.log(`✅ [${req.requestId}] Fetched repository data`);
+        res.status(200).json(getRepositoryStatusFromCache(req.repository));
+    } catch (error) {
+        console.error(`❌ [${req.requestId}] Error fetching repository status:`, error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+function getRepositoryStatusFromCache(trackedRepository) {
+    const repositoryStatus = new RepositoryStatus(trackedRepository.id, trackedRepository.name, trackedRepository.repository_url);
+    for (const branch of trackedRepository.tracked_branches) {
+        repositoryStatus.branches[branch] = new BranchStatus(branch);
+        let branchHasError = false;
+        for (const workflow of trackedRepository.tracked_workflows) {
+            cacheItem = runsCache.getLatestRun({
+                gitServer: trackedRepository.serverUrl,
+                repository: trackedRepository.name,
+                branch,
+                workflow
+            });
+            if (!cacheItem || !cacheItem.data || cacheItem.data.length === 0) {
+                // If no runs found for this workflow yet, create a placeholder
+                repositoryStatus.branches[branch].workflows[workflow] = new WorkflowStatus(
+                    workflow,
+                    -1,
+                    null,
+                    WorkflowStatusEnum.NO_RUNS,
+                    null,
+                    null,
+                    null
+                );
+            } else {
+                repositoryStatus.branches[branch].workflows[workflow] = cacheItem.data;
+            }
+            if (cacheItem && cacheItem.error) {
+                branchHasError = true;
+                repositoryStatus.hasError = true;
+                if (cacheItem.error.includes('Access denied') || cacheItem.error.includes('not found')) {
+                    repositoryStatus.hasPermissionError = true;
+                }
+            }
+            // Update overall status and counts
+            const workflowStatus = repositoryStatus.branches[branch].workflows[workflow];
+            switch (workflowStatus.normalizeStatus) {
+                case WorkflowStatusEnum.SUCCESS:
+                    repositoryStatus.branches[branch].overall.success++;
+                    repositoryStatus.overall.success++;
+                    break;
+                case WorkflowStatusEnum.FAILURE:
+                    repositoryStatus.branches[branch].overall.failure++;
+                    repositoryStatus.overall.failure++;
+                    break;
+                case WorkflowStatusEnum.PENDING:
+                    repositoryStatus.branches[branch].overall.pending++;
+                    repositoryStatus.overall.pending++;
+                    break;
+                case WorkflowStatusEnum.RUNNING:
+                    repositoryStatus.branches[branch].overall.running++;
+                    repositoryStatus.overall.running++;
+                    break;
+                case WorkflowStatusEnum.CANCELLED:
+                    repositoryStatus.branches[branch].overall.cancelled++;
+                    repositoryStatus.overall.cancelled++;
+                    break;
+                default:
+                    // No runs / error
+                    break;
+            }
+        }
+        repositoryStatus.branches[branch].status = getFinalStatus(repositoryStatus.branches[branch].overall, branchHasError);
+    }
+    repositoryStatus.status = getFinalStatus(repositoryStatus.overall, repositoryStatus.hasError);
+    return repositoryStatus;
+}
+
+function normalizeWorkflowStatus(status) {
+    return status === WorkflowStatusEnum.SUCCESS ? WorkflowStatusEnum.SUCCESS
+              : status === WorkflowStatusEnum.FAILURE ? WorkflowStatusEnum.FAILURE
+              : status === WorkflowStatusEnum.CANCELLED ? WorkflowStatusEnum.CANCELLED
+              : status === 'in_progress' ? WorkflowStatusEnum.RUNNING
+              : WorkflowStatusEnum.PENDING;
+}
+
+function getFinalStatus(overall, hasError) {
+    if (hasError) {
+      return NormalizedStatusEnum.ERROR;
+    }
+    if (overall.failure > 0) {
+      return NormalizedStatusEnum.FAILURE;
+    }
+    if (overall.pending > 0) {
+      return NormalizedStatusEnum.PENDING;
+    }
+    if (overall.running > 0) {
+      return NormalizedStatusEnum.RUNNING;
+    }
+    if (overall.success > 0) {
+      return NormalizedStatusEnum.SUCCESS;
+    }
+    return NormalizedStatusEnum.UNKNOWN;
+}
 
 export default router;
