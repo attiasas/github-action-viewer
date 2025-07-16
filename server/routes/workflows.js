@@ -61,7 +61,7 @@ export class WorkflowStatus {
         this.runNumber = runNumber;
         this.commit = commit;
         this.status = status;
-        this.normalizeStatus = normalizeWorkflowStatus(status);
+        this.normalizeStatus = normalizeWorkflowStatus(conclusion,status);
         this.conclusion = conclusion;
         this.createdAt = createdAt;
         this.url = url;
@@ -208,7 +208,15 @@ function getRepositoryStatusFromCache(tracked) {
                 }
                 continue; // skip to next workflow
             } else {
-                repositoryStatus.branches[branch].workflows[workflow] = cacheItem.data;
+                repositoryStatus.branches[branch].workflows[workflow] = cacheItem.data.map(run => new WorkflowStatus(
+                    run.name,
+                    run.runNumber,
+                    run.commit,
+                    run.status,
+                    run.conclusion,
+                    run.createdAt,
+                    run.url
+                ))[0]; // take the first item as the latest run
             }
             // Update overall status and counts
             const workflowStatus = repositoryStatus.branches[branch].workflows[workflow];
@@ -244,11 +252,12 @@ function getRepositoryStatusFromCache(tracked) {
     return repositoryStatus;
 }
 
-function normalizeWorkflowStatus(status) {
-    return status === WorkflowStatusEnum.SUCCESS ? WorkflowStatusEnum.SUCCESS
-              : status === WorkflowStatusEnum.FAILURE ? WorkflowStatusEnum.FAILURE
-              : status === WorkflowStatusEnum.CANCELLED ? WorkflowStatusEnum.CANCELLED
-              : status === 'in_progress' ? WorkflowStatusEnum.RUNNING
+function normalizeWorkflowStatus(conclusion, status) {
+    const statusToCompare = conclusion || status;
+    return statusToCompare === WorkflowStatusEnum.SUCCESS ? WorkflowStatusEnum.SUCCESS
+              : statusToCompare === WorkflowStatusEnum.FAILURE ? WorkflowStatusEnum.FAILURE
+              : statusToCompare === WorkflowStatusEnum.CANCELLED ? WorkflowStatusEnum.CANCELLED
+              : statusToCompare === 'in_progress' ? WorkflowStatusEnum.RUNNING
               : WorkflowStatusEnum.PENDING;
 }
 
