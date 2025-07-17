@@ -5,7 +5,6 @@ import { fileURLToPath } from 'url';
 import { initializeDatabase } from './database.js';
 import authRoutes from './routes/auth.js';
 import repositoryRoutes from './routes/repositories.js';
-import actionsRoutes from './routes/actions.js';
 import workflowsRoutes from './routes/workflows.js';
 import userRoutes from './routes/users.js';
 
@@ -36,7 +35,6 @@ initializeDatabase();
 app.use('/api', generalRouter);
 app.use('/api/auth', authRoutes);
 app.use('/api/repositories', repositoryRoutes);
-app.use('/api/actions', actionsRoutes);
 app.use('/api/workflows', workflowsRoutes);
 app.use('/api/users', userRoutes);
 
