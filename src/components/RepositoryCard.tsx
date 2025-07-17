@@ -55,16 +55,21 @@ interface RepositoryCardProps {
   initialStats?: ActionStatistics;
   forceRefresh?: boolean; // Trigger from parent
   onForceRefreshComplete?: () => void;
+  nonForceRefresh?: boolean; // Trigger non-forced refresh from parent
+  onNonForceRefreshComplete?: () => void;
 }
 
-export default function RepositoryCard({ 
-  repository, 
-  onRemove, 
-  onStatsUpdate,
-  initialStats,
-  forceRefresh,
-  onForceRefreshComplete
-}: RepositoryCardProps) {
+export default function RepositoryCard(props: RepositoryCardProps) {
+  const {
+    repository,
+    onRemove,
+    onStatsUpdate,
+    initialStats,
+    forceRefresh,
+    onForceRefreshComplete,
+    nonForceRefresh,
+    onNonForceRefreshComplete
+  } = props;
   const { user } = useAuth();
   const [stats, setStats] = useState<ActionStatistics | null>(initialStats || null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -127,60 +132,55 @@ export default function RepositoryCard({
     statsRef.current = stats;
   }, [stats]);
 
-  // Get repository stats from cache or server
-  const getRepositoryStats = useCallback(async (force = false) => {
-    if (!user) return null;
-
-    // Check if we need to refresh based on timing
-    const now = Date.now();
-    const timeSinceLastRefresh = now - lastRefreshRef.current;
-    const minInterval = repository.auto_refresh_interval * 1000;
-    
-    if (!force && statsRef.current && timeSinceLastRefresh < minInterval) {
-      // Return cached stats
-      setRefreshHistory(prev => {
-        if (prev.length === 0 && statsRef.current) {
-          return [{...statsRef.current.overall}];
-        }
-        // If we have cached stats, just return them
-        return prev;
-      });
-      return statsRef.current;
-    }
-
+  // Prevent overlapping/infinite refreshes
+  const refreshInProgressRef = useRef(false);
+  const getRepositoryStats = useCallback(async () => {
+    if (!user || refreshInProgressRef.current) return null;
+    refreshInProgressRef.current = true;
+    setIsRefreshing(true);
+    setError(null);
+    const encodedUserId = encodeURIComponent(user.id);
+    const baseUrl = `/api/workflows`;
     try {
-      setIsRefreshing(true);
-      setError(null);
-
-      const encodedUserId = encodeURIComponent(user.id);
-      const url = force 
-        ? `/api/actions/refresh/${encodedUserId}/${repository.id}?force=true`
-        : `/api/actions/refresh/${encodedUserId}/${repository.id}`;
-
-      const response = await fetch(url, { method: 'POST' });
-
-      if (response.ok) {
-        const newStats = await response.json();
-        setStats(newStats);
-        lastRefreshRef.current = now;
-        // Only add to refresh history if this was a forced refresh
-        
-        setRefreshHistory(prev => {
-          if (force || prev.length === 0) {
-            const next = [...prev, {...newStats.overall}];
-            return next.length > MAX_HISTORY ? next.slice(next.length - MAX_HISTORY) : next;
+      let statsData = null;
+      // For all refreshes (initial, timer, manual, force): always POST to refresh and wait for completion
+      const postResp = await fetch(`${baseUrl}/refresh/${encodedUserId}/${repository.id}`, { method: 'POST' });
+      if (postResp.status === 202) {
+        // If already refreshing, poll GET until not 202
+        const pollStatus = async () => {
+          const maxWait = 10000; // 10s max
+          const pollInterval = 500;
+          let waited = 0;
+          while (waited < maxWait) {
+            const getResp = await fetch(`${baseUrl}/status/${encodedUserId}/${repository.id}`);
+            if (getResp.status === 202) {
+              await new Promise(res => setTimeout(res, pollInterval));
+              waited += pollInterval;
+              continue;
+            }
+            if (!getResp.ok) {
+              throw new Error(`HTTP ${getResp.status}: ${getResp.statusText}`);
+            }
+            return await getResp.json();
           }
-          // If we have cached stats, just return them
-          return prev;
-        });
-        // Notify parent if callback provided
-        if (onStatsUpdateRef.current) {
-          onStatsUpdateRef.current(newStats);
-        }
-        return newStats;
+          throw new Error('Timed out waiting for workflow refresh');
+        };
+        statsData = await pollStatus();
+      } else if (!postResp.ok) {
+        throw new Error(`HTTP ${postResp.status}: ${postResp.statusText}`);
       } else {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        statsData = await postResp.json();
       }
+      setStats(statsData);
+      lastRefreshRef.current = Date.now();
+      setRefreshHistory(prev => {
+        const next = [...prev, { ...statsData.overall }];
+        return next.length > MAX_HISTORY ? next.slice(next.length - MAX_HISTORY) : next;
+      });
+      if (onStatsUpdateRef.current) {
+        onStatsUpdateRef.current(statsData);
+      }
+      return statsData;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Network error';
       setError(errorMessage);
@@ -188,6 +188,7 @@ export default function RepositoryCard({
       return null;
     } finally {
       setIsRefreshing(false);
+      refreshInProgressRef.current = false;
     }
   }, [user, repository, MAX_HISTORY]);
 
@@ -201,7 +202,7 @@ export default function RepositoryCard({
       setTimeLeft(prev => {
         if (prev <= 1) {
           // Time to refresh
-          getRepositoryStats(false);
+          getRepositoryStats();
           return repository.auto_refresh_interval;
         }
         return prev - 1;
@@ -220,7 +221,7 @@ export default function RepositoryCard({
     if (forceRefresh && !forceRefreshHandledRef.current) {
       forceRefreshHandledRef.current = true;
       setTimeLeft(repository.auto_refresh_interval); // Reset timer
-      getRepositoryStats(true).finally(() => {
+      getRepositoryStats().finally(() => {
         if (onForceRefreshComplete) {
           onForceRefreshComplete();
         }
@@ -232,17 +233,34 @@ export default function RepositoryCard({
     }
   }, [forceRefresh, getRepositoryStats, onForceRefreshComplete, repository.auto_refresh_interval]);
 
-  // Initial load
+  // Handle non-force refresh from parent (for settings return)
+  const nonForceRefreshHandledRef = useRef(false);
   useEffect(() => {
-    if (!statsRef.current) {
-      getRepositoryStats(false);
+    if (nonForceRefresh && !nonForceRefreshHandledRef.current) {
+      nonForceRefreshHandledRef.current = true;
+      setTimeLeft(repository.auto_refresh_interval); // Reset timer
+      getRepositoryStats().finally(() => {
+        if (onNonForceRefreshComplete) {
+          onNonForceRefreshComplete();
+        }
+        setTimeout(() => {
+          nonForceRefreshHandledRef.current = false;
+        }, 1000);
+      });
+    }
+  }, [nonForceRefresh, getRepositoryStats, onNonForceRefreshComplete, repository.auto_refresh_interval]);
+
+  // Initial load: only trigger once
+  const initialLoadRef = useRef(false);
+  useEffect(() => {
+    if (!initialLoadRef.current) {
+      initialLoadRef.current = true;
+      getRepositoryStats();
     } else if (statsRef.current) {
-      // If initialStats provided, seed history
       setRefreshHistory(prev => {
         if (prev.length === 0) {
           return [{...statsRef.current!.overall}];
         }
-        // If we have cached stats, just return them
         return prev;
       });
     }
@@ -261,7 +279,7 @@ export default function RepositoryCard({
   // Manual refresh handler
   const handleManualRefresh = useCallback(() => {
     setTimeLeft(repository.auto_refresh_interval); // Reset timer
-    getRepositoryStats(true);
+    getRepositoryStats();
   }, [getRepositoryStats, repository.auto_refresh_interval]);
 
   // Remove repository handler

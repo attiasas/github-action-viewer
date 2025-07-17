@@ -47,24 +47,31 @@ interface ActionStatistics {
   error?: string;
 }
 
+
 interface RepositoryListProps {
   repositories: Repository[];
   onRepositoryRemoved: (repoId: number) => void;
   onActionStatsUpdate: (stats: ActionStatistics[]) => void;
   gridView?: boolean;
   triggerForceRefresh?: boolean; // Signal from parent to force refresh all
+  triggerNonForceRefresh?: boolean; // Signal from parent to trigger non-forced refresh all
 }
 
-export default function RepositoryList({ 
-  repositories, 
-  onRepositoryRemoved,
-  onActionStatsUpdate,
-  gridView = false,
-  triggerForceRefresh = false
-}: RepositoryListProps) {
+export default function RepositoryListSimple(props: RepositoryListProps) {
+  const {
+    repositories,
+    onRepositoryRemoved,
+    onActionStatsUpdate,
+    gridView = false,
+    triggerForceRefresh = false,
+    triggerNonForceRefresh = false
+  } = props;
+
+// ...existing code...
   const [repositoryStats, setRepositoryStats] = useState<Record<number, ActionStatistics>>({});
   const [repositoryOrder, setRepositoryOrder] = useState<number[]>([]);
   const [pendingForceRefresh, setPendingForceRefresh] = useState<Set<number>>(new Set());
+  const [pendingNonForceRefresh, setPendingNonForceRefresh] = useState<Set<number>>(new Set());
 
   // Initialize repository order
   useEffect(() => {
@@ -133,9 +140,25 @@ export default function RepositoryList({
     }
   }, [triggerForceRefresh, repositories]);
 
+  // Handle non-force refresh trigger from parent
+  useEffect(() => {
+    if (triggerNonForceRefresh) {
+      setPendingNonForceRefresh(new Set(repositories.map(r => r.id)));
+    }
+  }, [triggerNonForceRefresh, repositories]);
+
   // Handle force refresh completion from individual cards
   const handleForceRefreshComplete = useCallback((repoId: number) => {
     setPendingForceRefresh(prev => {
+      const updated = new Set(prev);
+      updated.delete(repoId);
+      return updated;
+    });
+  }, []);
+
+  // Handle non-force refresh completion from individual cards
+  const handleNonForceRefreshComplete = useCallback((repoId: number) => {
+    setPendingNonForceRefresh(prev => {
       const updated = new Set(prev);
       updated.delete(repoId);
       return updated;
@@ -168,6 +191,8 @@ export default function RepositoryList({
             initialStats={repositoryStats[repoId]}
             forceRefresh={pendingForceRefresh.has(repoId)}
             onForceRefreshComplete={() => handleForceRefreshComplete(repoId)}
+            nonForceRefresh={pendingNonForceRefresh.has(repoId)}
+            onNonForceRefreshComplete={() => handleNonForceRefreshComplete(repoId)}
           />
         );
       })}

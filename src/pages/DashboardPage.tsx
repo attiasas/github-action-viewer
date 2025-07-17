@@ -48,6 +48,7 @@ interface ActionStatistics {
   error?: string;
 }
 
+
 export default function DashboardPage() {
   const { user, logout, loadGitHubServers } = useAuth();
   const location = useLocation();
@@ -56,7 +57,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [showAddRepoModal, setShowAddRepoModal] = useState(false);
   const [triggerForceRefresh, setTriggerForceRefresh] = useState(false);
-  
+  const [triggerNonForceRefresh, setTriggerNonForceRefresh] = useState(false);
   const hasInitiallyLoaded = useRef(false);
 
   // Load repositories from database
@@ -106,14 +107,35 @@ export default function DashboardPage() {
     setShowAddRepoModal(false);
   }, []);
 
-  // Initial load
+  // Initial load: load servers/repos, then trigger force refresh (unless from settings)
   useEffect(() => {
     if (user && !hasInitiallyLoaded.current) {
       hasInitiallyLoaded.current = true;
       loadGitHubServers();
       loadRepositories();
+      // After a short delay, trigger force refresh for all repos (unless from settings)
+      setTimeout(() => {
+        // Only trigger if not returning from settings
+        if (!(location.state && location.state.fromSettings)) {
+          setTriggerForceRefresh(true);
+          setTimeout(() => setTriggerForceRefresh(false), 100);
+        }
+      }, 200);
     }
-  }, [user, loadGitHubServers, loadRepositories]);
+  }, [user, loadGitHubServers, loadRepositories, location.state]);
+
+  // Detect return from settings and trigger non-forced refresh for all repositories
+  useEffect(() => {
+    if (location.state && location.state.fromSettings) {
+      // Clear the state so it doesn't trigger again
+      window.history.replaceState({}, document.title);
+      // Wait for repositories to be loaded, then trigger a non-forced refresh
+      setTimeout(() => {
+        setTriggerNonForceRefresh(true);
+        setTimeout(() => setTriggerNonForceRefresh(false), 100);
+      }, 100);
+    }
+  }, [location.state]);
 
   // Handle URL hash for modal state
   useEffect(() => {
@@ -234,6 +256,7 @@ export default function DashboardPage() {
             onActionStatsUpdate={handleActionStatsUpdate}
             gridView={true}
             triggerForceRefresh={triggerForceRefresh}
+            triggerNonForceRefresh={triggerNonForceRefresh}
           />
         </div>
       </main>
