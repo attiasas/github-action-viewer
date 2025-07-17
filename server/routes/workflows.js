@@ -55,16 +55,27 @@ export class BranchStatus {
 }
 
 export class WorkflowStatus {
-    constructor(name, runNumber, commit, status, conclusion, createdAt, url) {
-        // GitHub workflow properties
+    constructor({
+        name,
+        runNumber,
+        commit,
+        status,
+        conclusion,
+        createdAt,
+        url,
+        workflow_id,
+        workflow_path
+    }) {
         this.name = name;
         this.runNumber = runNumber;
         this.commit = commit;
         this.status = status;
-        this.normalizeStatus = normalizeWorkflowStatus(conclusion,status);
+        this.normalizeStatus = normalizeWorkflowStatus(conclusion, status);
         this.conclusion = conclusion;
         this.createdAt = createdAt;
         this.url = url;
+        this.workflow_id = workflow_id;
+        this.workflow_path = workflow_path;
     }
 }
 
@@ -79,6 +90,8 @@ router.use('*/:userId/:repoId', async (req, res, next) => {
         }
         // Get all workflows for the repository
         let allWorkflows = await FetchRepositoryWorkflows(tracked.serverUrl, tracked.apiToken, tracked.repository.name);
+        // Attach allWorkflows to tracked for downstream use
+        tracked.allWorkflows = allWorkflows;
         // Match tracked workflows paths to ids
         tracked.repository.trackedWorkflows = tracked.repository.trackedWorkflowsPaths.map(path => {
             const matched = allWorkflows.find(workflow => workflow.path.includes(path) || workflow.name === path);
@@ -174,6 +187,13 @@ router.get('/status/:userId/:repoId', async (req, res) => {
 
 function getRepositoryStatusFromCache(tracked) {
     const repositoryStatus = new RepositoryStatus(tracked.repository.id, tracked.repository.name, tracked.repository.url);
+    // Build a map of workflowId -> { name, path }
+    let workflowMetaMap = {};
+    if (tracked.allWorkflows && Array.isArray(tracked.allWorkflows)) {
+        tracked.allWorkflows.forEach(wf => {
+            workflowMetaMap[wf.id] = { name: wf.name, path: wf.path };
+        });
+    }
     for (const branch of tracked.repository.trackedBranches) {
         repositoryStatus.branches[branch] = new BranchStatus(branch);
         let branchHasError = false;
@@ -184,6 +204,7 @@ function getRepositoryStatusFromCache(tracked) {
                 branch,
                 workflow
             });
+            const workflowMeta = workflowMetaMap[workflow] || { name: workflow, path: null };
             if (!cacheItem || !cacheItem.data || cacheItem.data.length === 0) {
                 if (cacheItem) {
                     if (cacheItem.error) {
@@ -195,28 +216,27 @@ function getRepositoryStatusFromCache(tracked) {
                     }
                     if (cacheItem.data && cacheItem.data.length === 0) {
                         // If no runs found for this workflow yet, create a placeholder
-                        repositoryStatus.branches[branch].workflows[workflow] = new WorkflowStatus(
-                            workflow,
-                            -1,
-                            null,
-                            WorkflowStatusEnum.NO_RUNS,
-                            null,
-                            null,
-                            null
-                        );
+                        repositoryStatus.branches[branch].workflows[workflow] = new WorkflowStatus({
+                            name: workflowMeta.name,
+                            status: WorkflowStatusEnum.NO_RUNS,
+                            workflow_id: workflow,
+                            workflow_path: workflowMeta.path
+                        });
                     }
                 }
                 continue; // skip to next workflow
             } else {
-                repositoryStatus.branches[branch].workflows[workflow] = cacheItem.data.map(run => new WorkflowStatus(
-                    run.name,
-                    run.runNumber,
-                    run.commit,
-                    run.status,
-                    run.conclusion,
-                    run.createdAt,
-                    run.url
-                ))[0]; // take the first item as the latest run
+                repositoryStatus.branches[branch].workflows[workflow] = cacheItem.data.map(run => new WorkflowStatus({
+                    name: run.workflowName,
+                    runNumber: run.runId,
+                    commit: run.commit,
+                    status: run.status,
+                    conclusion: run.conclusion,
+                    createdAt: run.createdAt,
+                    url: run.url,
+                    workflow_id: run.workflowId,
+                    workflow_path: workflowMeta.path
+                }))[0]; // take the first item as the latest run
             }
             // Update overall status and counts
             const workflowStatus = repositoryStatus.branches[branch].workflows[workflow];

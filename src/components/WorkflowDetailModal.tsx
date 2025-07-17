@@ -72,7 +72,87 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
   const workflowInputRef = useRef<HTMLInputElement>(null);
   const branchInputRef = useRef<HTMLInputElement>(null);
 
-  // Load detailed workflow status
+  // Helper to parse new API response to DetailedWorkflowStatus
+  // Types for backend response
+  type BackendWorkflowStatus = {
+    name: string;
+    runNumber?: number;
+    runId?: number;
+    commit?: string;
+    status: string;
+    conclusion?: string | null;
+    createdAt?: string;
+    url?: string;
+    workflow_id?: number;
+    workflowId?: number;
+    workflow_path?: string;
+  };
+  type BackendNoRunsStatus = {
+    status: 'no_runs';
+    name: string;
+    workflow_id?: number;
+    workflow_path?: string;
+  };
+  type BackendBranchObj = {
+    workflows: Record<string, BackendWorkflowStatus | BackendNoRunsStatus>;
+  };
+  type BackendRepositoryStatus = {
+    id?: number;
+    name?: string;
+    url?: string;
+    repository?: string;
+    branches: Record<string, BackendBranchObj>;
+  };
+
+  const parseWorkflowStatus = useCallback((data: BackendRepositoryStatus): DetailedWorkflowStatus => {
+    const branches: DetailedWorkflowStatus['branches'] = {};
+    if (data && data.branches) {
+      for (const [branchName, branchObj] of Object.entries(data.branches)) {
+        const workflows: Record<string, WorkflowRun | { status: 'no_runs'; conclusion: null; name: string; workflow_id: number; workflow_path?: string; }> = {};
+        if (branchObj.workflows) {
+          for (const [workflowId, wf] of Object.entries(branchObj.workflows)) {
+            if (wf && (wf as BackendNoRunsStatus).status === 'no_runs') {
+              workflows[workflowId] = {
+                status: 'no_runs',
+                conclusion: null,
+                name: (wf as BackendNoRunsStatus).name,
+                workflow_id: (wf as BackendNoRunsStatus).workflow_id ?? Number(workflowId),
+                workflow_path: (wf as BackendNoRunsStatus).workflow_path,
+              };
+            } else if (wf) {
+              const w = wf as BackendWorkflowStatus;
+              workflows[workflowId] = {
+                id: w.runNumber ?? w.runId ?? 0,
+                name: w.name,
+                status: w.status,
+                conclusion: w.conclusion ?? null,
+                created_at: w.createdAt ?? '',
+                updated_at: w.createdAt ?? '',
+                html_url: w.url ?? '',
+                head_branch: branchName,
+                head_sha: w.commit ?? '',
+                workflow_id: w.workflow_id ?? w.workflowId ?? Number(workflowId),
+                run_number: w.runNumber ?? 0,
+                workflow_path: w.workflow_path,
+              };
+            }
+          }
+        }
+        branches[branchName] = {
+          workflows,
+          error: null,
+        };
+      }
+    }
+    return {
+      repository: data.name || data.repository || repository.repository_name,
+      repositoryUrl: data.url || repository.repository_url,
+      repoId: data.id || repository.id,
+      branches,
+    };
+  }, [repository.id, repository.repository_name, repository.repository_url]);
+
+  // Load detailed workflow status using new API
   const loadWorkflowDetails = useCallback(async () => {
     if (!user || !isOpen) return;
 
@@ -80,10 +160,10 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
     setError(null);
 
     try {
-      const response = await fetch(`/api/actions/workflow-status/${encodeURIComponent(user.id)}/${repository.id}?force=true`);
+      const response = await fetch(`/api/workflows/status/${encodeURIComponent(user.id)}/${repository.id}`);
       if (response.ok) {
         const data = await response.json();
-        setWorkflowData(data);
+        setWorkflowData(parseWorkflowStatus(data));
       } else {
         throw new Error('Failed to load workflow details');
       }
@@ -93,7 +173,7 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
     } finally {
       setIsLoading(false);
     }
-  }, [user, isOpen, repository.id]);
+  }, [user, isOpen, repository.id, parseWorkflowStatus]);
 
   // Load data when modal opens
   useEffect(() => {
@@ -604,15 +684,37 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
                     <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                   </svg>
                 </button>
-                <button className="modal-refresh-button" onClick={loadWorkflowDetails} title="Refresh">
-                  <svg 
-                    width="20" 
-                    height="20" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
+                <button
+                  className="modal-refresh-button"
+                  onClick={async () => {
+                    if (!user) return;
+                    setIsLoading(true);
+                    setError(null);
+                    try {
+                      const response = await fetch(`/api/workflows/refresh/${encodeURIComponent(user.id)}/${repository.id}`, { method: 'POST' });
+                      if (response.ok) {
+                        const data = await response.json();
+                        setWorkflowData(parseWorkflowStatus(data));
+                      } else {
+                        throw new Error('Failed to refresh workflows');
+                      }
+                    } catch (error) {
+                      console.error('Error refreshing workflows:', error);
+                      setError(error instanceof Error ? error.message : 'Failed to refresh workflows');
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }}
+                  title="Refresh"
+                >
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
                     strokeLinejoin="round"
                     className="refresh-icon"
                   >
@@ -847,22 +949,22 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
                                 const priorityB = getStatusPriority(workflowB.status, workflowB.conclusion);
                                 return priorityA - priorityB;
                               })
-                              .map(([workflowName, workflow]) => {
+                              .map(([workflowKey, workflow]) => {
                                 const normalizedStatus = normalizeStatus(workflow.status, workflow.conclusion);
                                 return (
-                                  <div key={workflowName} className={`workflow-card status-${normalizedStatus}`}>
+                                  <div key={workflowKey} className={`workflow-card status-${normalizedStatus}`}>
                                     <div className="workflow-main">
                                       <div className="workflow-info">
                                         <div className="workflow-header">
                                           <div className="workflow-title-section">
-                                            <h4 className="workflow-name">{workflowName}</h4>
+                                            <h4 className="workflow-name">{workflow && workflow.name ? workflow.name : workflowKey}</h4>
                                             {'html_url' in workflow && workflow.html_url && (
                                               <a 
                                                 href={workflow.html_url} 
                                                 target="_blank" 
                                                 rel="noopener noreferrer"
                                                 className="action-button compact"
-                                                aria-label={`View workflow run for ${workflowName}`}
+                                                aria-label={`View workflow run for ${workflow && workflow.name ? workflow.name : workflowKey}`}
                                               >
                                                 <span>View Run</span>
                                                 <span className="button-icon">→</span>
