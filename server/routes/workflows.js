@@ -5,7 +5,7 @@ import { GetUserTrackedRepositoryData } from '../utils/database.js';
 import {FetchRepositoryWorkflows, FetchWorkflowRuns } from '../utils/github.js';
 
 // userId_serverId_repoId
-const refreshingRepositories = new Set();
+export const refreshingRepositories = new Set();
 
 const router = express.Router();
 
@@ -115,7 +115,7 @@ router.post('/refresh/:userId/:repoId', async (req, res) => {
     const cacheKey = `${userId}_${req.tracked.serverId}_${repoId}`;
     try {
         if (refreshingRepositories.has(cacheKey)) {
-            console.warn(`⚠️ [${req.requestId}] Repository is already being refreshed: ${cacheKey}`);
+            console.info(`ℹ️ [${req.requestId}] Repository is already being refreshed: ${cacheKey}`);
             return res.status(202).json({ error: 'Repository is already being refreshed' });
         }
         // Add to refreshing set
