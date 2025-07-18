@@ -15,12 +15,12 @@ router.get('/search', async (req, res) => {
   }
   try {
     // Get GitHub server credentials
-    const server = await GetUserServer(userId, serverId);
+    const server = await GetUserServer(serverId, userId);
     if (!server) {
       console.warn(`⚠️ [${req.requestId}] GitHub server not found`);
       return res.status(404).json({ error: 'GitHub server not found' });
     }
-    const response = await SearchRepositoriesInServer(server.url, server.apiToken, q);
+    const response = await SearchRepositoriesInServer(server.serverUrl, server.apiToken, q);
     console.log(`✅ [${req.requestId}] ${response.total_count} repositories found`);
     res.json(response);
   } catch (error) {
