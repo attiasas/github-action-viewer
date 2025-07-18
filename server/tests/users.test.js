@@ -13,7 +13,7 @@ describe('Users routes', () => {
     let res = await request(app).get(`/api/users/settings/${userId}`);
     expect([200, 404]).toContain(res.statusCode); // allow 200 if exists, 404 if not
     if (res.statusCode === 200) {
-      expect(res.body).toHaveProperty('user_id', userId);
+      expect(res.body).toHaveProperty('userId', userId);
       res = await request(app)
         .put(`/api/users/settings/${userId}`)
         .send({ theme: 'dark' });
