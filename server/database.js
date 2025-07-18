@@ -79,6 +79,7 @@ export const initializeDatabase = () => {
       repository_url TEXT NOT NULL,
       tracked_branches TEXT NOT NULL, -- JSON array of branch names
       tracked_workflows TEXT NOT NULL, -- JSON array of workflow file names
+      auto_refresh_interval INTEGER DEFAULT 300, -- seconds
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       display_name TEXT, -- Optional custom repository name
@@ -91,7 +92,6 @@ export const initializeDatabase = () => {
   db.run(`
     CREATE TABLE IF NOT EXISTS user_settings (
       user_id TEXT PRIMARY KEY,
-      theme TEXT DEFAULT 'light',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users (id)

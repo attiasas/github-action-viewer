@@ -1,21 +1,15 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 
+import type { ServerDetails } from '../api/User';
+
 interface User {
   id: string;
 }
 
-interface GitHubServer {
-  id: number;
-  server_name: string;
-  server_url: string;
-  is_default: boolean;
-  created_at: string;
-}
-
 interface AuthContextType {
   user: User | null;
-  githubServers: GitHubServer[];
+  githubServers: ServerDetails[];
   login: (userId: string) => Promise<boolean>;
   createUser: (userId: string) => Promise<boolean>;
   logout: () => void;
@@ -30,7 +24,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [githubServers, setGithubServers] = useState<GitHubServer[]>([]);
+  const [githubServers, setGithubServers] = useState<ServerDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Prevent repeated server loads for same user

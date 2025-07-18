@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import type { TrackedRepository } from '../api/Repositories';
 import './RepositorySearch.css';
 
 interface Repository {
@@ -22,7 +23,7 @@ interface Branch {
 
 interface RepositorySearchProps {
   onRepositoryAdded: () => void;
-  existingRepositories: { repository_name: string; github_server_id: number; display_name?: string }[];
+  existingRepositories: TrackedRepository[];
 }
 
 export default function RepositorySearch({ onRepositoryAdded, existingRepositories }: RepositorySearchProps) {
@@ -48,7 +49,7 @@ export default function RepositorySearch({ onRepositoryAdded, existingRepositori
   // Set default server when servers are loaded or component mounts
   useEffect(() => {
     if (githubServers.length > 0) {
-      const defaultServer = githubServers.find(server => server.is_default);
+      const defaultServer = githubServers.find(server => server.isDefault);
       const serverToSelect = defaultServer?.id || githubServers[0].id;
       setSelectedServer(serverToSelect);
     }
@@ -98,12 +99,12 @@ export default function RepositorySearch({ onRepositoryAdded, existingRepositori
     
     // Check for existing tracked repositories
     const existingEntries = existingRepositories.filter(
-      existing => existing.repository_name === repo.full_name && existing.github_server_id === selectedServer
+      existing => existing.repository.name === repo.full_name && existing.serverId === selectedServer
     );
     
     if (existingEntries.length > 0) {
       const displayNames = existingEntries
-        .map(entry => entry.display_name || entry.repository_name)
+        .map(entry => entry.repository.displayName || entry.repository.name)
         .join(', ');
       setDuplicateWarning(
         `This repository is already being tracked ${existingEntries.length} time${existingEntries.length === 1 ? '' : 's'}: ${displayNames}`
@@ -294,8 +295,8 @@ export default function RepositorySearch({ onRepositoryAdded, existingRepositori
               <option value="">Select a GitHub server...</option>
               {githubServers.map((server) => (
                 <option key={server.id} value={server.id}>
-                  {server.server_name} ({server.server_url})
-                  {server.is_default ? ' (Default)' : ''}
+                  {server.serverName} ({server.serverUrl})
+                  {server.isDefault ? ' (Default)' : ''}
                 </option>
               ))}
             </select>

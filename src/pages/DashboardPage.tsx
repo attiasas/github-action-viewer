@@ -1,20 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import type { TrackedRepository } from '../api/Repositories';
 import RepositorySearch from '../components/RepositorySearch';
 import RepositoryListSimple from '../components/RepositoryListSimple';
 import './DashboardPage.css';
-
-interface Repository {
-  id: number;
-  repository_name: string;
-  repository_url: string;
-  github_server_id: number;
-  tracked_branches: string[];
-  tracked_workflows: string[];
-  auto_refresh_interval: number;
-  display_name?: string;
-}
 
 interface BranchStats {
   success: number;
@@ -52,7 +42,7 @@ interface ActionStatistics {
 export default function DashboardPage() {
   const { user, logout, loadGitHubServers } = useAuth();
   const location = useLocation();
-  const [repositories, setRepositories] = useState<Repository[]>([]);
+  const [repositories, setRepositories] = useState<TrackedRepository[]>([]);
   const [actionStats, setActionStats] = useState<ActionStatistics[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showAddRepoModal, setShowAddRepoModal] = useState(false);
@@ -87,7 +77,7 @@ export default function DashboardPage() {
 
   // Handle repository removed
   const handleRepositoryRemoved = useCallback((repoId: number) => {
-    setRepositories(prev => prev.filter(repo => repo.id !== repoId));
+    setRepositories(prev => prev.filter(repo => repo.repository.id !== repoId));
   }, []);
 
   // Handle action stats update from RepositoryList

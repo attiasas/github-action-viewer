@@ -4,21 +4,14 @@ import { useAuth } from '../contexts/AuthContext';
 import GitHubServerManager from '../components/GitHubServerManager';
 import ThemeSelector from '../components/ThemeSelector';
 import './SettingsPage.css';
-
-interface GitHubServer {
-  id: number;
-  server_name: string;
-  server_url: string;
-  is_default: boolean;
-  created_at: string;
-}
+import type { ServerDetails } from '../api/User';
 
 export default function SettingsPage() {
   const { user, logout, addGitHubServer, updateGitHubServer } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showAddServerForm, setShowAddServerForm] = useState(false);
-  const [editingServer, setEditingServer] = useState<GitHubServer | null>(null);
+  const [editingServer, setEditingServer] = useState<ServerDetails | null>(null);
   const [serverFormData, setServerFormData] = useState({
     serverName: '',
     serverUrl: '',
@@ -108,13 +101,13 @@ export default function SettingsPage() {
     }
   };
 
-  const handleEditServer = (server: GitHubServer) => {
+  const handleEditServer = (server: ServerDetails) => {
     setEditingServer(server);
     setServerFormData({
-      serverName: server.server_name,
-      serverUrl: server.server_url,
+      serverName: server.serverName,
+      serverUrl: server.serverUrl,
       apiToken: '', // Don't populate API token for security
-      isDefault: server.is_default
+      isDefault: server.isDefault
     });
     setShowAddServerForm(true);
   };

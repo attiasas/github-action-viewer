@@ -1,17 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import RepositoryCard from './RepositoryCard';
+import type { TrackedRepository } from '../api/Repositories';
 import './RepositoryListSimple.css';
-
-interface Repository {
-  id: number;
-  repository_name: string;
-  repository_url: string;
-  tracked_branches: string[];
-  tracked_workflows: string[];
-  auto_refresh_interval: number;
-  display_name?: string;
-  github_server_id: number;
-}
 
 interface BranchStats {
   success: number;
@@ -49,7 +39,7 @@ interface ActionStatistics {
 
 
 interface RepositoryListProps {
-  repositories: Repository[];
+  repositories: TrackedRepository[];
   onRepositoryRemoved: (repoId: number) => void;
   onActionStatsUpdate: (stats: ActionStatistics[]) => void;
   gridView?: boolean;
@@ -76,7 +66,7 @@ export default function RepositoryListSimple(props: RepositoryListProps) {
   // Initialize repository order
   useEffect(() => {
     const newOrder = repositories
-      .map(repo => repo.id)
+      .map(repo => repo.repository.id)
       .sort((a, b) => {
         const statsA = repositoryStats[a];
         const statsB = repositoryStats[b];
@@ -97,9 +87,9 @@ export default function RepositoryListSimple(props: RepositoryListProps) {
           return priorityA - priorityB;
         }
         // Secondary sort by repository name
-        const repoA = repositories.find(r => r.id === a);
-        const repoB = repositories.find(r => r.id === b);
-        return (repoA?.repository_name || '').localeCompare(repoB?.repository_name || '');
+        const repoA = repositories.find(r => r.repository.id === a);
+        const repoB = repositories.find(r => r.repository.id === b);
+        return (repoA?.repository.name || '').localeCompare(repoB?.repository.name || '');
       });
 
     setRepositoryOrder(newOrder);
@@ -136,14 +126,14 @@ export default function RepositoryListSimple(props: RepositoryListProps) {
   // Handle force refresh trigger from parent
   useEffect(() => {
     if (triggerForceRefresh) {
-      setPendingForceRefresh(new Set(repositories.map(r => r.id)));
+      setPendingForceRefresh(new Set(repositories.map(r => r.repository.id)));
     }
   }, [triggerForceRefresh, repositories]);
 
   // Handle non-force refresh trigger from parent
   useEffect(() => {
     if (triggerNonForceRefresh) {
-      setPendingNonForceRefresh(new Set(repositories.map(r => r.id)));
+      setPendingNonForceRefresh(new Set(repositories.map(r => r.repository.id)));
     }
   }, [triggerNonForceRefresh, repositories]);
 
@@ -179,13 +169,13 @@ export default function RepositoryListSimple(props: RepositoryListProps) {
   return (
     <div className={`repository-list ${gridView ? 'grid-view' : 'list-view'}`}>
       {repositoryOrder.map(repoId => {
-        const repository = repositories.find(r => r.id === repoId);
+        const repository = repositories.find(r => r.repository.id === repoId);
         if (!repository) return null;
 
         return (
           <RepositoryCard
             key={repoId}
-            repository={repository}
+            repo={repository}
             onRemove={handleRepositoryRemoved}
             onStatsUpdate={handleStatsUpdate}
             initialStats={repositoryStats[repoId]}

@@ -165,7 +165,7 @@ router.post('/refresh/:userId/:repoId', async (req, res) => {
 router.get('/status/:userId/:repoId', async (req, res) => {
     const { userId, repoId } = req.params;
     const { allowCache } = req.query;
-    console.log(`🔍 [${req.requestId}] Fetching repository status for ${userId}/${repoId} (ignore refresh = ${allowCache})`);
+    console.log(`🚦 [${req.requestId}] Fetching repository status for ${userId}/${repoId} (ignore refresh = ${allowCache})`);
     try {
         // Check if repository is being refreshed
         const cacheKey = `${userId}_${req.tracked.repository.serverId}_${repoId}`;

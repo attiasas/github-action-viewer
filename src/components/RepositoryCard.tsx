@@ -1,18 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import WorkflowDetailModal from './WorkflowDetailModal';
+import type { TrackedRepository } from '../api/Repositories';
 import './RepositoryCard.css';
-
-interface Repository {
-  id: number;
-  repository_name: string;
-  repository_url: string;
-  tracked_branches: string[];
-  tracked_workflows: string[];
-  auto_refresh_interval: number;
-  display_name?: string;
-  github_server_id: number;
-}
 
 interface BranchStats {
   success: number;
@@ -49,7 +39,7 @@ interface ActionStatistics {
 }
 
 interface RepositoryCardProps {
-  repository: Repository;
+  repo: TrackedRepository;
   onRemove: (repoId: number) => void;
   onStatsUpdate?: (stats: ActionStatistics) => void;
   initialStats?: ActionStatistics;
@@ -61,7 +51,7 @@ interface RepositoryCardProps {
 
 export default function RepositoryCard(props: RepositoryCardProps) {
   const {
-    repository,
+    repo,
     onRemove,
     onStatsUpdate,
     initialStats,
@@ -74,7 +64,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
   const [stats, setStats] = useState<ActionStatistics | null>(initialStats || null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState(repository.auto_refresh_interval);
+  const [timeLeft, setTimeLeft] = useState(repo.repository.autoRefreshInterval);
   const [showDetailModal, setShowDetailModal] = useState(false);
   // Histogram settings from localStorage
   const showHistogram = (() => {
@@ -144,7 +134,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
     try {
       let statsData = null;
       // For all refreshes (initial, timer, manual, force): always POST to refresh and wait for completion
-      const postResp = await fetch(`${baseUrl}/refresh/${encodedUserId}/${repository.id}`, { method: 'POST' });
+      const postResp = await fetch(`${baseUrl}/refresh/${encodedUserId}/${repo.repository.id}`, { method: 'POST' });
       if (postResp.status === 202) {
         // If already refreshing, poll GET until not 202
         const pollStatus = async () => {
@@ -152,7 +142,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
           const pollInterval = 500;
           let waited = 0;
           while (waited < maxWait) {
-            const getResp = await fetch(`${baseUrl}/status/${encodedUserId}/${repository.id}`);
+            const getResp = await fetch(`${baseUrl}/status/${encodedUserId}/${repo.repository.id}`);
             if (getResp.status === 202) {
               await new Promise(res => setTimeout(res, pollInterval));
               waited += pollInterval;
@@ -184,13 +174,13 @@ export default function RepositoryCard(props: RepositoryCardProps) {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Network error';
       setError(errorMessage);
-      console.error(`Error refreshing repository ${repository.repository_name}:`, error);
+      console.error(`Error refreshing repository ${repo.repository.name}:`, error);
       return null;
     } finally {
       setIsRefreshing(false);
       refreshInProgressRef.current = false;
     }
-  }, [user, repository, MAX_HISTORY]);
+  }, [user, repo, MAX_HISTORY]);
 
   // Auto-refresh timer
   useEffect(() => {
@@ -203,7 +193,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
         if (prev <= 1) {
           // Time to refresh
           getRepositoryStats();
-          return repository.auto_refresh_interval;
+          return repo.repository.autoRefreshInterval;
         }
         return prev - 1;
       });
@@ -214,13 +204,13 @@ export default function RepositoryCard(props: RepositoryCardProps) {
         clearInterval(timerRef.current);
       }
     };
-  }, [repository.auto_refresh_interval, getRepositoryStats]);
+  }, [repo.repository.autoRefreshInterval, getRepositoryStats]);
 
   // Handle force refresh from parent
   useEffect(() => {
     if (forceRefresh && !forceRefreshHandledRef.current) {
       forceRefreshHandledRef.current = true;
-      setTimeLeft(repository.auto_refresh_interval); // Reset timer
+      setTimeLeft(repo.repository.autoRefreshInterval); // Reset timer
       getRepositoryStats().finally(() => {
         if (onForceRefreshComplete) {
           onForceRefreshComplete();
@@ -231,14 +221,14 @@ export default function RepositoryCard(props: RepositoryCardProps) {
         }, 1000);
       });
     }
-  }, [forceRefresh, getRepositoryStats, onForceRefreshComplete, repository.auto_refresh_interval]);
+  }, [forceRefresh, getRepositoryStats, onForceRefreshComplete, repo.repository.autoRefreshInterval]);
 
   // Handle non-force refresh from parent (for settings return)
   const nonForceRefreshHandledRef = useRef(false);
   useEffect(() => {
     if (nonForceRefresh && !nonForceRefreshHandledRef.current) {
       nonForceRefreshHandledRef.current = true;
-      setTimeLeft(repository.auto_refresh_interval); // Reset timer
+      setTimeLeft(repo.repository.autoRefreshInterval); // Reset timer
       getRepositoryStats().finally(() => {
         if (onNonForceRefreshComplete) {
           onNonForceRefreshComplete();
@@ -248,7 +238,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
         }, 1000);
       });
     }
-  }, [nonForceRefresh, getRepositoryStats, onNonForceRefreshComplete, repository.auto_refresh_interval]);
+  }, [nonForceRefresh, getRepositoryStats, onNonForceRefreshComplete, repo.repository.autoRefreshInterval]);
 
   // Initial load: only trigger once
   const initialLoadRef = useRef(false);
@@ -278,18 +268,18 @@ export default function RepositoryCard(props: RepositoryCardProps) {
 
   // Manual refresh handler
   const handleManualRefresh = useCallback(() => {
-    setTimeLeft(repository.auto_refresh_interval); // Reset timer
+    setTimeLeft(repo.repository.autoRefreshInterval); // Reset timer
     getRepositoryStats();
-  }, [getRepositoryStats, repository.auto_refresh_interval]);
+  }, [getRepositoryStats, repo.repository.autoRefreshInterval]);
 
   // Remove repository handler
   const handleRemove = useCallback(async () => {
-    if (!user || !window.confirm(`Are you sure you want to remove ${repository.display_name || repository.repository_name}?`)) {
+    if (!user || !window.confirm(`Are you sure you want to remove ${repo.repository.displayName || repo.repository.name}?`)) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/repositories/tracked/${encodeURIComponent(user.id)}/${repository.id}`, {
+      const response = await fetch(`/api/repositories/tracked/${encodeURIComponent(user.id)}/${repo.repository.id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -297,7 +287,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
       });
 
       if (response.ok) {
-        onRemove(repository.id);
+        onRemove(repo.repository.id);
       } else {
         throw new Error('Failed to remove repository');
       }
@@ -305,7 +295,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
       console.error('Error removing repository:', error);
       setError('Failed to remove repository');
     }
-  }, [user, repository, onRemove]);
+  }, [user, repo, onRemove]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -428,13 +418,13 @@ export default function RepositoryCard(props: RepositoryCardProps) {
               <div className={`status-summary ${stats.status}`}>
                 <div className="repository-info">
                   <h3 className="repository-name">
-                    <a href={repository.repository_url} target="_blank" rel="noopener noreferrer" style={{ color: getStatusColor(stats.status) }}>
-                      {repository.display_name || repository.repository_name}
+                    <a href={repo.repository.url} target="_blank" rel="noopener noreferrer" style={{ color: getStatusColor(stats.status) }}>
+                      {repo.repository.displayName || repo.repository.name}
                     </a>
                   </h3>
-                  {repository.display_name && repository.display_name !== repository.repository_name && (
+                  {repo.repository.displayName && repo.repository.displayName !== repo.repository.name && (
                     <div className="repository-meta">
-                      <span className="server-name" style={{ color: getStatusColor(stats.status) }}>{repository.repository_name}</span>
+                      <span className="server-name" style={{ color: getStatusColor(stats.status) }}>{repo.repository.name}</span>
                     </div>
                   )}
                 </div>
@@ -473,7 +463,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
 
       {/* Workflow Detail Modal */}
       <WorkflowDetailModal
-        repository={repository}
+        repo={repo}
         isOpen={showDetailModal}
         onClose={() => setShowDetailModal(false)}
       />

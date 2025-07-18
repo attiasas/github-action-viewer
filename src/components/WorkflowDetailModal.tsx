@@ -1,16 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import './WorkflowDetailModal.css';
 
-interface Repository {
-  id: number;
-  repository_name: string;
-  repository_url: string;
-  display_name?: string;
-  tracked_workflows: string[];
-  tracked_branches: string[];
-  github_server_id: number;
-}
+import type { TrackedRepository } from '../api/Repositories';
+import './WorkflowDetailModal.css';
 
 interface WorkflowRun {
   id: number;
@@ -38,12 +30,12 @@ interface DetailedWorkflowStatus {
 }
 
 interface WorkflowDetailModalProps {
-  repository: Repository;
+  repo: TrackedRepository;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export default function WorkflowDetailModal({ repository, isOpen, onClose }: WorkflowDetailModalProps) {
+export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowDetailModalProps) {
   const { user } = useAuth();
   const [workflowData, setWorkflowData] = useState<DetailedWorkflowStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -145,12 +137,12 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
       }
     }
     return {
-      repository: data.name || data.repository || repository.repository_name,
-      repositoryUrl: data.url || repository.repository_url,
-      repoId: data.id || repository.id,
+      repository: data.name || data.repository || repo.repository.name,
+      repositoryUrl: data.url || repo.repository.url,
+      repoId: data.id || repo.repository.id,
       branches,
     };
-  }, [repository.id, repository.repository_name, repository.repository_url]);
+  }, [repo.repository.id, repo.repository.name, repo.repository.url]);
 
   // Load detailed workflow status using new API
   const loadWorkflowDetails = useCallback(async () => {
@@ -160,7 +152,7 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
     setError(null);
 
     try {
-      const response = await fetch(`/api/workflows/status/${encodeURIComponent(user.id)}/${repository.id}`);
+      const response = await fetch(`/api/workflows/status/${encodeURIComponent(user.id)}/${repo.repository.id}`);
       if (response.ok) {
         const data = await response.json();
         setWorkflowData(parseWorkflowStatus(data));
@@ -173,7 +165,7 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
     } finally {
       setIsLoading(false);
     }
-  }, [user, isOpen, repository.id, parseWorkflowStatus]);
+  }, [user, isOpen, repo.repository.id, parseWorkflowStatus]);
 
   // Load data when modal opens
   useEffect(() => {
@@ -214,10 +206,10 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
   // Initialize edit state when entering edit mode
   useEffect(() => {
     if (isEditMode) {
-      setEditedWorkflows([...repository.tracked_workflows]);
-      setEditedBranches([...repository.tracked_branches]);
+      setEditedWorkflows([...repo.repository.trackedWorkflowsPaths]);
+      setEditedBranches([...repo.repository.trackedBranches]);
     }
-  }, [isEditMode, repository.tracked_workflows, repository.tracked_branches]);
+  }, [isEditMode, repo.repository.trackedWorkflowsPaths, repo.repository.trackedBranches]);
 
   // Edit mode functions
   const enterEditMode = () => {
@@ -236,14 +228,14 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
 
   // Fetch available workflows and branches for suggestions
   const fetchAvailableOptions = useCallback(async () => {
-    if (!user || !repository) return;
+    if (!user || !repo) return;
 
     try {
       // Extract owner and repo from repository name
-      const [owner, repo] = repository.repository_name.split('/');
-      
+      const [owner, repoName] = repo.repository.name.split('/');
+
       // Fetch workflows
-      const workflowsResponse = await fetch(`/api/repositories/${owner}/${repo}/workflows?userId=${encodeURIComponent(user.id)}&serverId=${repository.github_server_id}`);
+      const workflowsResponse = await fetch(`/api/repositories/${owner}/${repoName}/workflows?userId=${encodeURIComponent(user.id)}&serverId=${repo.serverId}`);
       if (workflowsResponse.ok) {
         const workflowsData = await workflowsResponse.json();
         const workflowItems = workflowsData.workflows?.map((w: { name: string, path: string }) => ({
@@ -254,7 +246,7 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
       }
 
       // Fetch branches
-      const branchesResponse = await fetch(`/api/repositories/${owner}/${repo}/branches?userId=${encodeURIComponent(user.id)}&serverId=${repository.github_server_id}`);
+      const branchesResponse = await fetch(`/api/repositories/${owner}/${repoName}/branches?userId=${encodeURIComponent(user.id)}&serverId=${repo.serverId}`);
       if (branchesResponse.ok) {
         const branchesData = await branchesResponse.json();
         const branchNames = branchesData.map((b: { name: string }) => b.name) || [];
@@ -263,7 +255,7 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
     } catch (error) {
       console.error('Error fetching available options:', error);
     }
-  }, [user, repository]);
+  }, [user, repo]);
 
   // Fetch available options when entering edit mode
   useEffect(() => {
@@ -482,14 +474,14 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
 
     console.log('Saving changes:', {
       userId: user.id,
-      repositoryId: repository.id,
+      repositoryId: repo.repository.id,
       editedWorkflows,
       editedBranches
     });
 
     setIsSaving(true);
     try {
-      const url = `/api/repositories/tracked/${encodeURIComponent(user.id)}/${repository.id}`;
+      const url = `/api/repositories/tracked/${encodeURIComponent(user.id)}/${repo.repository.id}`;
       const payload = {
         tracked_workflows: editedWorkflows,
         tracked_branches: editedBranches,
@@ -509,9 +501,9 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
 
       if (response.ok) {
         // Update the repository object
-        repository.tracked_workflows = [...editedWorkflows];
-        repository.tracked_branches = [...editedBranches];
-        
+        repo.repository.trackedWorkflowsPaths = [...editedWorkflows];
+        repo.repository.trackedBranches = [...editedBranches];
+
         // Reload workflow details to reflect changes
         await loadWorkflowDetails();
         setIsEditMode(false);
@@ -669,8 +661,8 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
         <div className="modal-header">
           <div className="modal-title">
             <h2>
-              <a href={repository.repository_url} target="_blank" rel="noopener noreferrer">
-                {repository.display_name || repository.repository_name}
+              <a href={repo.repository.url} target="_blank" rel="noopener noreferrer">
+                {repo.repository.displayName || repo.repository.name}
               </a>
             </h2>
             <span className="modal-subtitle">Workflow Details</span>
@@ -691,7 +683,7 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
                     setIsLoading(true);
                     setError(null);
                     try {
-                      const response = await fetch(`/api/workflows/refresh/${encodeURIComponent(user.id)}/${repository.id}`, { method: 'POST' });
+                      const response = await fetch(`/api/workflows/refresh/${encodeURIComponent(user.id)}/${repo.repository.id}`, { method: 'POST' });
                       if (response.ok) {
                         const data = await response.json();
                         setWorkflowData(parseWorkflowStatus(data));
@@ -977,7 +969,7 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
                                           <div className="workflow-path">
                                             <span className="meta-label">Path:</span>
                                             <a 
-                                              href={`${repository.repository_url}/blob/${branchName}/${workflow.workflow_path}`}
+                                              href={`${repo.repository.url}/blob/${branchName}/${workflow.workflow_path}`}
                                               target="_blank" 
                                               rel="noopener noreferrer"
                                               className="path-link"
@@ -1002,7 +994,7 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
                                             <div className="meta-item">
                                               <span className="meta-label">Commit:</span>
                                               <a 
-                                                href={`${repository.repository_url}/commit/${workflow.head_sha}`}
+                                                href={`${repo.repository.url}/commit/${workflow.head_sha}`}
                                                 target="_blank" 
                                                 rel="noopener noreferrer"
                                                 className="commit-link"
