@@ -65,37 +65,9 @@ export default function RepositoryListSimple(props: RepositoryListProps) {
   const handleStatsUpdate = useCallback((stats: RepositoryStatus) => {
     setRepositoryStats(prev => {
       const updated = { ...prev, [stats.id]: stats };
-      // Re-sort repository order immediately after stats update
-      setRepositoryOrder(() => {
-        const newOrder = repositories
-          .map(repo => repo.repository.id)
-          .sort((a, b) => {
-            const statsA = updated[a];
-            const statsB = updated[b];
-            const getPriority = (stats?: RepositoryStatus) => {
-              if (!stats) return 5;
-              switch (stats.status) {
-                case 'running': return 1;
-                case 'failure': return 2;
-                case 'pending': return 3;
-                case 'success': return 4;
-                default: return 5;
-              }
-            };
-            const priorityA = getPriority(statsA);
-            const priorityB = getPriority(statsB);
-            if (priorityA !== priorityB) {
-              return priorityA - priorityB;
-            }
-            const repoA = repositories.find(r => r.repository.id === a);
-            const repoB = repositories.find(r => r.repository.id === b);
-            return (repoA?.repository.name || '').localeCompare(repoB?.repository.name || '');
-          });
-        return newOrder;
-      });
       return updated;
     });
-  }, [repositories]);
+  }, []);
 
   // Notify parent when repository stats change
   useEffect(() => {
