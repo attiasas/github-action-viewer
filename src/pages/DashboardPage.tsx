@@ -1,49 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import type { TrackedRepository } from '../api/Repositories';
+import type { TrackedRepository, RepositoryStatus } from '../api/Repositories';
 import RepositorySearch from '../components/RepositorySearch';
 import RepositoryListSimple from '../components/RepositoryListSimple';
 import './DashboardPage.css';
-
-interface BranchStats {
-  success: number;
-  failure: number;
-  pending: number;
-  cancelled: number;
-  workflows: Record<string, {
-    status: string;
-    conclusion: string | null;
-    created_at?: string;
-    html_url?: string;
-    normalizedStatus?: string;
-  }>;
-  error?: string;
-}
-
-interface ActionStatistics {
-  repository: string;
-  repositoryUrl: string;
-  repoId: number;
-  branches: Record<string, BranchStats>;
-  overall: {
-    success: number;
-    failure: number;
-    pending: number;
-    cancelled: number;
-  };
-  status: string;
-  hasPermissionError?: boolean;
-  hasError?: boolean;
-  error?: string;
-}
 
 
 export default function DashboardPage() {
   const { user, logout, loadGitHubServers } = useAuth();
   const location = useLocation();
   const [repositories, setRepositories] = useState<TrackedRepository[]>([]);
-  const [actionStats, setActionStats] = useState<ActionStatistics[]>([]);
+  const [actionStats, setActionStats] = useState<RepositoryStatus[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showAddRepoModal, setShowAddRepoModal] = useState(false);
   const [triggerForceRefresh, setTriggerForceRefresh] = useState(false);
@@ -81,7 +49,7 @@ export default function DashboardPage() {
   }, []);
 
   // Handle action stats update from RepositoryList
-  const handleActionStatsUpdate = useCallback((stats: ActionStatistics[]) => {
+  const handleActionStatsUpdate = useCallback((stats: RepositoryStatus[]) => {
     setActionStats(stats);
   }, []);
 

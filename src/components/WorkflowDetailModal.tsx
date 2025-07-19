@@ -1,33 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
-import type { TrackedRepository } from '../api/Repositories';
+import type { TrackedRepository, RepositoryStatus, BranchStatus, WorkflowStatus } from '../api/Repositories';
 import './WorkflowDetailModal.css';
 
-interface WorkflowRun {
-  id: number;
-  name: string;
-  status: string;
-  conclusion: string | null;
-  created_at: string;
-  updated_at: string;
-  html_url: string;
-  head_branch: string;
-  head_sha: string;
-  workflow_id: number;
-  run_number: number;
-  workflow_path?: string;
-}
-
-interface DetailedWorkflowStatus {
-  repository: string;
-  repositoryUrl: string;
-  repoId: number;
-  branches: Record<string, {
-    workflows: Record<string, WorkflowRun | { status: 'no_runs'; conclusion: null; name: string; workflow_id: number; workflow_path?: string; }>;
-    error: string | null;
-  }>;
-}
 
 interface WorkflowDetailModalProps {
   repo: TrackedRepository;
@@ -37,7 +13,7 @@ interface WorkflowDetailModalProps {
 
 export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowDetailModalProps) {
   const { user } = useAuth();
-  const [workflowData, setWorkflowData] = useState<DetailedWorkflowStatus | null>(null);
+  const [repositoryData, setRepositoryData] = useState<RepositoryStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
@@ -64,86 +40,6 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
   const workflowInputRef = useRef<HTMLInputElement>(null);
   const branchInputRef = useRef<HTMLInputElement>(null);
 
-  // Helper to parse new API response to DetailedWorkflowStatus
-  // Types for backend response
-  type BackendWorkflowStatus = {
-    name: string;
-    runNumber?: number;
-    runId?: number;
-    commit?: string;
-    status: string;
-    conclusion?: string | null;
-    createdAt?: string;
-    url?: string;
-    workflow_id?: number;
-    workflowId?: number;
-    workflow_path?: string;
-  };
-  type BackendNoRunsStatus = {
-    status: 'no_runs';
-    name: string;
-    workflow_id?: number;
-    workflow_path?: string;
-  };
-  type BackendBranchObj = {
-    workflows: Record<string, BackendWorkflowStatus | BackendNoRunsStatus>;
-  };
-  type BackendRepositoryStatus = {
-    id?: number;
-    name?: string;
-    url?: string;
-    repository?: string;
-    branches: Record<string, BackendBranchObj>;
-  };
-
-  const parseWorkflowStatus = useCallback((data: BackendRepositoryStatus): DetailedWorkflowStatus => {
-    const branches: DetailedWorkflowStatus['branches'] = {};
-    if (data && data.branches) {
-      for (const [branchName, branchObj] of Object.entries(data.branches)) {
-        const workflows: Record<string, WorkflowRun | { status: 'no_runs'; conclusion: null; name: string; workflow_id: number; workflow_path?: string; }> = {};
-        if (branchObj.workflows) {
-          for (const [workflowId, wf] of Object.entries(branchObj.workflows)) {
-            if (wf && (wf as BackendNoRunsStatus).status === 'no_runs') {
-              workflows[workflowId] = {
-                status: 'no_runs',
-                conclusion: null,
-                name: (wf as BackendNoRunsStatus).name,
-                workflow_id: (wf as BackendNoRunsStatus).workflow_id ?? Number(workflowId),
-                workflow_path: (wf as BackendNoRunsStatus).workflow_path,
-              };
-            } else if (wf) {
-              const w = wf as BackendWorkflowStatus;
-              workflows[workflowId] = {
-                id: w.runNumber ?? w.runId ?? 0,
-                name: w.name,
-                status: w.status,
-                conclusion: w.conclusion ?? null,
-                created_at: w.createdAt ?? '',
-                updated_at: w.createdAt ?? '',
-                html_url: w.url ?? '',
-                head_branch: branchName,
-                head_sha: w.commit ?? '',
-                workflow_id: w.workflow_id ?? w.workflowId ?? Number(workflowId),
-                run_number: w.runNumber ?? 0,
-                workflow_path: w.workflow_path,
-              };
-            }
-          }
-        }
-        branches[branchName] = {
-          workflows,
-          error: null,
-        };
-      }
-    }
-    return {
-      repository: data.name || data.repository || repo.repository.name,
-      repositoryUrl: data.url || repo.repository.url,
-      repoId: data.id || repo.repository.id,
-      branches,
-    };
-  }, [repo.repository.id, repo.repository.name, repo.repository.url]);
-
   // Load detailed workflow status using new API
   const loadWorkflowDetails = useCallback(async () => {
     if (!user || !isOpen) return;
@@ -155,7 +51,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
       const response = await fetch(`/api/workflows/status/${encodeURIComponent(user.id)}/${repo.repository.id}`);
       if (response.ok) {
         const data = await response.json();
-        setWorkflowData(parseWorkflowStatus(data));
+        setRepositoryData(data);
       } else {
         throw new Error('Failed to load workflow details');
       }
@@ -165,7 +61,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
     } finally {
       setIsLoading(false);
     }
-  }, [user, isOpen, repo.repository.id, parseWorkflowStatus]);
+  }, [user, isOpen, repo.repository.id]);
 
   // Load data when modal opens
   useEffect(() => {
@@ -176,13 +72,13 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
 
   // Auto-expand single branch when data loads
   useEffect(() => {
-    if (workflowData) {
-      const branches = Object.keys(workflowData.branches);
+    if (repositoryData) {
+      const branches = Object.keys(repositoryData.branches);
       if (branches.length === 1) {
         setExpandedBranches(new Set([branches[0]]));
       }
     }
-  }, [workflowData]);
+  }, [repositoryData]);
 
   // Handle escape key
   useEffect(() => {
@@ -686,7 +582,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                       const response = await fetch(`/api/workflows/refresh/${encodeURIComponent(user.id)}/${repo.repository.id}`, { method: 'POST' });
                       if (response.ok) {
                         const data = await response.json();
-                        setWorkflowData(parseWorkflowStatus(data));
+                        setRepositoryData(data);
                       } else {
                         throw new Error('Failed to refresh workflows');
                       }
@@ -875,9 +771,9 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                 </div>
               </div>
             </div>
-          ) : workflowData ? (
+          ) : repositoryData ? (
             <div className="workflow-details">
-              {Object.entries(workflowData.branches).map(([branchName, branchData]) => {
+              {Object.entries(repositoryData.branches).map(([branchName, branchData]: [string, BranchStatus]) => {
                 const isExpanded = expandedBranches.has(branchName);
                 return (
                   <div key={branchName} className="branch-section">
@@ -897,7 +793,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                           <div className="branch-stats">
                             {(() => {
                               const stats = { success: 0, failure: 0, pending: 0, cancelled: 0, running: 0 };
-                              Object.values(branchData.workflows).forEach(workflow => {
+                              Object.values(branchData.workflows).forEach((workflow: WorkflowStatus) => {
                                 const normalizedStatus = normalizeStatus(workflow.status, workflow.conclusion);
                                 if (normalizedStatus === 'success') stats.success++;
                                 else if (normalizedStatus === 'failure') stats.failure++;
@@ -936,12 +832,12 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                         ) : (
                           <div className="workflows-list">
                             {Object.entries(branchData.workflows)
-                              .sort(([, workflowA], [, workflowB]) => {
+                              .sort(([, workflowA]: [string, WorkflowStatus], [, workflowB]: [string, WorkflowStatus]) => {
                                 const priorityA = getStatusPriority(workflowA.status, workflowA.conclusion);
                                 const priorityB = getStatusPriority(workflowB.status, workflowB.conclusion);
                                 return priorityA - priorityB;
                               })
-                              .map(([workflowKey, workflow]) => {
+                              .map(([workflowKey, workflow]: [string, WorkflowStatus]) => {
                                 const normalizedStatus = normalizeStatus(workflow.status, workflow.conclusion);
                                 return (
                                   <div key={workflowKey} className={`workflow-card status-${normalizedStatus}`}>
@@ -950,9 +846,9 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                                         <div className="workflow-header">
                                           <div className="workflow-title-section">
                                             <h4 className="workflow-name">{workflow && workflow.name ? workflow.name : workflowKey}</h4>
-                                            {'html_url' in workflow && workflow.html_url && (
+                                            {workflow && workflow.url && (
                                               <a 
-                                                href={workflow.html_url} 
+                                                href={workflow.url || ''} 
                                                 target="_blank" 
                                                 rel="noopener noreferrer"
                                                 className="action-button compact"
@@ -985,31 +881,31 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                                             <div className="meta-item">
                                               <span className="meta-label">Run:</span>
                                               <span className="workflow-run-number">
-                                                #{workflow.run_number}
+                                                #{workflow.runNumber}
                                               </span>
                                             </div>
                                           )}
                                           
-                                          {'run_number' in workflow && workflow.head_sha && (
+                                          {workflow.runNumber && workflow.commit && (
                                             <div className="meta-item">
                                               <span className="meta-label">Commit:</span>
                                               <a 
-                                                href={`${repo.repository.url}/commit/${workflow.head_sha}`}
+                                                href={`${repo.repository.url}/commit/${workflow.commit}`}
                                                 target="_blank" 
                                                 rel="noopener noreferrer"
                                                 className="commit-link"
-                                                title={workflow.head_sha}
+                                                title={workflow.commit}
                                               >
-                                                {truncateSha(workflow.head_sha)}
+                                                {truncateSha(workflow.commit)}
                                               </a>
                                             </div>
                                           )}
                                           
-                                          {'run_number' in workflow && workflow.updated_at && (
+                                          {workflow.runNumber && workflow.updatedAt && (
                                             <div className="meta-item">
                                               <span className="meta-label">Updated:</span>
-                                              <time className="timestamp" title={new Date(workflow.updated_at).toISOString()}>
-                                                {formatRelativeTime(workflow.updated_at)}
+                                              <time className="timestamp" title={new Date(workflow.updatedAt).toISOString()}>
+                                                {formatRelativeTime(workflow.updatedAt)}
                                               </time>
                                             </div>
                                           )}

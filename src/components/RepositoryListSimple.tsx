@@ -1,47 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import RepositoryCard from './RepositoryCard';
-import type { TrackedRepository } from '../api/Repositories';
+import type { TrackedRepository, RepositoryStatus } from '../api/Repositories';
 import './RepositoryListSimple.css';
-
-interface BranchStats {
-  success: number;
-  failure: number;
-  pending: number;
-  cancelled: number;
-  running: number;
-  workflows: Record<string, {
-    status: string;
-    conclusion: string | null;
-    created_at?: string;
-    html_url?: string;
-    normalizedStatus?: string;
-  }>;
-  error?: string;
-}
-
-interface ActionStatistics {
-  repository: string;
-  repositoryUrl: string;
-  repoId: number;
-  branches: Record<string, BranchStats>;
-  overall: {
-    success: number;
-    failure: number;
-    pending: number;
-    cancelled: number;
-    running: number;
-  };
-  status: string;
-  hasPermissionError?: boolean;
-  hasError?: boolean;
-  error?: string;
-}
 
 
 interface RepositoryListProps {
   repositories: TrackedRepository[];
   onRepositoryRemoved: (repoId: number) => void;
-  onActionStatsUpdate: (stats: ActionStatistics[]) => void;
+  onActionStatsUpdate: (stats: RepositoryStatus[]) => void;
   gridView?: boolean;
   triggerForceRefresh?: boolean; // Signal from parent to force refresh all
   triggerNonForceRefresh?: boolean; // Signal from parent to trigger non-forced refresh all
@@ -58,7 +24,7 @@ export default function RepositoryListSimple(props: RepositoryListProps) {
   } = props;
 
 // ...existing code...
-  const [repositoryStats, setRepositoryStats] = useState<Record<number, ActionStatistics>>({});
+  const [repositoryStats, setRepositoryStats] = useState<Record<number, RepositoryStatus>>({});
   const [repositoryOrder, setRepositoryOrder] = useState<number[]>([]);
   const [pendingForceRefresh, setPendingForceRefresh] = useState<Set<number>>(new Set());
   const [pendingNonForceRefresh, setPendingNonForceRefresh] = useState<Set<number>>(new Set());
@@ -71,7 +37,7 @@ export default function RepositoryListSimple(props: RepositoryListProps) {
         const statsA = repositoryStats[a];
         const statsB = repositoryStats[b];
         // Sort by status priority: running, failure, pending, success, unknown
-        const getPriority = (stats?: ActionStatistics) => {
+        const getPriority = (stats?: RepositoryStatus) => {
           if (!stats) return 5;
           switch (stats.status) {
             case 'running': return 1;
@@ -96,12 +62,40 @@ export default function RepositoryListSimple(props: RepositoryListProps) {
   }, [repositories, repositoryStats]);
 
   // Handle stats update from individual repository cards
-  const handleStatsUpdate = useCallback((stats: ActionStatistics) => {
+  const handleStatsUpdate = useCallback((stats: RepositoryStatus) => {
     setRepositoryStats(prev => {
-      const updated = { ...prev, [stats.repoId]: stats };
+      const updated = { ...prev, [stats.id]: stats };
+      // Re-sort repository order immediately after stats update
+      setRepositoryOrder(() => {
+        const newOrder = repositories
+          .map(repo => repo.repository.id)
+          .sort((a, b) => {
+            const statsA = updated[a];
+            const statsB = updated[b];
+            const getPriority = (stats?: RepositoryStatus) => {
+              if (!stats) return 5;
+              switch (stats.status) {
+                case 'running': return 1;
+                case 'failure': return 2;
+                case 'pending': return 3;
+                case 'success': return 4;
+                default: return 5;
+              }
+            };
+            const priorityA = getPriority(statsA);
+            const priorityB = getPriority(statsB);
+            if (priorityA !== priorityB) {
+              return priorityA - priorityB;
+            }
+            const repoA = repositories.find(r => r.repository.id === a);
+            const repoB = repositories.find(r => r.repository.id === b);
+            return (repoA?.repository.name || '').localeCompare(repoB?.repository.name || '');
+          });
+        return newOrder;
+      });
       return updated;
     });
-  }, []);
+  }, [repositories]);
 
   // Notify parent when repository stats change
   useEffect(() => {

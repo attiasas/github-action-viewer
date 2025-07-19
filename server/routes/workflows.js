@@ -62,6 +62,7 @@ export class WorkflowStatus {
         status,
         conclusion,
         createdAt,
+        updatedAt,
         url,
         workflow_id,
         workflow_path
@@ -73,6 +74,7 @@ export class WorkflowStatus {
         this.normalizeStatus = normalizeWorkflowStatus(conclusion, status);
         this.conclusion = conclusion;
         this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
         this.url = url;
         this.workflow_id = workflow_id;
         this.workflow_path = workflow_path;
@@ -233,6 +235,7 @@ function getRepositoryStatusFromCache(tracked) {
                     status: run.status,
                     conclusion: run.conclusion,
                     createdAt: run.createdAt,
+                    updatedAt: run.updatedAt,
                     url: run.url,
                     workflow_id: run.workflowId,
                     workflow_path: workflowMeta.path

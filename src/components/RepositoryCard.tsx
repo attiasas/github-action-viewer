@@ -1,48 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import WorkflowDetailModal from './WorkflowDetailModal';
-import type { TrackedRepository } from '../api/Repositories';
+import type { TrackedRepository, RepositoryStatus } from '../api/Repositories';
 import './RepositoryCard.css';
 
-interface BranchStats {
-  success: number;
-  failure: number;
-  pending: number;
-  cancelled: number;
-  running: number;
-  workflows: Record<string, {
-    status: string;
-    conclusion: string | null;
-    created_at?: string;
-    html_url?: string;
-    normalizedStatus?: string;
-  }>;
-  error?: string;
-}
-
-interface ActionStatistics {
-  repository: string;
-  repositoryUrl: string;
-  repoId: number;
-  branches: Record<string, BranchStats>;
-  overall: {
-    success: number;
-    failure: number;
-    pending: number;
-    cancelled: number;
-    running: number;
-  };
-  status: string;
-  hasPermissionError?: boolean;
-  hasError?: boolean;
-  error?: string;
-}
 
 interface RepositoryCardProps {
   repo: TrackedRepository;
   onRemove: (repoId: number) => void;
-  onStatsUpdate?: (stats: ActionStatistics) => void;
-  initialStats?: ActionStatistics;
+  onStatsUpdate?: (stats: RepositoryStatus) => void;
+  initialStats?: RepositoryStatus;
   forceRefresh?: boolean; // Trigger from parent
   onForceRefreshComplete?: () => void;
   nonForceRefresh?: boolean; // Trigger non-forced refresh from parent
@@ -61,7 +28,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
     onNonForceRefreshComplete
   } = props;
   const { user } = useAuth();
-  const [stats, setStats] = useState<ActionStatistics | null>(initialStats || null);
+  const [stats, setStats] = useState<RepositoryStatus | null>(initialStats || null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(repo.repository.autoRefreshInterval);
