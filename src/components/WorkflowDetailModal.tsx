@@ -1,51 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+
+import type { TrackedRepository, RepositoryStatus, BranchStatus, WorkflowStatus } from '../api/Repositories';
 import './WorkflowDetailModal.css';
 
-interface Repository {
-  id: number;
-  repository_name: string;
-  repository_url: string;
-  display_name?: string;
-  tracked_workflows: string[];
-  tracked_branches: string[];
-  github_server_id: number;
-}
-
-interface WorkflowRun {
-  id: number;
-  name: string;
-  status: string;
-  conclusion: string | null;
-  created_at: string;
-  updated_at: string;
-  html_url: string;
-  head_branch: string;
-  head_sha: string;
-  workflow_id: number;
-  run_number: number;
-  workflow_path?: string;
-}
-
-interface DetailedWorkflowStatus {
-  repository: string;
-  repositoryUrl: string;
-  repoId: number;
-  branches: Record<string, {
-    workflows: Record<string, WorkflowRun | { status: 'no_runs'; conclusion: null; name: string; workflow_id: number; workflow_path?: string; }>;
-    error: string | null;
-  }>;
-}
 
 interface WorkflowDetailModalProps {
-  repository: Repository;
+  repo: TrackedRepository;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export default function WorkflowDetailModal({ repository, isOpen, onClose }: WorkflowDetailModalProps) {
+export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowDetailModalProps) {
   const { user } = useAuth();
-  const [workflowData, setWorkflowData] = useState<DetailedWorkflowStatus | null>(null);
+  const [repositoryData, setRepositoryData] = useState<RepositoryStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
@@ -72,7 +40,7 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
   const workflowInputRef = useRef<HTMLInputElement>(null);
   const branchInputRef = useRef<HTMLInputElement>(null);
 
-  // Load detailed workflow status
+  // Load detailed workflow status using new API
   const loadWorkflowDetails = useCallback(async () => {
     if (!user || !isOpen) return;
 
@@ -80,10 +48,10 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
     setError(null);
 
     try {
-      const response = await fetch(`/api/actions/workflow-status/${encodeURIComponent(user.id)}/${repository.id}?force=true`);
+      const response = await fetch(`/api/workflows/status/${encodeURIComponent(user.id)}/${repo.repository.id}`);
       if (response.ok) {
         const data = await response.json();
-        setWorkflowData(data);
+        setRepositoryData(data);
       } else {
         throw new Error('Failed to load workflow details');
       }
@@ -93,7 +61,7 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
     } finally {
       setIsLoading(false);
     }
-  }, [user, isOpen, repository.id]);
+  }, [user, isOpen, repo.repository.id]);
 
   // Load data when modal opens
   useEffect(() => {
@@ -104,13 +72,13 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
 
   // Auto-expand single branch when data loads
   useEffect(() => {
-    if (workflowData) {
-      const branches = Object.keys(workflowData.branches);
+    if (repositoryData) {
+      const branches = Object.keys(repositoryData.branches);
       if (branches.length === 1) {
         setExpandedBranches(new Set([branches[0]]));
       }
     }
-  }, [workflowData]);
+  }, [repositoryData]);
 
   // Handle escape key
   useEffect(() => {
@@ -134,10 +102,10 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
   // Initialize edit state when entering edit mode
   useEffect(() => {
     if (isEditMode) {
-      setEditedWorkflows([...repository.tracked_workflows]);
-      setEditedBranches([...repository.tracked_branches]);
+      setEditedWorkflows([...repo.repository.trackedWorkflowsPaths]);
+      setEditedBranches([...repo.repository.trackedBranches]);
     }
-  }, [isEditMode, repository.tracked_workflows, repository.tracked_branches]);
+  }, [isEditMode, repo.repository.trackedWorkflowsPaths, repo.repository.trackedBranches]);
 
   // Edit mode functions
   const enterEditMode = () => {
@@ -156,14 +124,14 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
 
   // Fetch available workflows and branches for suggestions
   const fetchAvailableOptions = useCallback(async () => {
-    if (!user || !repository) return;
+    if (!user || !repo) return;
 
     try {
       // Extract owner and repo from repository name
-      const [owner, repo] = repository.repository_name.split('/');
-      
+      const [owner, repoName] = repo.repository.name.split('/');
+
       // Fetch workflows
-      const workflowsResponse = await fetch(`/api/repositories/${owner}/${repo}/workflows?userId=${encodeURIComponent(user.id)}&serverId=${repository.github_server_id}`);
+      const workflowsResponse = await fetch(`/api/repositories/${owner}/${repoName}/workflows?userId=${encodeURIComponent(user.id)}&serverId=${repo.serverId}`);
       if (workflowsResponse.ok) {
         const workflowsData = await workflowsResponse.json();
         const workflowItems = workflowsData.workflows?.map((w: { name: string, path: string }) => ({
@@ -174,7 +142,7 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
       }
 
       // Fetch branches
-      const branchesResponse = await fetch(`/api/repositories/${owner}/${repo}/branches?userId=${encodeURIComponent(user.id)}&serverId=${repository.github_server_id}`);
+      const branchesResponse = await fetch(`/api/repositories/${owner}/${repoName}/branches?userId=${encodeURIComponent(user.id)}&serverId=${repo.serverId}`);
       if (branchesResponse.ok) {
         const branchesData = await branchesResponse.json();
         const branchNames = branchesData.map((b: { name: string }) => b.name) || [];
@@ -183,7 +151,7 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
     } catch (error) {
       console.error('Error fetching available options:', error);
     }
-  }, [user, repository]);
+  }, [user, repo]);
 
   // Fetch available options when entering edit mode
   useEffect(() => {
@@ -402,14 +370,14 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
 
     console.log('Saving changes:', {
       userId: user.id,
-      repositoryId: repository.id,
+      repositoryId: repo.repository.id,
       editedWorkflows,
       editedBranches
     });
 
     setIsSaving(true);
     try {
-      const url = `/api/repositories/tracked/${encodeURIComponent(user.id)}/${repository.id}`;
+      const url = `/api/repositories/tracked/${encodeURIComponent(user.id)}/${repo.repository.id}`;
       const payload = {
         tracked_workflows: editedWorkflows,
         tracked_branches: editedBranches,
@@ -429,9 +397,9 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
 
       if (response.ok) {
         // Update the repository object
-        repository.tracked_workflows = [...editedWorkflows];
-        repository.tracked_branches = [...editedBranches];
-        
+        repo.repository.trackedWorkflowsPaths = [...editedWorkflows];
+        repo.repository.trackedBranches = [...editedBranches];
+
         // Reload workflow details to reflect changes
         await loadWorkflowDetails();
         setIsEditMode(false);
@@ -589,8 +557,8 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
         <div className="modal-header">
           <div className="modal-title">
             <h2>
-              <a href={repository.repository_url} target="_blank" rel="noopener noreferrer">
-                {repository.display_name || repository.repository_name}
+              <a href={repo.repository.url} target="_blank" rel="noopener noreferrer">
+                {repo.repository.displayName || repo.repository.name}
               </a>
             </h2>
             <span className="modal-subtitle">Workflow Details</span>
@@ -604,15 +572,37 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
                     <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                   </svg>
                 </button>
-                <button className="modal-refresh-button" onClick={loadWorkflowDetails} title="Refresh">
-                  <svg 
-                    width="20" 
-                    height="20" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
+                <button
+                  className="modal-refresh-button"
+                  onClick={async () => {
+                    if (!user) return;
+                    setIsLoading(true);
+                    setError(null);
+                    try {
+                      const response = await fetch(`/api/workflows/refresh/${encodeURIComponent(user.id)}/${repo.repository.id}`, { method: 'POST' });
+                      if (response.ok) {
+                        const data = await response.json();
+                        setRepositoryData(data);
+                      } else {
+                        throw new Error('Failed to refresh workflows');
+                      }
+                    } catch (error) {
+                      console.error('Error refreshing workflows:', error);
+                      setError(error instanceof Error ? error.message : 'Failed to refresh workflows');
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }}
+                  title="Refresh"
+                >
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
                     strokeLinejoin="round"
                     className="refresh-icon"
                   >
@@ -781,9 +771,9 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
                 </div>
               </div>
             </div>
-          ) : workflowData ? (
+          ) : repositoryData ? (
             <div className="workflow-details">
-              {Object.entries(workflowData.branches).map(([branchName, branchData]) => {
+              {Object.entries(repositoryData.branches).map(([branchName, branchData]: [string, BranchStatus]) => {
                 const isExpanded = expandedBranches.has(branchName);
                 return (
                   <div key={branchName} className="branch-section">
@@ -803,7 +793,7 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
                           <div className="branch-stats">
                             {(() => {
                               const stats = { success: 0, failure: 0, pending: 0, cancelled: 0, running: 0 };
-                              Object.values(branchData.workflows).forEach(workflow => {
+                              Object.values(branchData.workflows).forEach((workflow: WorkflowStatus) => {
                                 const normalizedStatus = normalizeStatus(workflow.status, workflow.conclusion);
                                 if (normalizedStatus === 'success') stats.success++;
                                 else if (normalizedStatus === 'failure') stats.failure++;
@@ -842,27 +832,27 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
                         ) : (
                           <div className="workflows-list">
                             {Object.entries(branchData.workflows)
-                              .sort(([, workflowA], [, workflowB]) => {
+                              .sort(([, workflowA]: [string, WorkflowStatus], [, workflowB]: [string, WorkflowStatus]) => {
                                 const priorityA = getStatusPriority(workflowA.status, workflowA.conclusion);
                                 const priorityB = getStatusPriority(workflowB.status, workflowB.conclusion);
                                 return priorityA - priorityB;
                               })
-                              .map(([workflowName, workflow]) => {
+                              .map(([workflowKey, workflow]: [string, WorkflowStatus]) => {
                                 const normalizedStatus = normalizeStatus(workflow.status, workflow.conclusion);
                                 return (
-                                  <div key={workflowName} className={`workflow-card status-${normalizedStatus}`}>
+                                  <div key={workflowKey} className={`workflow-card status-${normalizedStatus}`}>
                                     <div className="workflow-main">
                                       <div className="workflow-info">
                                         <div className="workflow-header">
                                           <div className="workflow-title-section">
-                                            <h4 className="workflow-name">{workflowName}</h4>
-                                            {'html_url' in workflow && workflow.html_url && (
+                                            <h4 className="workflow-name">{workflow && workflow.name ? workflow.name : workflowKey}</h4>
+                                            {workflow && workflow.url && (
                                               <a 
-                                                href={workflow.html_url} 
+                                                href={workflow.url || ''} 
                                                 target="_blank" 
                                                 rel="noopener noreferrer"
                                                 className="action-button compact"
-                                                aria-label={`View workflow run for ${workflowName}`}
+                                                aria-label={`View workflow run for ${workflow && workflow.name ? workflow.name : workflowKey}`}
                                               >
                                                 <span>View Run</span>
                                                 <span className="button-icon">→</span>
@@ -875,7 +865,7 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
                                           <div className="workflow-path">
                                             <span className="meta-label">Path:</span>
                                             <a 
-                                              href={`${repository.repository_url}/blob/${branchName}/${workflow.workflow_path}`}
+                                              href={`${repo.repository.url}/blob/${branchName}/${workflow.workflow_path}`}
                                               target="_blank" 
                                               rel="noopener noreferrer"
                                               className="path-link"
@@ -891,31 +881,31 @@ export default function WorkflowDetailModal({ repository, isOpen, onClose }: Wor
                                             <div className="meta-item">
                                               <span className="meta-label">Run:</span>
                                               <span className="workflow-run-number">
-                                                #{workflow.run_number}
+                                                #{workflow.runNumber}
                                               </span>
                                             </div>
                                           )}
                                           
-                                          {'run_number' in workflow && workflow.head_sha && (
+                                          {workflow.runNumber && workflow.commit && (
                                             <div className="meta-item">
                                               <span className="meta-label">Commit:</span>
                                               <a 
-                                                href={`${repository.repository_url}/commit/${workflow.head_sha}`}
+                                                href={`${repo.repository.url}/commit/${workflow.commit}`}
                                                 target="_blank" 
                                                 rel="noopener noreferrer"
                                                 className="commit-link"
-                                                title={workflow.head_sha}
+                                                title={workflow.commit}
                                               >
-                                                {truncateSha(workflow.head_sha)}
+                                                {truncateSha(workflow.commit)}
                                               </a>
                                             </div>
                                           )}
                                           
-                                          {'run_number' in workflow && workflow.updated_at && (
+                                          {workflow.runNumber && workflow.updatedAt && (
                                             <div className="meta-item">
                                               <span className="meta-label">Updated:</span>
-                                              <time className="timestamp" title={new Date(workflow.updated_at).toISOString()}>
-                                                {formatRelativeTime(workflow.updated_at)}
+                                              <time className="timestamp" title={new Date(workflow.updatedAt).toISOString()}>
+                                                {formatRelativeTime(workflow.updatedAt)}
                                               </time>
                                             </div>
                                           )}

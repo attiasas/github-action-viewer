@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "NODE_ENV=production node server/index.js",
-    "test:backend": "vitest run server/tests"
+    "test:backend": "rm -f ./server/database.test.sqlite && vitest run ./server/tests"
   },
   "dependencies": {
     "axios": "^1.10.0",
