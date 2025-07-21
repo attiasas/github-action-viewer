@@ -36,11 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const userData = JSON.parse(storedUser);
         setUser(userData);
-        // Only load servers if not already loaded for this user
-        if (userData?.id && lastLoadedUserIdRef.current !== userData.id) {
-          lastLoadedUserIdRef.current = userData.id;
-          loadGitHubServersForUser(userData.id);
-        }
+        loadGitHubServersForUser(userData.id);
       } catch (error) {
         console.error('Error parsing stored user data:', error);
         localStorage.removeItem('github-actions-user');
@@ -49,7 +45,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const loadGitHubServersForUser = async (userId: string) => {
+  const loadGitHubServersForUser = async (userId: string, force: boolean = false) => {
+    // If not forcing, skip if already loaded for this user
+    if (!force && lastLoadedUserIdRef.current === userId) return;
+    lastLoadedUserIdRef.current = userId;
     try {
       const response = await fetch(`/api/auth/github-servers/${userId}`);
       if (response.ok) {
@@ -61,11 +60,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const loadGitHubServers = async () => {
+  const loadGitHubServers = async (force: boolean = false) => {
     if (!user?.id) return;
-    if (lastLoadedUserIdRef.current === user.id) return;
-    lastLoadedUserIdRef.current = user.id;
-    await loadGitHubServersForUser(user.id);
+    await loadGitHubServersForUser(user.id, force);
   };
 
   const login = async (userId: string): Promise<boolean> => {
@@ -84,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('github-actions-user', JSON.stringify(userData));
         if (lastLoadedUserIdRef.current !== userId) {
           lastLoadedUserIdRef.current = userId;
-          await loadGitHubServersForUser(userId);
+          await loadGitHubServersForUser(userId, true);
         }
         return true;
       } else {
@@ -114,10 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userData = { id: userId };
         setUser(userData);
         localStorage.setItem('github-actions-user', JSON.stringify(userData));
-        if (lastLoadedUserIdRef.current !== userId) {
-          lastLoadedUserIdRef.current = userId;
-          await loadGitHubServersForUser(userId);
-        }
+        await loadGitHubServersForUser(userId, true);
         return true;
       } else {
         const error = await response.json();
@@ -151,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (response.ok) {
-        await loadGitHubServers();
+        await loadGitHubServers(true);
         return true;
       } else {
         const error = await response.json();
@@ -183,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (response.ok) {
-        await loadGitHubServers();
+        await loadGitHubServers(true);
         return true;
       } else {
         const error = await response.json();
@@ -211,7 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (response.ok) {
-        await loadGitHubServers();
+        await loadGitHubServers(true);
         return true;
       } else {
         const error = await response.json();
