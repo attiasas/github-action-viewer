@@ -227,14 +227,45 @@ export async function UpdateUserServer(serverId, userId, serverName, serverUrl, 
 
 export async function DeleteUserServer(serverId, userId) {
   return new Promise((resolve, reject) => {
-    db.run(
-      'DELETE FROM github_servers WHERE id = ? AND user_id = ?',
+    // Check if the server is the default server
+    db.get(
+      'SELECT is_default FROM github_servers WHERE id = ? AND user_id = ?',
       [serverId, userId],
-      function(err) {
+      (err, row) => {
         if (err) reject(err);
-        resolve(this.changes > 0);
-      }
-    );
+        if (!row) {
+          return resolve(false); // Server not found
+        }
+        // Now delete the server
+        db.run(
+          'DELETE FROM github_servers WHERE id = ? AND user_id = ?',
+          [serverId, userId],
+          function(err) {
+            if (err) reject(err);
+            resolve(this.changes > 0);
+          }
+        );
+        if (Boolean(row.is_default)) {
+          // If the server was default, we need to set another server as default (by creation order)
+          db.get(
+            'SELECT id FROM github_servers WHERE user_id = ? AND id != ? ORDER BY created_at LIMIT 1',
+            [userId, serverId],
+            (err, row) => {
+              if (err) reject(err);
+              if (row) {
+                // Set the next server as default
+                db.run(
+                  'UPDATE github_servers SET is_default = 1 WHERE id = ?',
+                  [row.id],
+                  (err) => {
+                    if (err) reject(err);
+                  }
+                );
+              }
+            }
+          );
+        }
+      });
   });
 }
 

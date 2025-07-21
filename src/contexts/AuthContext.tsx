@@ -13,7 +13,7 @@ interface AuthContextType {
   login: (userId: string) => Promise<boolean>;
   createUser: (userId: string) => Promise<boolean>;
   logout: () => void;
-  loadGitHubServers: () => Promise<void>;
+  loadGitHubServers: (force: boolean) => Promise<void>;
   addGitHubServer: (serverName: string, serverUrl: string, apiToken: string, isDefault?: boolean) => Promise<boolean>;
   updateGitHubServer: (serverId: number, serverName: string, serverUrl: string, apiToken: string, isDefault?: boolean) => Promise<boolean>;
   deleteGitHubServer: (serverId: number) => Promise<boolean>;

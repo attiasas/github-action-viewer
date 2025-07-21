@@ -69,7 +69,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (user && !hasInitiallyLoaded.current) {
       hasInitiallyLoaded.current = true;
-      loadGitHubServers();
+      loadGitHubServers(true);
       loadRepositories();
       // After a short delay, trigger force refresh for all repos (unless from settings)
       setTimeout(() => {
