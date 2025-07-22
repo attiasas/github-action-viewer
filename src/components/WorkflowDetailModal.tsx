@@ -885,7 +885,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                 };
                 return (
                   <div className="latest-runs-list" style={{ width: '100%', marginTop: '1rem' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Latest Runs</h3>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Workflows Latest Runs Status</h3>
                     {filteredRuns.length === 0 ? (
                       <div style={{ color: '#888', fontStyle: 'italic', marginTop: 4 }}>No runs found.</div>
                     ) : (
