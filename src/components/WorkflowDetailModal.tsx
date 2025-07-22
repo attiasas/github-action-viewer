@@ -952,6 +952,11 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                                 </span>
                                 
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
+                                {workflow.updatedAt && (
+                                  <span style={{ color: '#1976d2', fontSize: '0.97em', fontWeight: 500 }} title={new Date(workflow.updatedAt).toLocaleString()}>
+                                    {formatRelativeTime(workflow.updatedAt)}
+                                  </span>
+                                )}
                                 {workflow.commit && (
                                   <a
                                     href={`${repo.repository.url}/commit/${workflow.commit}`}
@@ -962,11 +967,6 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                                   >
                                     {truncateSha(workflow.commit)}
                                   </a>
-                                )}
-                                {workflow.updatedAt && (
-                                  <span style={{ color: '#1976d2', fontSize: '0.97em', fontWeight: 500 }} title={new Date(workflow.updatedAt).toLocaleString()}>
-                                    {formatRelativeTime(workflow.updatedAt)}
-                                  </span>
                                 )}
                                 {workflow.url && (
                                   <a
