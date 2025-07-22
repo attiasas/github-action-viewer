@@ -1,3 +1,29 @@
+/* Latest Runs List: Improve status icon visibility in dark theme */
+.latest-run-entry .run-status-badge {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.latest-run-entry .run-status-badge .status-icon {
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2em;
+}
+
+@media (prefers-color-scheme: dark) {
+  .latest-run-entry .run-status-badge .status-icon {
+    background: rgba(33,150,243,0.22);
+    color: #fff;
+    box-shadow: 0 0 0 2px rgba(33,150,243,0.18);
+  }
+}
 /* Modal Overlay and Base Structure */
 .modal-overlay {
   position: fixed;
