@@ -92,9 +92,6 @@ export const initializeDatabase = () => {
   db.run(`
     CREATE TABLE IF NOT EXISTS user_settings (
       user_id TEXT PRIMARY KEY,
-      default_refresh_interval INTEGER DEFAULT 300,
-      theme TEXT DEFAULT 'light',
-      notifications_enabled BOOLEAN DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users (id)

@@ -1,76 +1,55 @@
 import express from 'express';
-import axios from 'axios';
-import { db } from '../database.js';
+
+import { GetUserServer, GetUserTrackedRepositories, AddUserTrackedRepository, UpdateUserTrackedRepository, DeleteUserTrackedRepository } from '../utils/database.js';
+import { SearchRepositoriesInServer, GetRepositoryBranches, GetRepositoryWorkflows } from '../utils/github.js';
 
 const router = express.Router();
 
 // Search repositories on a specific GitHub server
 router.get('/search', async (req, res) => {
   const { q, userId, serverId } = req.query;
-
+  console.log(`🔍 [${req.requestId}] Searching repositories for user ${userId} on server ${serverId}: ${q}`);
   if (!q || !userId || !serverId) {
+    console.warn(`⚠️ [${req.requestId}] Missing required parameters`);
     return res.status(400).json({ error: 'Query, userId, and serverId are required' });
   }
-
   try {
     // Get GitHub server credentials
-    const server = await new Promise((resolve, reject) => {
-      db.get(
-        'SELECT server_url, api_token FROM github_servers WHERE id = ? AND user_id = ?',
-        [serverId, userId],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        }
-      );
-    });
-
+    const server = await GetUserServer(serverId, userId);
     if (!server) {
+      console.warn(`⚠️ [${req.requestId}] GitHub server not found`);
       return res.status(404).json({ error: 'GitHub server not found' });
     }
-
-    const baseUrl = server.server_url.replace(/\/$/, '');
-    const apiUrl = baseUrl.includes('github.com') 
-      ? 'https://api.github.com' 
-      : `${baseUrl}/api/v3`;
-
-    const response = await axios.get(`${apiUrl}/search/repositories`, {
-      params: { q, per_page: 20 },
-      headers: {
-        'Authorization': `token ${server.api_token}`,
-        'Accept': 'application/vnd.github.v3+json'
-      }
-    });
-
-    res.json(response.data);
+    const response = await SearchRepositoriesInServer(server.serverUrl, server.apiToken, q);
+    console.log(`✅ [${req.requestId}] ${response.total_count} repositories found`);
+    res.json(response);
   } catch (error) {
-    console.error('GitHub API error:', error.response?.data || error.message);
-    
-    let errorMessage = 'Failed to search repositories';
-    let statusCode = error.response?.status || 500;
-    
-    if (statusCode === 403) {
-      const rateLimitRemaining = error.response?.headers['x-ratelimit-remaining'];
-      const rateLimitReset = error.response?.headers['x-ratelimit-reset'];
+    if (error.response) {
+      let errorMessage = 'Failed to search repositories';
       
-      if (rateLimitRemaining === '0') {
-        const resetTime = new Date(parseInt(rateLimitReset) * 1000);
-        errorMessage = `GitHub API rate limit exceeded. Resets at ${resetTime.toLocaleTimeString()}`;
-      } else {
-        errorMessage = 'Access forbidden. Check token permissions (requires "repo" scope) or repository access rights.';
+      const statusCode = error.response.status;
+      const rateLimitRemaining = error.response.headers['x-ratelimit-remaining'];
+      const rateLimitReset = error.response.headers['x-ratelimit-reset'];
+
+      if (statusCode === 403) {
+        if (rateLimitRemaining === '0') {
+          const resetTime = new Date(parseInt(rateLimitReset) * 1000);
+          errorMessage = `GitHub API rate limit exceeded. Resets at ${resetTime.toLocaleTimeString()}`;
+        } else {
+          errorMessage = 'Access forbidden. Check token permissions (requires "repo" scope) or repository access rights.';
+        }
+      } else if (statusCode === 401) {
+        errorMessage = 'Invalid or expired GitHub token. Please check your authentication credentials.';
       }
-    } else if (statusCode === 401) {
-      errorMessage = 'Invalid or expired GitHub token. Please check your authentication credentials.';
+      console.error(`❌ [${req.requestId}] ${errorMessage}:`, error.response.data);
+      return res.status(statusCode).json({
+        error: errorMessage,
+        details: error.response.data.message || error.message,
+        rateLimitInfo: statusCode === 403 ? {remaining: rateLimitRemaining, reset: rateLimitReset} : undefined
+      });
     }
-    
-    res.status(statusCode).json({
-      error: errorMessage,
-      details: error.response?.data?.message || error.message,
-      rateLimitInfo: statusCode === 403 ? {
-        remaining: error.response?.headers['x-ratelimit-remaining'],
-        reset: error.response?.headers['x-ratelimit-reset']
-      } : undefined
-    });
+    console.error(`❌ [${req.requestId}] Error searching repositories:`, error.message);
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
@@ -78,43 +57,23 @@ router.get('/search', async (req, res) => {
 router.get('/:owner/:repo/workflows', async (req, res) => {
   const { owner, repo } = req.params;
   const { userId, serverId } = req.query;
-
+  console.log(`🚀 [${req.requestId}] Fetching workflows for ${owner}/${repo} on server ${serverId} for user ${userId}`);
   if (!userId || !serverId) {
+    console.warn(`⚠️ [${req.requestId}] Missing required parameters`);
     return res.status(400).json({ error: 'userId and serverId are required' });
   }
-
   try {
-    const server = await new Promise((resolve, reject) => {
-      db.get(
-        'SELECT server_url, api_token FROM github_servers WHERE id = ? AND user_id = ?',
-        [serverId, userId],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        }
-      );
-    });
-
+    const server = await GetUserServer(serverId, userId);
     if (!server) {
+      console.warn(`⚠️ [${req.requestId}] GitHub server not found`);
       return res.status(404).json({ error: 'GitHub server not found' });
     }
-
-    const baseUrl = server.server_url.replace(/\/$/, '');
-    const apiUrl = baseUrl.includes('github.com') 
-      ? 'https://api.github.com' 
-      : `${baseUrl}/api/v3`;
-
-    const response = await axios.get(`${apiUrl}/repos/${owner}/${repo}/actions/workflows`, {
-      headers: {
-        'Authorization': `token ${server.api_token}`,
-        'Accept': 'application/vnd.github.v3+json'
-      }
-    });
-
-    res.json(response.data);
+    const workflows = await GetRepositoryWorkflows(server.serverUrl, server.apiToken, owner, repo);
+    console.log(`✅ [${req.requestId}] ${workflows.length} workflows found`);
+    res.json(workflows);
   } catch (error) {
-    console.error('GitHub API error:', error.response?.data || error.message);
-    res.status(error.response?.status || 500).json({
+    console.error(`❌ [${req.requestId}] Error fetching workflows:`, error.message);
+    return res.status(error.response?.status || 500).json({
       error: 'Failed to fetch workflows',
       details: error.response?.data?.message || error.message
     });
@@ -125,42 +84,22 @@ router.get('/:owner/:repo/workflows', async (req, res) => {
 router.get('/:owner/:repo/branches', async (req, res) => {
   const { owner, repo } = req.params;
   const { userId, serverId } = req.query;
-
+  console.log(`🌿 [${req.requestId}] Fetching branches for repository: ${owner}/${repo}`);
   if (!userId || !serverId) {
+    console.warn(`⚠️ [${req.requestId}] Missing required parameters`);
     return res.status(400).json({ error: 'userId and serverId are required' });
   }
-
   try {
-    const server = await new Promise((resolve, reject) => {
-      db.get(
-        'SELECT server_url, api_token FROM github_servers WHERE id = ? AND user_id = ?',
-        [serverId, userId],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        }
-      );
-    });
-
+    const server = await GetUserServer(serverId, userId);
     if (!server) {
+      console.warn(`⚠️ [${req.requestId}] GitHub server not found`);
       return res.status(404).json({ error: 'GitHub server not found' });
     }
-
-    const baseUrl = server.server_url.replace(/\/$/, '');
-    const apiUrl = baseUrl.includes('github.com') 
-      ? 'https://api.github.com' 
-      : `${baseUrl}/api/v3`;
-
-    const response = await axios.get(`${apiUrl}/repos/${owner}/${repo}/branches`, {
-      headers: {
-        'Authorization': `token ${server.api_token}`,
-        'Accept': 'application/vnd.github.v3+json'
-      }
-    });
-
-    res.json(response.data);
+    const branches = await GetRepositoryBranches(server.serverUrl, server.apiToken, owner, repo);
+    console.log(`✅ [${req.requestId}] ${branches.length} branches found`);
+    res.json(branches);
   } catch (error) {
-    console.error('GitHub API error:', error.response?.data || error.message);
+    console.error(`❌ [${req.requestId}] Error fetching branches:`, error.message);
     res.status(error.response?.status || 500).json({
       error: 'Failed to fetch branches',
       details: error.response?.data?.message || error.message
@@ -169,121 +108,90 @@ router.get('/:owner/:repo/branches', async (req, res) => {
 });
 
 // Add repository to user's tracking list
-router.post('/track', (req, res) => {
+router.post('/track', async (req, res) => {
   const { userId, githubServerId, repositoryName, repositoryUrl, trackedBranches, trackedWorkflows, autoRefreshInterval, displayName } = req.body;
-
+  console.log(`📌 [${req.requestId}] Adding repository to tracking list for user ${userId}: ${repositoryName}`);
   if (!userId || !githubServerId || !repositoryName || !repositoryUrl || !trackedBranches || !trackedWorkflows) {
+    console.warn(`⚠️ [${req.requestId}] Missing required fields for tracking repository`);
     return res.status(400).json({ error: 'All fields are required' });
   }
-
-  db.run(
-    `INSERT INTO user_repositories 
-     (user_id, github_server_id, repository_name, repository_url, tracked_branches, tracked_workflows, auto_refresh_interval, display_name, updated_at) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-    [
-      userId, 
+  try {
+    const repositoryId = await AddUserTrackedRepository(
+      userId,
       githubServerId,
-      repositoryName, 
-      repositoryUrl, 
-      JSON.stringify(trackedBranches), 
-      JSON.stringify(trackedWorkflows),
-      autoRefreshInterval || 300,
-      displayName || null
-    ],
-    function(err) {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: 'Database error' });
-      }
-      
-      res.json({ success: true, message: 'Repository added to tracking list', repositoryId: this.lastID });
-    }
-  );
+      repositoryName,
+      repositoryUrl,
+      trackedBranches,
+      trackedWorkflows,
+      autoRefreshInterval,
+      displayName
+    );
+    console.log(`✅ [${req.requestId}] Repository added to tracking list: ${repositoryId}`);
+    res.json({ success: true, message: 'Repository added to tracking list', repositoryId: repositoryId });
+  } catch (error) {
+    console.error(`❌ [${req.requestId}] Error adding repository to tracking list:`, error.message);
+    res.status(500).json({ error: 'Failed to add repository to tracking list' });
+  }
 });
 
 // Get user's tracked repositories
-router.get('/tracked/:userId', (req, res) => {
+router.get('/tracked/:userId', async (req, res) => {
   const { userId } = req.params;
-
-  db.all(
-    `SELECT ur.*, gs.server_name, gs.server_url 
-     FROM user_repositories ur 
-     JOIN github_servers gs ON ur.github_server_id = gs.id 
-     WHERE ur.user_id = ? 
-     ORDER BY ur.created_at DESC`,
-    [userId],
-    (err, rows) => {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: 'Database error' });
-      }
-      
-      const repositories = rows.map(row => ({
-        ...row,
-        tracked_branches: JSON.parse(row.tracked_branches),
-        tracked_workflows: JSON.parse(row.tracked_workflows)
-      }));
-
-      res.json(repositories);
-    }
-  );
+  console.log(`📋 [${req.requestId}] Fetching tracked repositories for user: ${userId}`);
+  try {
+    const repositories = await GetUserTrackedRepositories(userId);
+    console.log(`✅ [${req.requestId}] ${repositories.length} tracked repositories found for user`);
+    res.json(repositories);
+  } catch (error) {
+    console.error(`❌ [${req.requestId}] Error fetching tracked repositories:`, error.message);
+    res.status(500).json({ error: 'Failed to fetch tracked repositories' });
+  }
 });
 
 // Remove repository from tracking
-router.delete('/tracked/:userId/:repoId', (req, res) => {
+router.delete('/tracked/:userId/:repoId', async (req, res) => {
   const { userId, repoId } = req.params;
-
-  db.run(
-    'DELETE FROM user_repositories WHERE id = ? AND user_id = ?',
-    [repoId, userId],
-    function(err) {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: 'Database error' });
-      }
-      
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'Repository not found' });
-      }
-
-      res.json({ success: true, message: 'Repository removed from tracking' });
+  console.log(`🗑️ [${req.requestId}] Removing repository ${repoId} from tracking for user: ${userId}`);
+  try {
+    if (!await DeleteUserTrackedRepository(repoId, userId)) {
+      console.warn(`⚠️ [${req.requestId}] Repository not found for user`);
+      return res.status(404).json({ error: 'Repository not found' });
     }
-  );
+    console.log(`✅ [${req.requestId}] Repository removed from tracking`);
+    res.json({ success: true, message: 'Repository removed from tracking' });
+  } catch (error) {
+    console.error(`❌ [${req.requestId}] Error removing repository from tracking:`, error.message);
+    res.status(500).json({ error: 'Failed to remove repository from tracking' });
+  }
 });
 
 // Update repository tracking settings
-router.put('/tracked/:userId/:repoId', (req, res) => {
+router.put('/tracked/:userId/:repoId', async (req, res) => {
   const { userId, repoId } = req.params;
   const { tracked_workflows, tracked_branches } = req.body;
-
+  console.log(`✏️ [${req.requestId}] Updating tracking settings for repository ${repoId} for user: ${userId}`, req.body);
   if (!Array.isArray(tracked_workflows) || !Array.isArray(tracked_branches)) {
+    console.warn(`⚠️ [${req.requestId}] Invalid tracking settings format`);
     return res.status(400).json({ error: 'tracked_workflows and tracked_branches must be arrays' });
   }
-
   const workflowsJson = JSON.stringify(tracked_workflows);
   const branchesJson = JSON.stringify(tracked_branches);
-
-  db.run(
-    'UPDATE user_repositories SET tracked_workflows = ?, tracked_branches = ? WHERE id = ? AND user_id = ?',
-    [workflowsJson, branchesJson, repoId, userId],
-    function(err) {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: 'Database error' });
-      }
-      
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'Repository not found' });
-      }
-
-      res.json({ 
-        success: true, 
-        message: 'Repository tracking settings updated',
-        tracked_workflows,
-        tracked_branches
-      });
+  try {
+    if (!await UpdateUserTrackedRepository(repoId, userId, workflowsJson, branchesJson)) {
+      console.warn(`⚠️ [${req.requestId}] Repository not found for user`);
+      return res.status(404).json({ error: 'Repository not found' });
     }
-  );
+    console.log(`✅ [${req.requestId}] Repository tracking settings updated`);
+    res.json({
+      success: true,
+      message: 'Repository tracking settings updated',
+      tracked_workflows,
+      tracked_branches
+    });
+  } catch (error) {
+    console.error(`❌ [${req.requestId}] Error updating tracking settings:`, error.message);
+    return res.status(500).json({ error: 'Failed to update tracking settings' });
+  }
 });
 
 export default router;

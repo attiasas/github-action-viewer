@@ -1,80 +1,43 @@
 import { useState, useEffect, useCallback } from 'react';
 import RepositoryCard from './RepositoryCard';
+import type { TrackedRepository, RepositoryStatus } from '../api/Repositories';
 import './RepositoryListSimple.css';
 
-interface Repository {
-  id: number;
-  repository_name: string;
-  repository_url: string;
-  tracked_branches: string[];
-  tracked_workflows: string[];
-  auto_refresh_interval: number;
-  display_name?: string;
-  github_server_id: number;
-}
-
-interface BranchStats {
-  success: number;
-  failure: number;
-  pending: number;
-  cancelled: number;
-  running: number;
-  workflows: Record<string, {
-    status: string;
-    conclusion: string | null;
-    created_at?: string;
-    html_url?: string;
-    normalizedStatus?: string;
-  }>;
-  error?: string;
-}
-
-interface ActionStatistics {
-  repository: string;
-  repositoryUrl: string;
-  repoId: number;
-  branches: Record<string, BranchStats>;
-  overall: {
-    success: number;
-    failure: number;
-    pending: number;
-    cancelled: number;
-    running: number;
-  };
-  status: string;
-  hasPermissionError?: boolean;
-  hasError?: boolean;
-  error?: string;
-}
 
 interface RepositoryListProps {
-  repositories: Repository[];
+  repositories: TrackedRepository[];
   onRepositoryRemoved: (repoId: number) => void;
-  onActionStatsUpdate: (stats: ActionStatistics[]) => void;
+  onActionStatsUpdate: (stats: RepositoryStatus[]) => void;
   gridView?: boolean;
   triggerForceRefresh?: boolean; // Signal from parent to force refresh all
+  triggerNonForceRefresh?: boolean; // Signal from parent to trigger non-forced refresh all
 }
 
-export default function RepositoryList({ 
-  repositories, 
-  onRepositoryRemoved,
-  onActionStatsUpdate,
-  gridView = false,
-  triggerForceRefresh = false
-}: RepositoryListProps) {
-  const [repositoryStats, setRepositoryStats] = useState<Record<number, ActionStatistics>>({});
+export default function RepositoryListSimple(props: RepositoryListProps) {
+  const {
+    repositories,
+    onRepositoryRemoved,
+    onActionStatsUpdate,
+    gridView = false,
+    triggerForceRefresh = false,
+    triggerNonForceRefresh = false
+  } = props;
+
+// ...existing code...
+  const [repositoryStats, setRepositoryStats] = useState<Record<number, RepositoryStatus>>({});
   const [repositoryOrder, setRepositoryOrder] = useState<number[]>([]);
   const [pendingForceRefresh, setPendingForceRefresh] = useState<Set<number>>(new Set());
+  const [pendingNonForceRefresh, setPendingNonForceRefresh] = useState<Set<number>>(new Set());
 
   // Initialize repository order
   useEffect(() => {
     const newOrder = repositories
-      .map(repo => repo.id)
+      .map(repo => repo.repository.id)
       .sort((a, b) => {
         const statsA = repositoryStats[a];
         const statsB = repositoryStats[b];
         // Sort by status priority: running, failure, pending, success, unknown
-        const getPriority = (stats?: ActionStatistics) => {
+        const getPriority = (stats?: RepositoryStatus) => {
           if (!stats) return 5;
           switch (stats.status) {
             case 'running': return 1;
@@ -90,18 +53,18 @@ export default function RepositoryList({
           return priorityA - priorityB;
         }
         // Secondary sort by repository name
-        const repoA = repositories.find(r => r.id === a);
-        const repoB = repositories.find(r => r.id === b);
-        return (repoA?.repository_name || '').localeCompare(repoB?.repository_name || '');
+        const repoA = repositories.find(r => r.repository.id === a);
+        const repoB = repositories.find(r => r.repository.id === b);
+        return (repoA?.repository.name || '').localeCompare(repoB?.repository.name || '');
       });
 
     setRepositoryOrder(newOrder);
   }, [repositories, repositoryStats]);
 
   // Handle stats update from individual repository cards
-  const handleStatsUpdate = useCallback((stats: ActionStatistics) => {
+  const handleStatsUpdate = useCallback((stats: RepositoryStatus) => {
     setRepositoryStats(prev => {
-      const updated = { ...prev, [stats.repoId]: stats };
+      const updated = { ...prev, [stats.id]: stats };
       return updated;
     });
   }, []);
@@ -129,13 +92,29 @@ export default function RepositoryList({
   // Handle force refresh trigger from parent
   useEffect(() => {
     if (triggerForceRefresh) {
-      setPendingForceRefresh(new Set(repositories.map(r => r.id)));
+      setPendingForceRefresh(new Set(repositories.map(r => r.repository.id)));
     }
   }, [triggerForceRefresh, repositories]);
+
+  // Handle non-force refresh trigger from parent
+  useEffect(() => {
+    if (triggerNonForceRefresh) {
+      setPendingNonForceRefresh(new Set(repositories.map(r => r.repository.id)));
+    }
+  }, [triggerNonForceRefresh, repositories]);
 
   // Handle force refresh completion from individual cards
   const handleForceRefreshComplete = useCallback((repoId: number) => {
     setPendingForceRefresh(prev => {
+      const updated = new Set(prev);
+      updated.delete(repoId);
+      return updated;
+    });
+  }, []);
+
+  // Handle non-force refresh completion from individual cards
+  const handleNonForceRefreshComplete = useCallback((repoId: number) => {
+    setPendingNonForceRefresh(prev => {
       const updated = new Set(prev);
       updated.delete(repoId);
       return updated;
@@ -156,18 +135,20 @@ export default function RepositoryList({
   return (
     <div className={`repository-list ${gridView ? 'grid-view' : 'list-view'}`}>
       {repositoryOrder.map(repoId => {
-        const repository = repositories.find(r => r.id === repoId);
+        const repository = repositories.find(r => r.repository.id === repoId);
         if (!repository) return null;
 
         return (
           <RepositoryCard
             key={repoId}
-            repository={repository}
+            repo={repository}
             onRemove={handleRepositoryRemoved}
             onStatsUpdate={handleStatsUpdate}
             initialStats={repositoryStats[repoId]}
             forceRefresh={pendingForceRefresh.has(repoId)}
             onForceRefreshComplete={() => handleForceRefreshComplete(repoId)}
+            nonForceRefresh={pendingNonForceRefresh.has(repoId)}
+            onNonForceRefreshComplete={() => handleNonForceRefreshComplete(repoId)}
           />
         );
       })}

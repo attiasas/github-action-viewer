@@ -1,337 +1,225 @@
 import express from 'express';
-import { db } from '../database.js';
-import axios from 'axios';
+import { CreateUser, GetUserById, IsUserExists } from '../utils/database.js';
+import { GetUserServers, GetUserServer, AddUserServer, UpdateUserServer, DeleteUserServer } from '../utils/database.js';
+import { GetUserInfo } from '../utils/github.js';
 
 const router = express.Router();
 
 // Login existing user only
 router.post('/login', async (req, res) => {
   const { userId } = req.body;
-
+  console.log(`🔑 [${req.requestId}] User login attempt for: ${userId}`);
   if (!userId) {
+    console.warn(`⚠️ [${req.requestId}] User ID is required for login`);
     return res.status(400).json({ error: 'User ID is required' });
   }
-
   if (userId.length < 3) {
+    console.warn(`⚠️ [${req.requestId}] User ID must be at least 3 characters long`);
     return res.status(400).json({ error: 'User ID must be at least 3 characters long' });
   }
-
   try {
-    // Check if user exists
-    const existingUser = await new Promise((resolve, reject) => {
-      db.get('SELECT id FROM users WHERE id = ?', [userId], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-
-    if (!existingUser) {
+    if (!await IsUserExists(userId)) {
+      console.error(`⚠️ [${req.requestId}] User ID not found: ${userId}`);
       return res.status(404).json({ error: 'User ID not found. Please create a new account.' });
     }
-
+    console.log(`✅ [${req.requestId}] User ${userId} logged in successfully`);
     res.json({ 
       success: true, 
       message: 'Login successful',
       userId 
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Server error during login' });
+    console.error(`❌ [${req.requestId}] Error during login:`, error);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
 // Create new user endpoint
 router.post('/create-user', async (req, res) => {
   const { userId } = req.body;
-
+  console.log(`🆕 [${req.requestId}] Creating new user: ${userId}`);
   if (!userId) {
+    console.warn(`⚠️ [${req.requestId}] User ID is required for creation`);
     return res.status(400).json({ error: 'User ID is required' });
   }
-
   if (userId.length < 3) {
+    console.warn(`⚠️ [${req.requestId}] User ID must be at least 3 characters long`);
     return res.status(400).json({ error: 'User ID must be at least 3 characters long' });
   }
-
   try {
-    // Check if user already exists
-    const existingUser = await new Promise((resolve, reject) => {
-      db.get('SELECT id FROM users WHERE id = ?', [userId], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-
-    if (existingUser) {
+    if (await IsUserExists(userId)) {
+      console.error(`⚠️ [${req.requestId}] User ID already exists`);
       return res.status(409).json({ error: 'User ID already exists' });
     }
-
     // Create new user
-    await new Promise((resolve, reject) => {
-      db.run(
-        'INSERT INTO users (id) VALUES (?)',
-        [userId],
-        function(err) {
-          if (err) reject(err);
-          else resolve(this);
-        }
-      );
-    });
-
-    // Create default settings
-    await new Promise((resolve, reject) => {
-      db.run(
-        'INSERT INTO user_settings (user_id) VALUES (?)',
-        [userId],
-        (err) => {
-          if (err) reject(err);
-          else resolve(this);
-        }
-      );
-    });
-
+    await CreateUser(userId);
+    console.log(`✅ [${req.requestId}] User created successfully`);
     res.json({ success: true, message: 'User created successfully' });
   } catch (error) {
-    console.error('Error creating user:', error);
+    console.error(`❌ [${req.requestId}] Error creating user:`, error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Get user info
-router.get('/user/:userId', (req, res) => {
+router.get('/user/:userId', async (req, res) => {
   const { userId } = req.params;
-
-  db.get(
-    `SELECT id, created_at FROM users WHERE id = ?`,
-    [userId],
-    (err, row) => {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: 'Database error' });
-      }
-      
-      if (!row) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      res.json(row);
+  console.log(`👤 [${req.requestId}] Fetching user info for: ${userId}`);
+  if (!userId) {
+    console.warn(`⚠️ [${req.requestId}] User ID is required to fetch user info`);
+    return res.status(400).json({ error: 'User ID is required' });
+  }
+  try {
+    const user = await GetUserById(userId);
+    if (!user) {
+      console.warn(`⚠️ [${req.requestId}] User not found`);
+      return res.status(404).json({ error: 'User not found' });
     }
-  );
+    res.json(user);
+  } catch (error) {
+    console.error(`❌ [${req.requestId}] Error fetching user info:`, error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 // Get user's GitHub servers
-router.get('/github-servers/:userId', (req, res) => {
+router.get('/github-servers/:userId', async (req, res) => {
   const { userId } = req.params;
-
-  db.all(
-    `SELECT id, server_name, server_url, is_default, created_at FROM github_servers WHERE user_id = ? ORDER BY is_default DESC, server_name`,
-    [userId],
-    (err, rows) => {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: 'Database error' });
-      }
-      
-      // Convert is_default from integer to boolean
-      const servers = (rows || []).map(row => ({
-        ...row,
-        is_default: Boolean(row.is_default)
-      }));
-      
-      res.json(servers);
-    }
-  );
+  console.log(`🌐 [${req.requestId}] Fetching GitHub servers for user: ${userId}`);
+  try {
+    const servers = await GetUserServers(userId);
+    console.log(`✅ [${req.requestId}] Found ${servers.length} GitHub servers for user`);
+    res.json(servers);
+  } catch (error) {
+    console.error(`❌ [${req.requestId}] Error fetching GitHub servers:`, error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 // Add GitHub server
-router.post('/github-servers', (req, res) => {
+router.post('/github-servers', async (req, res) => {
   const { userId, serverName, serverUrl, apiToken, isDefault } = req.body;
-
+  console.log(`🆕 [${req.requestId}] Adding GitHub server for user: ${userId}`, { serverName, serverUrl, isDefault });
   if (!userId || !serverName || !serverUrl || !apiToken) {
+    console.warn(`⚠️ [${req.requestId}] All fields are required`);
     return res.status(400).json({ error: 'All fields are required' });
   }
-
-  // Check if this is the first server for the user
-  db.get(
-    'SELECT COUNT(*) as count FROM github_servers WHERE user_id = ?',
-    [userId],
-    (err, row) => {
-      if (err) {
-        console.error('Error checking existing servers:', err);
-        return res.status(500).json({ error: 'Database error' });
-      }
-
-      const isFirstServer = row.count === 0;
-      const shouldBeDefault = isDefault || isFirstServer;
-
-      // If this is set as default or is the first server, remove default from other servers
-      if (shouldBeDefault) {
-        db.run(
-          'UPDATE github_servers SET is_default = 0 WHERE user_id = ?',
-          [userId],
-          (err) => {
-            if (err) {
-              console.error('Error updating default servers:', err);
-            }
-          }
-        );
-      }
-
-      db.run(
-        `INSERT INTO github_servers (user_id, server_name, server_url, api_token, is_default) 
-         VALUES (?, ?, ?, ?, ?)`,
-        [userId, serverName, serverUrl, apiToken, shouldBeDefault ? 1 : 0],
-        function(err) {
-          if (err) {
-            if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-              return res.status(409).json({ error: 'Server name already exists for this user' });
-            }
-            console.error('Database error:', err);
-            return res.status(500).json({ error: 'Database error' });
-          }
-          
-          res.json({ 
-            success: true, 
-            message: 'GitHub server added successfully',
-            serverId: this.lastID
-          });
-        }
-      );
+  if (serverName.length < 3) {
+    console.warn(`⚠️ [${req.requestId}] Server name must be at least 3 characters long`);
+    return res.status(400).json({ error: 'Server name must be at least 3 characters long' });
+  }
+  if (!/^https?:\/\//.test(serverUrl)) {
+    console.warn(`⚠️ [${req.requestId}] Invalid server URL format`);
+    return res.status(400).json({ error: 'Invalid server URL format' });
+  }
+  try {
+    const server = await AddUserServer(userId, serverName, serverUrl, apiToken, isDefault);
+    console.log(`✅ [${req.requestId}] GitHub server added successfully`, { serverId: server.id });
+    res.json({ 
+      success: true, 
+      message: 'GitHub server added successfully',
+      serverId: server.id
+    });
+  } catch (error) {
+    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      console.warn(`⚠️ [${req.requestId}] Server name already exists for this user`);
+      return res.status(409).json({ error: 'Server name already exists for this user' });
     }
-  );
+    console.error(`❌ [${req.requestId}] Error adding GitHub server:`, error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 // Update GitHub server
-router.put('/github-servers/:serverId', (req, res) => {
+router.put('/github-servers/:serverId', async (req, res) => {
   const { serverId } = req.params;
   const { userId, serverName, serverUrl, apiToken, isDefault } = req.body;
-
+  console.log(`✏️ [${req.requestId}] Updating GitHub server: ${serverId} for user: ${userId}`, { serverName, serverUrl, isDefault });
   if (!userId || !serverName || !serverUrl || !apiToken) {
+    console.warn(`⚠️ [${req.requestId}] All fields are required for updating server`);
     return res.status(400).json({ error: 'All fields are required' });
   }
-
-  // If this is set as default, remove default from other servers
-  if (isDefault) {
-    db.run(
-      'UPDATE github_servers SET is_default = 0 WHERE user_id = ? AND id != ?',
-      [userId, serverId],
-      (err) => {
-        if (err) {
-          console.error('Error updating default servers:', err);
-        }
-      }
-    );
-  }
-
-  db.run(
-    `UPDATE github_servers 
-     SET server_name = ?, server_url = ?, api_token = ?, is_default = ?, updated_at = CURRENT_TIMESTAMP
-     WHERE id = ? AND user_id = ?`,
-    [serverName, serverUrl, apiToken, isDefault ? 1 : 0, serverId, userId],
-    function(err) {
-      if (err) {
-        if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-          return res.status(409).json({ error: 'Server name already exists for this user' });
-        }
-        console.error('Database error:', err);
-        return res.status(500).json({ error: 'Database error' });
-      }
-      
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'Server not found' });
-      }
-
-      res.json({ 
-        success: true, 
-        message: 'GitHub server updated successfully'
-      });
+  try {
+    if (!await UpdateUserServer(serverId, userId, serverName, serverUrl, apiToken, isDefault)) {
+      console.warn(`⚠️ [${req.requestId}] Server not found or no changes made`);
+      return res.status(404).json({ error: 'Server not found or no changes made' });
     }
-  );
+    console.log(`✅ [${req.requestId}] GitHub server updated successfully`);
+    res.json({ 
+      success: true, 
+      message: 'GitHub server updated successfully'
+    });
+  } catch (error) {
+    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      console.warn(`⚠️ [${req.requestId}] Server name already exists for this user`);
+      return res.status(409).json({ error: 'Server name already exists for this user' });
+    }
+    console.error(`❌ [${req.requestId}] Error updating GitHub server:`, error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 // Delete GitHub server
-router.delete('/github-servers/:serverId', (req, res) => {
+router.delete('/github-servers/:serverId', async (req, res) => {
   const { serverId } = req.params;
   const { userId } = req.body;
-
+  console.log(`🗑️ [${req.requestId}] Deleting GitHub server: ${serverId} for user: ${userId}`);
   if (!userId) {
+    console.warn(`⚠️ [${req.requestId}] User ID is required to delete server`);
     return res.status(400).json({ error: 'User ID is required' });
   }
-
-  db.run(
-    'DELETE FROM github_servers WHERE id = ? AND user_id = ?',
-    [serverId, userId],
-    function(err) {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: 'Database error' });
-      }
-      
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'Server not found' });
-      }
-
-      res.json({ 
-        success: true, 
-        message: 'GitHub server deleted successfully'
-      });
+  if (!serverId) {
+    console.warn(`⚠️ [${req.requestId}] Server ID is required to delete server`);
+    return res.status(400).json({ error: 'Server ID is required' });
+  }
+  try {
+    if (!await DeleteUserServer(serverId, userId)) {
+      console.warn(`⚠️ [${req.requestId}] Server not found or no changes made`);
+      return res.status(404).json({ error: 'Server not found or no changes made' });
     }
-  );
+    console.log(`✅ [${req.requestId}] GitHub server deleted successfully`);
+    res.json({ 
+      success: true, 
+      message: 'GitHub server deleted successfully'
+    });
+  } catch (error) {
+    console.error(`❌ [${req.requestId}] Error deleting GitHub server:`, error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 // Test GitHub server token validity
 router.get('/test-token/:serverId', async (req, res) => {
   const { serverId } = req.params;
   const { userId } = req.query;
-
+  console.log(`🧪 [${req.requestId}] Testing token for GitHub server: ${serverId} for user: ${userId}`);
   if (!userId) {
+    console.warn(`⚠️ [${req.requestId}] User ID is required to test token`);
     return res.status(400).json({ error: 'User ID is required' });
   }
-
+  if (!serverId) {
+    console.warn(`⚠️ [${req.requestId}] Server ID is required to test token`);
+    return res.status(400).json({ error: 'Server ID is required' });
+  }
   try {
-    const server = await new Promise((resolve, reject) => {
-      db.get(
-        'SELECT server_url, api_token FROM github_servers WHERE id = ? AND user_id = ?',
-        [serverId, userId],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        }
-      );
-    });
-
+    const server = await GetUserServer(serverId, userId);
     if (!server) {
+      console.warn(`⚠️ [${req.requestId}] GitHub server not found`);
       return res.status(404).json({ error: 'GitHub server not found' });
     }
-
-    const baseUrl = server.server_url.replace(/\/$/, '');
-    const apiUrl = baseUrl.includes('github.com') 
-      ? 'https://api.github.com' 
-      : `${baseUrl}/api/v3`;
-
     // Test token by fetching user info
-    const response = await axios.get(`${apiUrl}/user`, {
-      headers: {
-        'Authorization': `token ${server.api_token}`,
-        'Accept': 'application/vnd.github.v3+json'
-      }
-    });
-
-    const scopes = response.headers['x-oauth-scopes'] || '';
-    
+    const userInfo = await GetUserInfo(server.serverUrl, server.apiToken);
+    console.log(`✅ [${req.requestId}] Token is valid for user:`, { scopes: userInfo.scopes });
     res.json({
       valid: true,
-      username: response.data.login,
-      scopes: scopes,
-      serverUrl: server.server_url
+      username: userInfo.userName,
+      scopes: userInfo.scopes,
+      serverUrl: server.serverUrl
     });
-
   } catch (error) {
-    console.error('Token validation error:', error);
-    
     if (error.response) {
       const status = error.response.status;
       let errorMessage = 'Token validation failed';
-      
       if (status === 401) {
         errorMessage = 'Invalid or expired token';
       } else if (status === 403) {
@@ -339,20 +227,16 @@ router.get('/test-token/:serverId', async (req, res) => {
       } else if (status === 404) {
         errorMessage = 'GitHub server URL not found';
       }
-      
-      res.json({
-        valid: false,
+      console.warn(`⚠️ [${req.requestId}] Token validation error:`, errorMessage);
+      return res.status(status).json({
+        valid: false, 
         error: errorMessage,
         status: status
       });
-    } else {
-      res.json({
-        valid: false,
-        error: 'Unable to connect to GitHub server',
-        details: error.message
-      });
     }
-  }
+    console.error(`❌ [${req.requestId}] Error testing token:`, error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  } 
 });
 
 export default router;

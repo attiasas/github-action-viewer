@@ -1,6 +1,119 @@
 
 import axios from 'axios';
 
+export class User {
+  constructor(userName, scopes) {
+    this.userName = userName;
+    this.scopes = scopes;
+  }
+}
+
+export async function GetUserInfo(serverUrl, apiToken) {
+  const baseUrl = serverUrl.replace(/\/$/, '');
+  const apiUrl = baseUrl.includes('github.com') 
+    ? 'https://api.github.com' 
+    : `${baseUrl}/api/v3`;
+
+  const response = await axios.get(`${apiUrl}/user`, {
+    headers: {
+      'Authorization': `token ${apiToken}`,
+      'Accept': 'application/vnd.github.v3+json'
+    }
+  });
+  return new User(
+    response.data.login,
+    response.headers['x-oauth-scopes'] || ''
+  );
+}
+
+export async function SearchRepositoriesInServer(serverUrl, apiToken, query, page = 1, perPage = 20) {
+  const baseUrl = serverUrl.replace(/\/$/, '');
+  const apiUrl = baseUrl.includes('github.com') 
+    ? 'https://api.github.com' 
+    : `${baseUrl}/api/v3`;
+
+  const response = await axios.get(`${apiUrl}/search/repositories`, {
+    params: {
+      q: query,
+      page: page,
+      per_page: perPage
+    },
+    headers: {
+      'Authorization': `token ${apiToken}`,
+      'Accept': 'application/vnd.github.v3+json'
+    }
+  });
+
+  return response.data;
+}
+
+export async function GetRepositoryWorkflows(serverUrl, apiToken, owner, repo) {
+  const baseUrl = serverUrl.replace(/\/$/, '');
+  const apiUrl = baseUrl.includes('github.com') 
+    ? 'https://api.github.com' 
+    : `${baseUrl}/api/v3`;
+
+  const response = await axios.get(`${apiUrl}/repos/${owner}/${repo}/actions/workflows`, {
+    headers: {
+      'Authorization': `token ${apiToken}`,
+      'Accept': 'application/vnd.github.v3+json'
+    }
+  });
+
+  return response.data;
+}
+
+export async function GetRepositoryBranches(serverUrl, apiToken, owner, repo) {
+  const baseUrl = serverUrl.replace(/\/$/, '');
+  const apiUrl = baseUrl.includes('github.com') 
+    ? 'https://api.github.com' 
+    : `${baseUrl}/api/v3`;
+
+  const response = await axios.get(`${apiUrl}/repos/${owner}/${repo}/branches`, {
+    headers: {
+      'Authorization': `token ${apiToken}`,
+      'Accept': 'application/vnd.github.v3+json'
+    }
+  });
+
+  return response.data;
+}
+
+export class WorkflowRun {
+  constructor(runId, workflowId, workflowName, status, conclusion, createdAt, updatedAt, url, branch, commit) {
+    this.runId = runId;
+    this.workflowId = workflowId;
+    this.workflowName = workflowName;
+    this.status = status;
+    this.conclusion = conclusion;
+    this.createdAt = createdAt;
+    this.updatedAt = updatedAt;
+    this.url = url;
+    this.branch = branch;
+    this.commit = commit;
+  }
+}
+
+export async function FetchWorkflowRuns(serverUrl, apiToken, repository, branch, workflowId) {
+  const [owner, repoName] = repository.split('/');
+  if (!owner || !repoName) {
+    throw new Error('Invalid repository format. Expected format: owner/repo');
+  }
+  const runs = await FetchRepositoryRuns(serverUrl, apiToken, owner, repoName, branch, workflowId, 100);
+  return runs.workflow_runs.map(run => new WorkflowRun(
+    run.id,
+    run.workflow_id,
+    run.name,
+    run.status,
+    run.conclusion,
+    run.created_at,
+    run.updated_at,
+    run.html_url,
+    run.head_branch,
+    run.head_sha
+  ));
+}
+
 export async function FetchRepositoryWorkflows(serverUrl, apiToken, repository) {
   const [owner, repoName] = repository.split('/');
   const baseUrl = serverUrl.replace(/\/$/, '');
@@ -17,6 +130,15 @@ export async function FetchRepositoryWorkflows(serverUrl, apiToken, repository) 
   });
 
   return workflowsResponse.data.workflows;
+}
+
+export async function FetchWorkflowsLatestRuns(serverUrl, apiToken, repository, branch, workflowId) {
+  const [owner, repoName] = repository.split('/');
+  if (!owner || !repoName) {
+    throw new Error('Invalid repository format. Expected format: owner/repo');
+  }
+  const response = await FetchRepositoryRuns(serverUrl, apiToken, owner, repoName, branch, workflowId, 1);
+  return response.workflow_runs;
 }
 
 export async function FetchRepositoryRuns(serverUrl, apiToken, owner, repo, branch, workflowId, maxResults = 50) {
@@ -40,13 +162,4 @@ export async function FetchRepositoryRuns(serverUrl, apiToken, owner, repo, bran
   });
 
   return response.data;
-}
-
-export async function FetchWorkflowsLatestRuns(serverUrl, apiToken, repository, branch, workflowId) {
-  const [owner, repoName] = repository.split('/');
-  if (!owner || !repoName) {
-    throw new Error('Invalid repository format. Expected format: owner/repo');
-  }
-  const response = await FetchRepositoryRuns(serverUrl, apiToken, owner, repoName, branch, workflowId, 1);
-  return response.workflow_runs;
 }

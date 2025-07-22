@@ -1,15 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import './GitHubServerManager.css';
-
-interface GitHubServer {
-  id: number;
-  server_name: string;
-  server_url: string;
-  is_default: boolean;
-  created_at: string;
-}
-
+import type { ServerDetails } from '../api/User';
 interface TestResult {
   valid: boolean;
   username?: string;
@@ -22,7 +14,7 @@ interface TestResult {
 interface GitHubServerManagerProps {
   showHeader?: boolean;
   onAddServer?: () => void;
-  onEditServer?: (server: GitHubServer) => void;
+  onEditServer?: (server: ServerDetails) => void;
 }
 
 export default function GitHubServerManager({ 
@@ -42,7 +34,7 @@ export default function GitHubServerManager({
     }
   }, [user, loadGitHubServers]);
 
-  const handleEdit = (server: GitHubServer) => {
+  const handleEdit = (server: ServerDetails) => {
     if (onEditServer) {
       onEditServer(server);
     }
@@ -120,14 +112,14 @@ export default function GitHubServerManager({
           </div>
         ) : (
           githubServers.map((server) => (
-            <div key={server.id} className={`server-card ${server.is_default ? 'default' : ''}`}>
+            <div key={server.id} className={`server-card ${server.isDefault ? 'default' : ''}`}>
               <div className="server-info">
                 <h4>
-                  {server.server_name}
-                  {server.is_default && <span className="default-badge">Default</span>}
+                  {server.serverName}
+                  {server.isDefault && <span className="default-badge">Default</span>}
                 </h4>
-                <p className="server-url">{server.server_url}</p>
-                <p className="server-date">Added: {new Date(server.created_at).toLocaleDateString()}</p>
+                <p className="server-url">{server.serverUrl}</p>
+                <p className="server-date">Added: {new Date(server.createdAt).toLocaleDateString()}</p>
               </div>
 
               <div className="server-actions">

@@ -1,75 +1,37 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import WorkflowDetailModal from './WorkflowDetailModal';
+import type { TrackedRepository, RepositoryStatus } from '../api/Repositories';
 import './RepositoryCard.css';
 
-interface Repository {
-  id: number;
-  repository_name: string;
-  repository_url: string;
-  tracked_branches: string[];
-  tracked_workflows: string[];
-  auto_refresh_interval: number;
-  display_name?: string;
-  github_server_id: number;
-}
-
-interface BranchStats {
-  success: number;
-  failure: number;
-  pending: number;
-  cancelled: number;
-  running: number;
-  workflows: Record<string, {
-    status: string;
-    conclusion: string | null;
-    created_at?: string;
-    html_url?: string;
-    normalizedStatus?: string;
-  }>;
-  error?: string;
-}
-
-interface ActionStatistics {
-  repository: string;
-  repositoryUrl: string;
-  repoId: number;
-  branches: Record<string, BranchStats>;
-  overall: {
-    success: number;
-    failure: number;
-    pending: number;
-    cancelled: number;
-    running: number;
-  };
-  status: string;
-  hasPermissionError?: boolean;
-  hasError?: boolean;
-  error?: string;
-}
 
 interface RepositoryCardProps {
-  repository: Repository;
+  repo: TrackedRepository;
   onRemove: (repoId: number) => void;
-  onStatsUpdate?: (stats: ActionStatistics) => void;
-  initialStats?: ActionStatistics;
+  onStatsUpdate?: (stats: RepositoryStatus) => void;
+  initialStats?: RepositoryStatus;
   forceRefresh?: boolean; // Trigger from parent
   onForceRefreshComplete?: () => void;
+  nonForceRefresh?: boolean; // Trigger non-forced refresh from parent
+  onNonForceRefreshComplete?: () => void;
 }
 
-export default function RepositoryCard({ 
-  repository, 
-  onRemove, 
-  onStatsUpdate,
-  initialStats,
-  forceRefresh,
-  onForceRefreshComplete
-}: RepositoryCardProps) {
+export default function RepositoryCard(props: RepositoryCardProps) {
+  const {
+    repo,
+    onRemove,
+    onStatsUpdate,
+    initialStats,
+    forceRefresh,
+    onForceRefreshComplete,
+    nonForceRefresh,
+    onNonForceRefreshComplete
+  } = props;
   const { user } = useAuth();
-  const [stats, setStats] = useState<ActionStatistics | null>(initialStats || null);
+  const [stats, setStats] = useState<RepositoryStatus | null>(initialStats || null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState(repository.auto_refresh_interval);
+  const [timeLeft, setTimeLeft] = useState(repo.repository.autoRefreshInterval);
   const [showDetailModal, setShowDetailModal] = useState(false);
   // Histogram settings from localStorage
   const showHistogram = (() => {
@@ -127,69 +89,65 @@ export default function RepositoryCard({
     statsRef.current = stats;
   }, [stats]);
 
-  // Get repository stats from cache or server
-  const getRepositoryStats = useCallback(async (force = false) => {
-    if (!user) return null;
-
-    // Check if we need to refresh based on timing
-    const now = Date.now();
-    const timeSinceLastRefresh = now - lastRefreshRef.current;
-    const minInterval = repository.auto_refresh_interval * 1000;
-    
-    if (!force && statsRef.current && timeSinceLastRefresh < minInterval) {
-      // Return cached stats
-      setRefreshHistory(prev => {
-        if (prev.length === 0 && statsRef.current) {
-          return [{...statsRef.current.overall}];
-        }
-        // If we have cached stats, just return them
-        return prev;
-      });
-      return statsRef.current;
-    }
-
+  // Prevent overlapping/infinite refreshes
+  const refreshInProgressRef = useRef(false);
+  const getRepositoryStats = useCallback(async () => {
+    if (!user || refreshInProgressRef.current) return null;
+    refreshInProgressRef.current = true;
+    setIsRefreshing(true);
+    setError(null);
+    const encodedUserId = encodeURIComponent(user.id);
+    const baseUrl = `/api/workflows`;
     try {
-      setIsRefreshing(true);
-      setError(null);
-
-      const encodedUserId = encodeURIComponent(user.id);
-      const url = force 
-        ? `/api/actions/refresh/${encodedUserId}/${repository.id}?force=true`
-        : `/api/actions/refresh/${encodedUserId}/${repository.id}`;
-
-      const response = await fetch(url, { method: 'POST' });
-
-      if (response.ok) {
-        const newStats = await response.json();
-        setStats(newStats);
-        lastRefreshRef.current = now;
-        // Only add to refresh history if this was a forced refresh
-        
-        setRefreshHistory(prev => {
-          if (force || prev.length === 0) {
-            const next = [...prev, {...newStats.overall}];
-            return next.length > MAX_HISTORY ? next.slice(next.length - MAX_HISTORY) : next;
+      let statsData = null;
+      // For all refreshes (initial, timer, manual, force): always POST to refresh and wait for completion
+      const postResp = await fetch(`${baseUrl}/refresh/${encodedUserId}/${repo.repository.id}`, { method: 'POST' });
+      if (postResp.status === 202) {
+        // If already refreshing, poll GET until not 202
+        const pollStatus = async () => {
+          const maxWait = 10000; // 10s max
+          const pollInterval = 500;
+          let waited = 0;
+          while (waited < maxWait) {
+            const getResp = await fetch(`${baseUrl}/status/${encodedUserId}/${repo.repository.id}`);
+            if (getResp.status === 202) {
+              await new Promise(res => setTimeout(res, pollInterval));
+              waited += pollInterval;
+              continue;
+            }
+            if (!getResp.ok) {
+              throw new Error(`HTTP ${getResp.status}: ${getResp.statusText}`);
+            }
+            return await getResp.json();
           }
-          // If we have cached stats, just return them
-          return prev;
-        });
-        // Notify parent if callback provided
-        if (onStatsUpdateRef.current) {
-          onStatsUpdateRef.current(newStats);
-        }
-        return newStats;
+          throw new Error('Timed out waiting for workflow refresh');
+        };
+        statsData = await pollStatus();
+      } else if (!postResp.ok) {
+        throw new Error(`HTTP ${postResp.status}: ${postResp.statusText}`);
       } else {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        statsData = await postResp.json();
       }
+      setStats(statsData);
+      lastRefreshRef.current = Date.now();
+      setRefreshHistory(prev => {
+        const next = [...prev, { ...statsData.overall }];
+        return next.length > MAX_HISTORY ? next.slice(next.length - MAX_HISTORY) : next;
+      });
+      if (onStatsUpdateRef.current) {
+        onStatsUpdateRef.current(statsData);
+      }
+      return statsData;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Network error';
       setError(errorMessage);
-      console.error(`Error refreshing repository ${repository.repository_name}:`, error);
+      console.error(`Error refreshing repository ${repo.repository.name}:`, error);
       return null;
     } finally {
       setIsRefreshing(false);
+      refreshInProgressRef.current = false;
     }
-  }, [user, repository, MAX_HISTORY]);
+  }, [user, repo, MAX_HISTORY]);
 
   // Auto-refresh timer
   useEffect(() => {
@@ -201,8 +159,8 @@ export default function RepositoryCard({
       setTimeLeft(prev => {
         if (prev <= 1) {
           // Time to refresh
-          getRepositoryStats(false);
-          return repository.auto_refresh_interval;
+          getRepositoryStats();
+          return repo.repository.autoRefreshInterval;
         }
         return prev - 1;
       });
@@ -213,14 +171,14 @@ export default function RepositoryCard({
         clearInterval(timerRef.current);
       }
     };
-  }, [repository.auto_refresh_interval, getRepositoryStats]);
+  }, [repo.repository.autoRefreshInterval, getRepositoryStats]);
 
   // Handle force refresh from parent
   useEffect(() => {
     if (forceRefresh && !forceRefreshHandledRef.current) {
       forceRefreshHandledRef.current = true;
-      setTimeLeft(repository.auto_refresh_interval); // Reset timer
-      getRepositoryStats(true).finally(() => {
+      setTimeLeft(repo.repository.autoRefreshInterval); // Reset timer
+      getRepositoryStats().finally(() => {
         if (onForceRefreshComplete) {
           onForceRefreshComplete();
         }
@@ -230,19 +188,36 @@ export default function RepositoryCard({
         }, 1000);
       });
     }
-  }, [forceRefresh, getRepositoryStats, onForceRefreshComplete, repository.auto_refresh_interval]);
+  }, [forceRefresh, getRepositoryStats, onForceRefreshComplete, repo.repository.autoRefreshInterval]);
 
-  // Initial load
+  // Handle non-force refresh from parent (for settings return)
+  const nonForceRefreshHandledRef = useRef(false);
   useEffect(() => {
-    if (!statsRef.current) {
-      getRepositoryStats(false);
+    if (nonForceRefresh && !nonForceRefreshHandledRef.current) {
+      nonForceRefreshHandledRef.current = true;
+      setTimeLeft(repo.repository.autoRefreshInterval); // Reset timer
+      getRepositoryStats().finally(() => {
+        if (onNonForceRefreshComplete) {
+          onNonForceRefreshComplete();
+        }
+        setTimeout(() => {
+          nonForceRefreshHandledRef.current = false;
+        }, 1000);
+      });
+    }
+  }, [nonForceRefresh, getRepositoryStats, onNonForceRefreshComplete, repo.repository.autoRefreshInterval]);
+
+  // Initial load: only trigger once
+  const initialLoadRef = useRef(false);
+  useEffect(() => {
+    if (!initialLoadRef.current) {
+      initialLoadRef.current = true;
+      getRepositoryStats();
     } else if (statsRef.current) {
-      // If initialStats provided, seed history
       setRefreshHistory(prev => {
         if (prev.length === 0) {
           return [{...statsRef.current!.overall}];
         }
-        // If we have cached stats, just return them
         return prev;
       });
     }
@@ -260,18 +235,18 @@ export default function RepositoryCard({
 
   // Manual refresh handler
   const handleManualRefresh = useCallback(() => {
-    setTimeLeft(repository.auto_refresh_interval); // Reset timer
-    getRepositoryStats(true);
-  }, [getRepositoryStats, repository.auto_refresh_interval]);
+    setTimeLeft(repo.repository.autoRefreshInterval); // Reset timer
+    getRepositoryStats();
+  }, [getRepositoryStats, repo.repository.autoRefreshInterval]);
 
   // Remove repository handler
   const handleRemove = useCallback(async () => {
-    if (!user || !window.confirm(`Are you sure you want to remove ${repository.display_name || repository.repository_name}?`)) {
+    if (!user || !window.confirm(`Are you sure you want to remove ${repo.repository.displayName || repo.repository.name}?`)) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/repositories/tracked/${encodeURIComponent(user.id)}/${repository.id}`, {
+      const response = await fetch(`/api/repositories/tracked/${encodeURIComponent(user.id)}/${repo.repository.id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -279,7 +254,7 @@ export default function RepositoryCard({
       });
 
       if (response.ok) {
-        onRemove(repository.id);
+        onRemove(repo.repository.id);
       } else {
         throw new Error('Failed to remove repository');
       }
@@ -287,7 +262,7 @@ export default function RepositoryCard({
       console.error('Error removing repository:', error);
       setError('Failed to remove repository');
     }
-  }, [user, repository, onRemove]);
+  }, [user, repo, onRemove]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -410,13 +385,13 @@ export default function RepositoryCard({
               <div className={`status-summary ${stats.status}`}>
                 <div className="repository-info">
                   <h3 className="repository-name">
-                    <a href={repository.repository_url} target="_blank" rel="noopener noreferrer" style={{ color: getStatusColor(stats.status) }}>
-                      {repository.display_name || repository.repository_name}
+                    <a href={repo.repository.url} target="_blank" rel="noopener noreferrer" style={{ color: getStatusColor(stats.status) }}>
+                      {repo.repository.displayName || repo.repository.name}
                     </a>
                   </h3>
-                  {repository.display_name && repository.display_name !== repository.repository_name && (
+                  {repo.repository.displayName && repo.repository.displayName !== repo.repository.name && (
                     <div className="repository-meta">
-                      <span className="server-name" style={{ color: getStatusColor(stats.status) }}>{repository.repository_name}</span>
+                      <span className="server-name" style={{ color: getStatusColor(stats.status) }}>{repo.repository.name}</span>
                     </div>
                   )}
                 </div>
@@ -455,7 +430,7 @@ export default function RepositoryCard({
 
       {/* Workflow Detail Modal */}
       <WorkflowDetailModal
-        repository={repository}
+        repo={repo}
         isOpen={showDetailModal}
         onClose={() => setShowDetailModal(false)}
       />
