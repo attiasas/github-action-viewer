@@ -1,3 +1,6 @@
+
+
+import './WorkflowIndications.css';
 import React from 'react';
 
 export interface WorkflowIndicationsProps {

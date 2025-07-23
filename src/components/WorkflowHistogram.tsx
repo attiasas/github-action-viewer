@@ -1,6 +1,7 @@
+
+import './WorkflowHistogram.css';
 import React from 'react';
 import type { WorkflowStatus } from '../api/Repositories';
-import './WorkflowAnalytics.css';
 
 const STATUS_COLORS: Record<string, string> = {
   success: '#4caf50',
