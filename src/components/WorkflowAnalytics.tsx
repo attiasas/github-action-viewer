@@ -40,9 +40,10 @@ function getIndications(runs: Array<{ branch: string; workflowKey: string; workf
   let workflowsWithNoRuns = 0;
   const consecutiveFailures: Record<string, number> = {};
   const consecutiveSuccess: Record<string, number> = {};
-  let anyLongFailureStreak = false;
-  let anyLongSuccessStreak = false;
   let anyRecentFailure = false;
+  // For streaks: { streakLength: count }
+  const failureStreaks: Record<number, number> = {};
+  const successStreaks: Record<number, number> = {};
 
   runs.forEach(({ branch, workflowKey, workflow }) => {
     // If workflow has a single run with status 'no_runs', treat as no runs
@@ -74,8 +75,11 @@ function getIndications(runs: Array<{ branch: string; workflowKey: string; workf
     }
     consecutiveFailures[`${branch}:${workflowKey}`] = failStreak;
     consecutiveSuccess[`${branch}:${workflowKey}`] = successStreak;
-    if (failStreak >= 3) anyLongFailureStreak = true;
-    if (successStreak >= 5) anyLongSuccessStreak = true;
+    // Generalize for 5, 10, 15, ...
+    [5, 10, 15, 20, 25, 30].forEach((n) => {
+      if (failStreak >= n) failureStreaks[n] = (failureStreaks[n] || 0) + 1;
+      if (successStreak >= n) successStreaks[n] = (successStreaks[n] || 0) + 1;
+    });
   });
 
   if (workflowsWithNoRuns > 0) {
@@ -85,11 +89,30 @@ function getIndications(runs: Array<{ branch: string; workflowKey: string; workf
         : `${workflowsWithNoRuns} workflows have no runs yet`
     );
   }
-  if (anyLongFailureStreak) {
-    indications.push('Some workflows have failed more than 3 runs in a row');
+  // Only show the most significant (longest) failure and success streaks
+  const maxFailureStreak = Object.keys(failureStreaks)
+    .map(Number)
+    .filter((n) => failureStreaks[n] > 0)
+    .sort((a, b) => b - a)[0];
+  if (maxFailureStreak) {
+    const count = failureStreaks[maxFailureStreak];
+    indications.push(
+      count === 1
+        ? `A workflow has failed ${maxFailureStreak} or more times in a row`
+        : `${count} workflows have failed ${maxFailureStreak} or more times in a row`
+    );
   }
-  if (anyLongSuccessStreak) {
-    indications.push('Some workflows have succeeded 5 or more times in a row');
+  const maxSuccessStreak = Object.keys(successStreaks)
+    .map(Number)
+    .filter((n) => successStreaks[n] > 0)
+    .sort((a, b) => b - a)[0];
+  if (maxSuccessStreak) {
+    const count = successStreaks[maxSuccessStreak];
+    indications.push(
+      count === 1
+        ? `A workflow has succeeded ${maxSuccessStreak} or more times in a row`
+        : `${count} workflows have succeeded ${maxSuccessStreak} or more times in a row`
+    );
   }
   if (anyRecentFailure) {
     indications.push('At least one workflow failed in the most recent run');
