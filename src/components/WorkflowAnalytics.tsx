@@ -9,18 +9,11 @@ export interface WorkflowAnalyticsProps {
  * Analytics section for workflow runs. Aggregates all runs (not just latest) for statistics.
  */
 
+
+import WorkflowIndications from './WorkflowIndications';
+import WorkflowHistogram from './WorkflowHistogram';
 import './WorkflowAnalytics.css';
 
-const STATUS_COLORS: Record<string, string> = {
-  success: '#4caf50',
-  failure: '#f44336',
-  cancelled: '#9e9e9e',
-  running: '#2196f3',
-  pending: '#ff9800',
-  error: '#e91e63',
-  unknown: '#bdbdbd',
-  no_runs: '#bdbdbd',
-};
 
 function getNormalizedStatus(status: string, conclusion: string | null): string {
   if (status === 'no_runs') return 'no_runs';
@@ -134,57 +127,8 @@ const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({ runs }) => {
 
   return (
     <div className="workflow-analytics">
-      <section className="analytics-indications">
-        <h3>Indications</h3>
-        <ul>
-          {indications.map((ind, idx) => (
-            <li key={idx}>{ind}</li>
-          ))}
-        </ul>
-      </section>
-      <section className="analytics-histogram">
-        <h3>Workflow Run Histograms</h3>
-        <div className="histogram-list">
-          {runs.map(({ branch, workflowKey, workflow }) => (
-            <div className="histogram-entry" key={branch + ':' + workflowKey}>
-              <div className="histogram-label">
-                <span className="histogram-workflow">
-                  {(() => {
-                    // Try to get the workflow name from the first run, fallback to workflowKey
-                    const wfName = workflow && workflow.length > 0 && workflow[0].name;
-                    if (wfName && typeof wfName === 'string' && wfName.trim().length > 0) {
-                      return wfName;
-                    }
-                    return workflowKey;
-                  })()}
-                </span>
-                <span className="histogram-branch" style={{ fontSize: '0.93em', color: 'var(--text-secondary, #666)' }}>{branch}</span>
-              </div>
-              <div className="histogram-cubes">
-                {workflow.length === 1 && getNormalizedStatus(workflow[0].status, workflow[0].conclusion) === 'no_runs' ? (
-                  <span
-                    className="histogram-cube"
-                    title="No runs yet"
-                    style={{ background: STATUS_COLORS['no_runs'] }}
-                  />
-                ) : (
-                  workflow.map((run, idx) => {
-                    const status = getNormalizedStatus(run.status, run.conclusion);
-                    return (
-                      <span
-                        key={run.runNumber || idx}
-                        className="histogram-cube"
-                        title={`Run #${run.runNumber || ''} - ${status}`}
-                        style={{ background: STATUS_COLORS[status] || '#bdbdbd' }}
-                      />
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <WorkflowIndications indications={indications} />
+      <WorkflowHistogram runs={runs} />
     </div>
   );
 };
