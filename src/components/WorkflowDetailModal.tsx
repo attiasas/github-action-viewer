@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import WorkflowAnalytics from './WorkflowAnalytics';
+import './WorkflowAnalytics.css';
 import { useAuth } from '../contexts/AuthContext';
 
 import type { TrackedRepository, RepositoryStatus, WorkflowStatus } from '../api/Repositories';
@@ -831,6 +833,26 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                   running: '#1976d2',
                   unknown: '#888',
                 };
+                // --- Collect all runs for analytics ---
+                const allRunsForAnalytics: Array<{ branch: string, workflowKey: string, workflow: WorkflowStatus[] }> = [];
+                Object.entries(repositoryData.branches)
+                  .filter(([branchName]) => !selectedBranch || branchName === selectedBranch)
+                  .forEach(([branchName, branchData]) => {
+                    Object.entries(branchData.workflows)
+                      .filter(([workflowKey, workflowRuns]) => {
+                        if (!selectedWorkflow) return true;
+                        const runs = workflowRuns as WorkflowStatus[];
+                        const wf = runs[0] as WorkflowStatus;
+                        return (
+                          workflowKey === selectedWorkflow ||
+                          (wf && (wf.name === selectedWorkflow || wf.workflow_path === selectedWorkflow))
+                        );
+                      })
+                      .forEach(([workflowKey, workflowRuns]) => {
+                        allRunsForAnalytics.push({ branch: branchName, workflowKey, workflow: workflowRuns as WorkflowStatus[] });
+                      });
+                  });
+                // --- End collect all runs for analytics ---
                 return (
                   <div className="latest-runs-list" style={{ width: '100%', marginTop: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5em', cursor: 'pointer', userSelect: 'none' }}>
@@ -1024,6 +1046,8 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                         </ul>
                       )
                     )}
+                    {/* --- Analytics Section --- */}
+                    <WorkflowAnalytics runs={allRunsForAnalytics} />
                   </div>
                 );
               })()}
