@@ -2,7 +2,6 @@ import WorkflowIndications from './WorkflowIndications';
 import { getIndications } from './indicationsUtils';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import WorkflowHistogram from './WorkflowHistogram';
-import './WorkflowAnalytics.css';
 import { useAuth } from '../contexts/AuthContext';
 
 import type { TrackedRepository, RepositoryStatus, WorkflowStatus } from '../api/Repositories';
