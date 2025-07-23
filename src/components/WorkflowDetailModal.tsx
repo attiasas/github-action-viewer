@@ -43,6 +43,8 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
   const workflowInputRef = useRef<HTMLInputElement>(null);
   const branchInputRef = useRef<HTMLInputElement>(null);
 
+  // Expand/collapse state for latest runs section
+  const [showLatestRuns, setShowLatestRuns] = useState(false);
   // Load detailed workflow status using new API
   const loadWorkflowDetails = useCallback(async () => {
     if (!user || !isOpen) return;
@@ -885,104 +887,132 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                 };
                 return (
                   <div className="latest-runs-list" style={{ width: '100%', marginTop: '1rem' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Workflows Latest Runs Status</h3>
-                    {filteredRuns.length === 0 ? (
-                      <div style={{ color: '#888', fontStyle: 'italic', marginTop: 4 }}>No runs found.</div>
-                    ) : (
-                      <ul style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0 0 0' }}>
-                        {filteredRuns.slice(0, 10).map(({ branch, workflowKey, workflow }, idx) => {
-                          const normalizedStatus = normalizeStatus(workflow.status, workflow.conclusion);
-                          // Color logic for status icon background and color
-                          const badgeBg: Record<string, string> = {
-                            success: 'linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%)',
-                            failure: 'linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%)',
-                            pending: 'linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%)',
-                            cancelled: 'linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%)',
-                            running: 'linear-gradient(90deg, rgba(33,150,243,0.12) 0%, rgba(33,150,243,0.06) 100%)',
-                            unknown: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
-                          };
-                          const badgeColor: Record<string, string> = {
-                            success: '#155724',
-                            failure: '#721c24',
-                            pending: '#856404',
-                            cancelled: '#495057',
-                            running: '#1976d2',
-                            unknown: '#6c757d',
-                          };
-                          return (
-                            <li
-                              key={branch + workflowKey + idx}
-                              className={`latest-run-entry status-${normalizedStatus}`}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                padding: '8px 12px',
-                                marginBottom: '6px',
-                                borderRadius: '8px',
-                                background: statusColors[normalizedStatus] || '#f5f5f5',
-                                border: `1.5px solid ${statusBorderColors[normalizedStatus] || '#888'}`,
-                                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-                                transition: 'background 0.2s',
-                              }}
-                            >
-                                <span
-                                className={`run-status-badge status-${normalizedStatus}`}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5em', cursor: 'pointer', userSelect: 'none' }}>
+                      <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, flex: 'none' }}>
+                        Workflows Latest Runs Status
+                      </h3>
+                      <button
+                        type="button"
+                        aria-expanded={showLatestRuns}
+                        aria-controls="latest-runs-section"
+                        onClick={() => setShowLatestRuns(v => !v)}
+                        style={{
+                          marginLeft: 8,
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '1.1em',
+                          padding: 0,
+                          color: '#1976d2',
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                        title={showLatestRuns ? 'Hide latest runs' : 'Show latest runs'}
+                      >
+                        <span style={{ display: 'inline-block', transition: 'transform 0.2s', transform: showLatestRuns ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+                          ▶
+                        </span>
+                      </button>
+                    </div>
+                    {showLatestRuns && (
+                      filteredRuns.length === 0 ? (
+                        <div style={{ color: '#888', fontStyle: 'italic', marginTop: 4 }}>No runs found.</div>
+                      ) : (
+                        <ul id="latest-runs-section" style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0 0 0' }}>
+                          {filteredRuns.slice(0, 10).map(({ branch, workflowKey, workflow }, idx) => {
+                            const normalizedStatus = normalizeStatus(workflow.status, workflow.conclusion);
+                            // Color logic for status icon background and color
+                            const badgeBg: Record<string, string> = {
+                              success: 'linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%)',
+                              failure: 'linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%)',
+                              pending: 'linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%)',
+                              cancelled: 'linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%)',
+                              running: 'linear-gradient(90deg, rgba(33,150,243,0.12) 0%, rgba(33,150,243,0.06) 100%)',
+                              unknown: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+                            };
+                            const badgeColor: Record<string, string> = {
+                              success: '#155724',
+                              failure: '#721c24',
+                              pending: '#856404',
+                              cancelled: '#495057',
+                              running: '#1976d2',
+                              unknown: '#6c757d',
+                            };
+                            return (
+                              <li
+                                key={branch + workflowKey + idx}
+                                className={`latest-run-entry status-${normalizedStatus}`}
                                 style={{
-                                  minWidth: 26,
-                                  textAlign: 'center',
-                                  fontSize: '1.2em',
-                                  background: badgeBg[normalizedStatus],
-                                  color: badgeColor[normalizedStatus],
-                                  borderRadius: '50%',
                                   display: 'flex',
                                   alignItems: 'center',
-                                  justifyContent: 'center',
-                                  border: '1.5px solid transparent',
+                                  padding: '8px 12px',
+                                  marginBottom: '6px',
+                                  borderRadius: '8px',
+                                  background: statusColors[normalizedStatus] || '#f5f5f5',
+                                  border: `1.5px solid ${statusBorderColors[normalizedStatus] || '#888'}`,
+                                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                                  transition: 'background 0.2s',
                                 }}
-                                >
-                                {getStatusIcon(workflow.status, workflow.conclusion)}
-                                </span>
-                                <span style={{ display: 'inline-block', width: '4px' }} />
-                                <span
-                                  style={{ fontWeight: 600, fontSize: '1.05em', color: '#222', flex: '1 1 0', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.5em' }}
-                                  title={workflow.name || workflowKey}
-                                >
-                                    {workflow.name || workflowKey}
-                                  <span style={{ color: '#888', fontSize: '0.97em', fontWeight: 500, background: '#f0f0f0', borderRadius: '4px', padding: '2px 6px' }}>{branch}</span>
-                                </span>
-                                
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
-                                {workflow.updatedAt && (
-                                  <span style={{ color: '#1976d2', fontSize: '0.97em', fontWeight: 500 }} title={new Date(workflow.updatedAt).toLocaleString()}>
-                                    {formatRelativeTime(workflow.updatedAt)}
+                              >
+                                  <span
+                                  className={`run-status-badge status-${normalizedStatus}`}
+                                  style={{
+                                    minWidth: 26,
+                                    textAlign: 'center',
+                                    fontSize: '1.2em',
+                                    background: badgeBg[normalizedStatus],
+                                    color: badgeColor[normalizedStatus],
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    border: '1.5px solid transparent',
+                                  }}
+                                  >
+                                  {getStatusIcon(workflow.status, workflow.conclusion)}
                                   </span>
-                                )}
-                                {workflow.commit && (
-                                  <a
-                                    href={`${repo.repository.url}/commit/${workflow.commit}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{ color: '#1976d2', textDecoration: 'none', fontWeight: 500, fontSize: '0.97em', background: '#e3f2fd', borderRadius: '4px', padding: '2px 6px', marginLeft: '0.5em' }}
-                                    title={workflow.commit}
+                                  <span style={{ display: 'inline-block', width: '4px' }} />
+                                  <span
+                                    style={{ fontWeight: 600, fontSize: '1.05em', color: '#222', flex: '1 1 0', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.5em' }}
+                                    title={workflow.name || workflowKey}
                                   >
-                                    {truncateSha(workflow.commit)}
-                                  </a>
-                                )}
-                                {workflow.url && (
-                                  <a
-                                    href={workflow.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{ marginLeft: 6, color: '#1976d2', textDecoration: 'none', fontWeight: 600, fontSize: '0.97em', borderRadius: '4px', padding: '2px 8px', background: '#e3f2fd', transition: 'background 0.2s' }}
-                                  >
-                                    View
-                                  </a>
-                                )}
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
+                                      {workflow.name || workflowKey}
+                                    <span style={{ color: '#888', fontSize: '0.97em', fontWeight: 500, background: '#f0f0f0', borderRadius: '4px', padding: '2px 6px' }}>{branch}</span>
+                                  </span>
+                                
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
+                                  {workflow.updatedAt && (
+                                    <span style={{ color: '#1976d2', fontSize: '0.97em', fontWeight: 500 }} title={new Date(workflow.updatedAt).toLocaleString()}>
+                                      {formatRelativeTime(workflow.updatedAt)}
+                                    </span>
+                                  )}
+                                  {workflow.commit && (
+                                    <a
+                                      href={`${repo.repository.url}/commit/${workflow.commit}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ color: '#1976d2', textDecoration: 'none', fontWeight: 500, fontSize: '0.97em', background: '#e3f2fd', borderRadius: '4px', padding: '2px 6px', marginLeft: '0.5em' }}
+                                      title={workflow.commit}
+                                    >
+                                      {truncateSha(workflow.commit)}
+                                    </a>
+                                  )}
+                                  {workflow.url && (
+                                    <a
+                                      href={workflow.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ marginLeft: 6, color: '#1976d2', textDecoration: 'none', fontWeight: 600, fontSize: '0.97em', borderRadius: '4px', padding: '2px 8px', background: '#e3f2fd', transition: 'background 0.2s' }}
+                                    >
+                                      View
+                                    </a>
+                                  )}
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )
                     )}
                   </div>
                 );
