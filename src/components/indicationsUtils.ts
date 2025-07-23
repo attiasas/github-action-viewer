@@ -11,17 +11,29 @@ export function getNormalizedStatus(status: string, conclusion: string | null): 
   return 'unknown';
 }
 
-export function getIndications(runs: Array<{ branch: string; workflowKey: string; workflow: WorkflowStatus[] }>): string[] {
-  const indications: string[] = [];
+export type IndicationType = 'info' | 'warning' | 'success' | 'error';
+export interface Indication {
+  type: IndicationType;
+  message: string;
+}
+
+export function getIndications(runs: Array<{ branch: string; workflowKey: string; workflow: WorkflowStatus[] }>): Indication[] {
+  const indications: Indication[] = [];
   let totalFailures = 0;
   let totalSuccess = 0;
   let workflowsWithNoRuns = 0;
+  let workflowsWithOnlyFailures = 0;
+  // Track workflows not run in the last N days for multiple thresholds
+  const notRunThresholds = [30, 60, 90, 120, 150, 365];
+  const workflowsNotRunRecently: Record<number, number> = {};
+  notRunThresholds.forEach(days => { workflowsNotRunRecently[days] = 0; });
   const consecutiveFailures: Record<string, number> = {};
   const consecutiveSuccess: Record<string, number> = {};
   let anyRecentFailure = false;
   // For streaks: { streakLength: count }
   const failureStreaks: Record<number, number> = {};
   const successStreaks: Record<number, number> = {};
+  const now = Date.now();
 
   runs.forEach(({ branch, workflowKey, workflow }) => {
     // If workflow has a single run with status 'no_runs', treat as no runs
@@ -32,8 +44,23 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
       workflowsWithNoRuns++;
       return;
     }
+    // Check for workflows not run recently (last run older than each threshold)
+    if (workflow.length > 0 && workflow[0].updatedAt) {
+      const lastRun = new Date(workflow[0].updatedAt).getTime();
+      if (!isNaN(lastRun)) {
+        notRunThresholds.forEach(days => {
+          if (now - lastRun > days * 24 * 60 * 60 * 1000) {
+            workflowsNotRunRecently[days] = (workflowsNotRunRecently[days] || 0) + 1;
+          }
+        });
+      }
+    }
+    // Analyze run statuses for this workflow
     let failStreak = 0;
     let successStreak = 0;
+    let onlyFailures = true;
+    let hasFailure = false;
+    let hasSuccess = false;
     for (let i = workflow.length - 1; i >= 0; i--) {
       const run = workflow[i];
       const status = getNormalizedStatus(run.status, run.conclusion);
@@ -42,18 +69,29 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
         totalFailures++;
         if (i === workflow.length - 1) anyRecentFailure = true;
         successStreak = 0;
+        hasFailure = true;
       } else if (status === 'success') {
         successStreak++;
         totalSuccess++;
         failStreak = 0;
+        onlyFailures = false;
+        hasSuccess = true;
+      } else if (status === 'pending' || status === 'running') {
+        failStreak = 0;
+        successStreak = 0;
+        onlyFailures = false;
       } else {
         failStreak = 0;
         successStreak = 0;
+        onlyFailures = false;
       }
     }
+    if (onlyFailures && workflow.length > 0) workflowsWithOnlyFailures++;
+    if (
+      hasFailure && hasSuccess && workflow.length > 1
+    )
     consecutiveFailures[`${branch}:${workflowKey}`] = failStreak;
     consecutiveSuccess[`${branch}:${workflowKey}`] = successStreak;
-    // Generalize for 5, 10, 15, ...
     [5, 10, 15, 20, 25, 30].forEach((n) => {
       if (failStreak >= n) failureStreaks[n] = (failureStreaks[n] || 0) + 1;
       if (successStreak >= n) successStreaks[n] = (successStreaks[n] || 0) + 1;
@@ -61,12 +99,33 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
   });
 
   if (workflowsWithNoRuns > 0) {
-    indications.push(
-      workflowsWithNoRuns === 1
+    indications.push({
+      type: 'info',
+      message: workflowsWithNoRuns === 1
         ? '1 workflow has no runs yet'
         : `${workflowsWithNoRuns} workflows have no runs yet`
-    );
+    });
   }
+  if (workflowsWithOnlyFailures > 0) {
+    indications.push({
+      type: 'warning',
+      message: workflowsWithOnlyFailures === 1
+        ? '1 workflow has only failures'
+        : `${workflowsWithOnlyFailures} workflows have only failures`
+    });
+  }
+  // Add indications for each threshold, largest first (e.g. 90, 60, 30, 14, 7)
+  notRunThresholds.slice().sort((a, b) => b - a).forEach(days => {
+    const count = workflowsNotRunRecently[days];
+    if (count > 0) {
+      indications.push({
+        type: 'warning',
+        message: count === 1
+          ? `1 workflow has not run in the last ${days} days`
+          : `${count} workflows have not run in the last ${days} days`
+      });
+    }
+  });
   // Only show the most significant (longest) failure and success streaks
   const maxFailureStreak = Object.keys(failureStreaks)
     .map(Number)
@@ -74,11 +133,12 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
     .sort((a, b) => b - a)[0];
   if (maxFailureStreak) {
     const count = failureStreaks[maxFailureStreak];
-    indications.push(
-      count === 1
+    indications.push({
+      type: 'error',
+      message: count === 1
         ? `A workflow has failed ${maxFailureStreak} or more times in a row`
         : `${count} workflows have failed ${maxFailureStreak} or more times in a row`
-    );
+    });
   }
   const maxSuccessStreak = Object.keys(successStreaks)
     .map(Number)
@@ -86,23 +146,24 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
     .sort((a, b) => b - a)[0];
   if (maxSuccessStreak) {
     const count = successStreaks[maxSuccessStreak];
-    indications.push(
-      count === 1
+    indications.push({
+      type: 'success',
+      message: count === 1
         ? `A workflow has succeeded ${maxSuccessStreak} or more times in a row`
         : `${count} workflows have succeeded ${maxSuccessStreak} or more times in a row`
-    );
+    });
   }
   if (anyRecentFailure) {
-    indications.push('At least one workflow failed in the most recent run');
+    indications.push({ type: 'warning', message: 'At least one workflow failed in the most recent run' });
   }
   if (totalFailures === 0 && totalSuccess > 0) {
-    indications.push('All runs succeeded');
+    indications.push({ type: 'success', message: 'All runs succeeded' });
   }
   if (totalFailures > 0 && totalSuccess === 0) {
-    indications.push('All runs failed');
+    indications.push({ type: 'error', message: 'All runs failed' });
   }
   if (indications.length === 0) {
-    indications.push('No significant patterns detected');
+    indications.push({ type: 'info', message: 'No significant patterns detected' });
   }
   return indications;
 }
