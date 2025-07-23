@@ -47,7 +47,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
   const branchInputRef = useRef<HTMLInputElement>(null);
 
   // Expand/collapse state for latest runs section
-  const [showLatestRuns, setShowLatestRuns] = useState(false);
+  const [showLatestRuns, setShowLatestRuns] = useState(true);
   // Load detailed workflow status using new API
   const loadWorkflowDetails = useCallback(async () => {
     if (!user || !isOpen) return;
@@ -862,17 +862,13 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                     {indications && indications.length > 0 && (
                       <WorkflowIndications indications={indications} />
                     )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5em', cursor: 'pointer', userSelect: 'none' }}>
-                      <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, flex: 'none' }}>
-                        Workflows Latest Runs Status
-                      </h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5em', userSelect: 'none' }}>
                       <button
                         type="button"
                         aria-expanded={showLatestRuns}
                         aria-controls="latest-runs-section"
                         onClick={() => setShowLatestRuns(v => !v)}
                         style={{
-                          marginLeft: 8,
                           background: 'none',
                           border: 'none',
                           cursor: 'pointer',
@@ -884,9 +880,12 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                         }}
                         title={showLatestRuns ? 'Hide latest runs' : 'Show latest runs'}
                       >
-                        <span style={{ display: 'inline-block', transition: 'transform 0.2s', transform: showLatestRuns ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+                        <span style={{ display: 'inline-block', transition: 'transform 0.2s', transform: showLatestRuns ? 'rotate(90deg)' : 'rotate(0deg)', marginRight: 6 }}>
                           ▶
                         </span>
+                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, flex: 'none', color: 'inherit' }}>
+                          Workflows Latest Runs Status
+                        </h3>
                       </button>
                       {/* Status count for filtered branch/workflow */}
                       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '1rem' }}>
