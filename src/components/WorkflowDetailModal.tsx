@@ -1,5 +1,7 @@
+import WorkflowIndications from './WorkflowIndications';
+import { getIndications } from './indicationsUtils';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import WorkflowAnalytics from './WorkflowAnalytics';
+import WorkflowHistogram from './WorkflowHistogram';
 import './WorkflowAnalytics.css';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -853,8 +855,14 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                       });
                   });
                 // --- End collect all runs for analytics ---
-                return (
+                // --- Compute indications for analytics ---
+                const indications = getIndications(allRunsForAnalytics);
+                return ( 
                   <div className="latest-runs-list" style={{ width: '100%', marginTop: '1rem' }}>
+                    {/* --- Indications Section --- */}
+                    {indications && indications.length > 0 && (
+                      <WorkflowIndications indications={indications} />
+                    )}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5em', cursor: 'pointer', userSelect: 'none' }}>
                       <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, flex: 'none' }}>
                         Workflows Latest Runs Status
@@ -1047,7 +1055,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                       )
                     )}
                     {/* --- Analytics Section --- */}
-                    <WorkflowAnalytics runs={allRunsForAnalytics} />
+                    <WorkflowHistogram runs={allRunsForAnalytics} />
                   </div>
                 );
               })()}

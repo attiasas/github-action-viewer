@@ -1,5 +1,15 @@
 /* WorkflowIndications.css */
 
+.workflow-analytics {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: var(--bg-card, #fff);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card, 0 2px 8px rgba(0,0,0,0.06));
+  /* max-width: 900px; */
+  width: 100%;
+}
+
 .analytics-indications {
   margin-bottom: 2rem;
 }

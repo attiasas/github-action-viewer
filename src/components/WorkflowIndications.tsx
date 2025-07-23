@@ -8,14 +8,16 @@ export interface WorkflowIndicationsProps {
 }
 
 const WorkflowIndications: React.FC<WorkflowIndicationsProps> = ({ indications }) => (
-  <section className="analytics-indications">
-    <h3>Indications</h3>
-    <ul>
-      {indications.map((ind, idx) => (
-        <li key={idx}>{ind}</li>
-      ))}
-    </ul>
-  </section>
+  <div className="workflow-analytics">
+    <section className="analytics-indications">
+      <h3>Indications</h3>
+      <ul>
+        {indications.map((ind, idx) => (
+          <li key={idx}>{ind}</li>
+        ))}
+      </ul>
+    </section>
+  </div>
 );
 
 export default WorkflowIndications;
