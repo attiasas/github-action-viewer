@@ -148,8 +148,17 @@ const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({ runs }) => {
           {runs.map(({ branch, workflowKey, workflow }) => (
             <div className="histogram-entry" key={branch + ':' + workflowKey}>
               <div className="histogram-label">
-                <span className="histogram-branch">{branch}</span>
-                <span className="histogram-workflow">{workflowKey}</span>
+                <span className="histogram-workflow">
+                  {(() => {
+                    // Try to get the workflow name from the first run, fallback to workflowKey
+                    const wfName = workflow && workflow.length > 0 && workflow[0].name;
+                    if (wfName && typeof wfName === 'string' && wfName.trim().length > 0) {
+                      return wfName;
+                    }
+                    return workflowKey;
+                  })()}
+                </span>
+                <span className="histogram-branch" style={{ fontSize: '0.93em', color: 'var(--text-secondary, #666)' }}>{branch}</span>
               </div>
               <div className="histogram-cubes">
                 {workflow.length === 1 && getNormalizedStatus(workflow[0].status, workflow[0].conclusion) === 'no_runs' ? (
