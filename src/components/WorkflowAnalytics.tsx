@@ -19,9 +19,11 @@ const STATUS_COLORS: Record<string, string> = {
   pending: '#ff9800',
   error: '#e91e63',
   unknown: '#bdbdbd',
+  no_runs: '#bdbdbd',
 };
 
 function getNormalizedStatus(status: string, conclusion: string | null): string {
+  if (status === 'no_runs') return 'no_runs';
   if (conclusion === 'success') return 'success';
   if (conclusion === 'failure') return 'failure';
   if (conclusion === 'cancelled') return 'cancelled';
@@ -35,6 +37,7 @@ function getIndications(runs: Array<{ branch: string; workflowKey: string; workf
   const indications: string[] = [];
   let totalFailures = 0;
   let totalSuccess = 0;
+  let workflowsWithNoRuns = 0;
   const consecutiveFailures: Record<string, number> = {};
   const consecutiveSuccess: Record<string, number> = {};
   let anyLongFailureStreak = false;
@@ -42,6 +45,14 @@ function getIndications(runs: Array<{ branch: string; workflowKey: string; workf
   let anyRecentFailure = false;
 
   runs.forEach(({ branch, workflowKey, workflow }) => {
+    // If workflow has a single run with status 'no_runs', treat as no runs
+    if (
+      workflow.length === 1 &&
+      getNormalizedStatus(workflow[0].status, workflow[0].conclusion) === 'no_runs'
+    ) {
+      workflowsWithNoRuns++;
+      return;
+    }
     let failStreak = 0;
     let successStreak = 0;
     for (let i = workflow.length - 1; i >= 0; i--) {
@@ -67,6 +78,13 @@ function getIndications(runs: Array<{ branch: string; workflowKey: string; workf
     if (successStreak >= 5) anyLongSuccessStreak = true;
   });
 
+  if (workflowsWithNoRuns > 0) {
+    indications.push(
+      workflowsWithNoRuns === 1
+        ? '1 workflow has no runs yet'
+        : `${workflowsWithNoRuns} workflows have no runs yet`
+    );
+  }
   if (anyLongFailureStreak) {
     indications.push('Some workflows have failed more than 3 runs in a row');
   }
@@ -111,17 +129,25 @@ const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({ runs }) => {
                 <span className="histogram-workflow">{workflowKey}</span>
               </div>
               <div className="histogram-cubes">
-                {workflow.map((run, idx) => {
-                  const status = getNormalizedStatus(run.status, run.conclusion);
-                  return (
-                    <span
-                      key={run.runNumber || idx}
-                      className="histogram-cube"
-                      title={`Run #${run.runNumber || ''} - ${status}`}
-                      style={{ background: STATUS_COLORS[status] || '#bdbdbd' }}
-                    />
-                  );
-                })}
+                {workflow.length === 1 && getNormalizedStatus(workflow[0].status, workflow[0].conclusion) === 'no_runs' ? (
+                  <span
+                    className="histogram-cube"
+                    title="No runs yet"
+                    style={{ background: STATUS_COLORS['no_runs'] }}
+                  />
+                ) : (
+                  workflow.map((run, idx) => {
+                    const status = getNormalizedStatus(run.status, run.conclusion);
+                    return (
+                      <span
+                        key={run.runNumber || idx}
+                        className="histogram-cube"
+                        title={`Run #${run.runNumber || ''} - ${status}`}
+                        style={{ background: STATUS_COLORS[status] || '#bdbdbd' }}
+                      />
+                    );
+                  })
+                )}
               </div>
             </div>
           ))}
