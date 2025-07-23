@@ -30,7 +30,7 @@ export interface RepositoryStatus {
 
 export interface BranchStatus {
   name: string;
-  workflows: Map<string, WorkflowStatus>;
+  workflows: Map<string, WorkflowStatus[]>;
   overall: OverallStatus;
   status: NormalizedStatus; // Normalized status of the branch
   error?: string; // Error message if any (added when parsing workflows fails)

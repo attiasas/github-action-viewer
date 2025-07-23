@@ -782,8 +782,9 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                   .filter(([branchName]) => !selectedBranch || branchName === selectedBranch)
                   .forEach(([branchName, branchData]) => {
                     Object.entries(branchData.workflows)
-                      .filter(([workflowKey, workflow]) => {
-                        const wf = workflow as WorkflowStatus;
+                      .filter(([workflowKey, workflowRuns]) => {
+                        const runs = workflowRuns as WorkflowStatus[];
+                        const wf = runs[0] as WorkflowStatus;
                         if (!selectedWorkflow) return true;
                         return (
                           workflowKey === selectedWorkflow ||
@@ -791,8 +792,11 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                           wf.workflow_path === selectedWorkflow
                         );
                       })
-                      .forEach(([workflowKey, workflow]) => {
-                        const wf = workflow as WorkflowStatus;
+                      .forEach(([workflowKey, workflowRuns]) => {
+                        const runs = workflowRuns as WorkflowStatus[];
+                        if (runs.length === 0) return; // Skip empty workflows
+                        // Use the first run as the representative workflow status
+                        const wf = runs[0] as WorkflowStatus;
                         if (wf.status !== 'no_runs') {
                           filteredRuns.push({ branch: branchName, workflowKey, workflow: wf });
                         }
@@ -867,8 +871,11 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                             .filter(([branchName]) => !selectedBranch || branchName === selectedBranch)
                             .forEach(([branchName, branchData]) => {
                               Object.entries(branchData.workflows)
-                                .filter(([workflowKey, workflow]) => {
-                                  const wf = workflow as WorkflowStatus;
+                                .filter(([workflowKey, workflowRuns]) => {
+                                  const runs = workflowRuns as WorkflowStatus[];
+                                  if (runs.length === 0) return false; // Skip empty workflows
+                                  // Check if workflow matches selected workflow
+                                  const wf = runs[0] as WorkflowStatus;
                                   if (!selectedWorkflow) return true;
                                   return (
                                     workflowKey === selectedWorkflow ||
@@ -876,8 +883,11 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                                     wf.workflow_path === selectedWorkflow
                                   );
                                 })
-                                .forEach(([workflowKey, workflow]) => {
-                                  const wf = workflow as WorkflowStatus;
+                                .forEach(([workflowKey, workflowRuns]) => {
+                                  const runs = workflowRuns as WorkflowStatus[];
+                                  if (runs.length === 0) return; // Skip empty workflows
+                                  // Use the first run as the representative workflow status
+                                  const wf = runs[0] as WorkflowStatus;
                                   if (wf.status !== 'no_runs') {
                                     runCount++;
                                     filteredRuns.push({ branch: branchName, workflowKey, workflow: wf });

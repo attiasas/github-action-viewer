@@ -200,7 +200,7 @@ function getRepositoryStatusFromCache(tracked) {
         repositoryStatus.branches[branch] = new BranchStatus(branch);
         let branchHasError = false;
         for (const workflow of tracked.repository.trackedWorkflows) {
-            let cacheItem = runsCache.getLatestRun({
+            let cacheItem = runsCache.getLatestRuns({
                 gitServer: tracked.serverUrl,
                 repository: tracked.repository.name,
                 branch,
@@ -218,12 +218,14 @@ function getRepositoryStatusFromCache(tracked) {
                     }
                     if (cacheItem.data && cacheItem.data.length === 0) {
                         // If no runs found for this workflow yet, create a placeholder
-                        repositoryStatus.branches[branch].workflows[workflow] = new WorkflowStatus({
-                            name: workflowMeta.name,
-                            status: WorkflowStatusEnum.NO_RUNS,
-                            workflow_id: workflow,
-                            workflow_path: workflowMeta.path
-                        });
+                        repositoryStatus.branches[branch].workflows[workflow] = [
+                            new WorkflowStatus({
+                                name: workflowMeta.name,
+                                status: WorkflowStatusEnum.NO_RUNS,
+                                workflow_id: workflow,
+                                workflow_path: workflowMeta.path
+                            })
+                        ];
                     }
                 }
                 continue; // skip to next workflow
@@ -239,10 +241,10 @@ function getRepositoryStatusFromCache(tracked) {
                     url: run.url,
                     workflow_id: run.workflowId,
                     workflow_path: workflowMeta.path
-                }))[0]; // take the first item as the latest run
+                }));
             }
-            // Update overall status and counts
-            const workflowStatus = repositoryStatus.branches[branch].workflows[workflow];
+            // Update overall status and counts base on the latest workflow run
+            const workflowStatus = repositoryStatus.branches[branch].workflows[workflow][0];
             switch (workflowStatus.normalizeStatus) {
                 case WorkflowStatusEnum.SUCCESS:
                     repositoryStatus.branches[branch].overall.success++;
