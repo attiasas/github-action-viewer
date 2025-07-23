@@ -773,64 +773,6 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                     ))}
                   </select>
                 </div>
-                {/* Status count for filtered branch/workflow */}
-                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  {(() => {
-                    // Compute stats for filtered branches and workflows
-                    const stats = { success: 0, failure: 0, pending: 0, cancelled: 0, running: 0 };
-                    let runCount = 0;
-                    // Collect filtered runs for display
-                    const filteredRuns: Array<{ branch: string, workflowKey: string, workflow: WorkflowStatus }> = [];
-                    Object.entries(repositoryData.branches)
-                      .filter(([branchName]) => !selectedBranch || branchName === selectedBranch)
-                      .forEach(([branchName, branchData]) => {
-                        Object.entries(branchData.workflows)
-                          .filter(([workflowKey, workflow]) => {
-                            const wf = workflow as WorkflowStatus;
-                            if (!selectedWorkflow) return true;
-                            return (
-                              workflowKey === selectedWorkflow ||
-                              wf.name === selectedWorkflow ||
-                              wf.workflow_path === selectedWorkflow
-                            );
-                          })
-                          .forEach(([workflowKey, workflow]) => {
-                            const wf = workflow as WorkflowStatus;
-                            if (wf.status !== 'no_runs') {
-                              runCount++;
-                              filteredRuns.push({ branch: branchName, workflowKey, workflow: wf });
-                            }
-                            const normalizedStatus = normalizeStatus(wf.status, wf.conclusion);
-                            if (normalizedStatus === 'success') stats.success++;
-                            else if (normalizedStatus === 'failure') stats.failure++;
-                            else if (normalizedStatus === 'pending') stats.pending++;
-                            else if (normalizedStatus === 'cancelled') stats.cancelled++;
-                            else if (normalizedStatus === 'running') stats.running++;
-                          });
-                      });
-                    return (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span className="run-count" style={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
-                          <span>{runCount}</span>
-                          <span style={{ marginLeft: 4, fontWeight: 'normal' }}>run{runCount !== 1 ? 's' : ''}</span>
-                        </span>
-                        <div className="branch-stats">
-                          {stats.running > 0 && <span className="stat running" style={{ color: '#1976d2', fontWeight: 'bold' }}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2196f3" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: 2 }}>
-                              <circle cx="12" cy="12" r="10" stroke="#2196f3" strokeWidth="3" fill="none"/>
-                              <path d="M12 6v6l4 2" stroke="#1976d2"/>
-                            </svg>
-                            {stats.running}
-                          </span>}
-                          {stats.success > 0 && <span className="stat success">✓{stats.success}</span>}
-                          {stats.failure > 0 && <span className="stat failure">✗{stats.failure}</span>}
-                          {stats.pending > 0 && <span className="stat pending">○{stats.pending}</span>}
-                          {stats.cancelled > 0 && <span className="stat cancelled">⊘{stats.cancelled}</span>}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
               </div>
               )}
               {(() => {
@@ -913,6 +855,64 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                           ▶
                         </span>
                       </button>
+                      {/* Status count for filtered branch/workflow */}
+                      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        {(() => {
+                          // Compute stats for filtered branches and workflows
+                          const stats = { success: 0, failure: 0, pending: 0, cancelled: 0, running: 0 };
+                          let runCount = 0;
+                          // Collect filtered runs for display
+                          const filteredRuns: Array<{ branch: string, workflowKey: string, workflow: WorkflowStatus }> = [];
+                          Object.entries(repositoryData.branches)
+                            .filter(([branchName]) => !selectedBranch || branchName === selectedBranch)
+                            .forEach(([branchName, branchData]) => {
+                              Object.entries(branchData.workflows)
+                                .filter(([workflowKey, workflow]) => {
+                                  const wf = workflow as WorkflowStatus;
+                                  if (!selectedWorkflow) return true;
+                                  return (
+                                    workflowKey === selectedWorkflow ||
+                                    wf.name === selectedWorkflow ||
+                                    wf.workflow_path === selectedWorkflow
+                                  );
+                                })
+                                .forEach(([workflowKey, workflow]) => {
+                                  const wf = workflow as WorkflowStatus;
+                                  if (wf.status !== 'no_runs') {
+                                    runCount++;
+                                    filteredRuns.push({ branch: branchName, workflowKey, workflow: wf });
+                                  }
+                                  const normalizedStatus = normalizeStatus(wf.status, wf.conclusion);
+                                  if (normalizedStatus === 'success') stats.success++;
+                                  else if (normalizedStatus === 'failure') stats.failure++;
+                                  else if (normalizedStatus === 'pending') stats.pending++;
+                                  else if (normalizedStatus === 'cancelled') stats.cancelled++;
+                                  else if (normalizedStatus === 'running') stats.running++;
+                                });
+                            });
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span className="run-count" style={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
+                                <span>{runCount}</span>
+                                <span style={{ marginLeft: 4, fontWeight: 'normal' }}>run{runCount !== 1 ? 's' : ''}</span>
+                              </span>
+                              <div className="branch-stats">
+                                {stats.running > 0 && <span className="stat running" style={{ color: '#1976d2', fontWeight: 'bold' }}>
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2196f3" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: 2 }}>
+                                    <circle cx="12" cy="12" r="10" stroke="#2196f3" strokeWidth="3" fill="none"/>
+                                    <path d="M12 6v6l4 2" stroke="#1976d2"/>
+                                  </svg>
+                                  {stats.running}
+                                </span>}
+                                {stats.success > 0 && <span className="stat success">✓{stats.success}</span>}
+                                {stats.failure > 0 && <span className="stat failure">✗{stats.failure}</span>}
+                                {stats.pending > 0 && <span className="stat pending">○{stats.pending}</span>}
+                                {stats.cancelled > 0 && <span className="stat cancelled">⊘{stats.cancelled}</span>}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
                     {showLatestRuns && (
                       filteredRuns.length === 0 ? (
