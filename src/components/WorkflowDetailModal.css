@@ -1,3 +1,23 @@
+/* Status-based background for latest runs list entries (matches repository card style) */
+/* Darker backgrounds for better visibility */
+.latest-run-entry.status-success {
+  background: rgba(40, 167, 69, 0.18);
+}
+.latest-run-entry.status-failure {
+  background: rgba(220, 53, 69, 0.18);
+}
+.latest-run-entry.status-pending {
+  background: rgba(255, 193, 7, 0.18);
+}
+.latest-run-entry.status-cancelled {
+  background: rgba(108, 117, 125, 0.18);
+}
+.latest-run-entry.status-running {
+  background: linear-gradient(90deg, rgba(33,150,243,0.22) 0%, rgba(33,150,243,0.10) 100%);
+}
+.latest-run-entry.status-unknown {
+  background: rgba(128, 128, 128, 0.13);
+}
 /* Latest Runs List: Improve status icon visibility in dark theme */
 .latest-run-entry .run-status-badge {
   background: transparent;

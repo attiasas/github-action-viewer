@@ -818,22 +818,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                   return dateB - dateA;
                 });
                 // Color map for status
-                const statusColors: Record<string, string> = {
-                  success: '#e6f4ea',
-                  failure: '#fdecea',
-                  pending: '#fff3cd', 
-                  cancelled: '#f5f5f5',
-                  running: '#e3f2fd',
-                  unknown: '#f5f5f5',
-                };
-                const statusBorderColors: Record<string, string> = {
-                  success: '#43a047',
-                  failure: '#e53935',
-                  pending: '#888',
-                  cancelled: '#888',
-                  running: '#1976d2',
-                  unknown: '#888',
-                };
+                // (statusColors and statusBorderColors removed; now using CSS classes)
                 // --- Collect all runs for analytics ---
                 const allRunsForAnalytics: Array<{ branch: string, workflowKey: string, workflow: WorkflowStatus[] }> = [];
                 Object.entries(repositoryData.branches)
@@ -862,23 +847,24 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                     {indications && indications.length > 0 && (
                       <WorkflowIndications indications={indications} />
                     )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5em', userSelect: 'none' }}>
+                    <div className="latest-runs-header" style={{ display: 'flex', alignItems: 'center', gap: '0.5em', userSelect: 'none' }}>
                       <button
                         type="button"
                         aria-expanded={showLatestRuns}
                         aria-controls="latest-runs-section"
                         onClick={() => setShowLatestRuns(v => !v)}
+                        className="latest-runs-toggle"
+                        title={showLatestRuns ? 'Hide latest runs' : 'Show latest runs'}
                         style={{
                           background: 'none',
                           border: 'none',
                           cursor: 'pointer',
                           fontSize: '1.1em',
                           padding: 0,
-                          color: '#1976d2',
+                          color: 'var(--primary-color)',
                           display: 'flex',
                           alignItems: 'center',
                         }}
-                        title={showLatestRuns ? 'Hide latest runs' : 'Show latest runs'}
                       >
                         <span style={{ display: 'inline-block', transition: 'transform 0.2s', transform: showLatestRuns ? 'rotate(90deg)' : 'rotate(0deg)', marginRight: 6 }}>
                           ▶
@@ -930,22 +916,16 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                             });
                           return (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <span className="run-count" style={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
+                              <span className="run-count" style={{ display: 'flex', alignItems: 'center', fontWeight: 'bold', color: 'var(--text-primary)' }}>
                                 <span>{runCount}</span>
                                 <span style={{ marginLeft: 4, fontWeight: 'normal' }}>run{runCount !== 1 ? 's' : ''}</span>
                               </span>
                               <div className="branch-stats">
-                                {stats.running > 0 && <span className="stat running" style={{ color: '#1976d2', fontWeight: 'bold' }}>
-                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2196f3" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: 2 }}>
-                                    <circle cx="12" cy="12" r="10" stroke="#2196f3" strokeWidth="3" fill="none"/>
-                                    <path d="M12 6v6l4 2" stroke="#1976d2"/>
-                                  </svg>
-                                  {stats.running}
-                                </span>}
-                                {stats.success > 0 && <span className="stat success">✓{stats.success}</span>}
-                                {stats.failure > 0 && <span className="stat failure">✗{stats.failure}</span>}
-                                {stats.pending > 0 && <span className="stat pending">○{stats.pending}</span>}
-                                {stats.cancelled > 0 && <span className="stat cancelled">⊘{stats.cancelled}</span>}
+                                {stats.running > 0 && <span className="stat running status-running"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2196f3" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: 2 }}><circle cx="12" cy="12" r="10" stroke="#2196f3" strokeWidth="3" fill="none"/><path d="M12 6v6l4 2" stroke="#1976d2"/></svg>{stats.running}</span>}
+                                {stats.success > 0 && <span className="stat success status-success">✓{stats.success}</span>}
+                                {stats.failure > 0 && <span className="stat failure status-failure">✗{stats.failure}</span>}
+                                {stats.pending > 0 && <span className="stat pending status-pending">○{stats.pending}</span>}
+                                {stats.cancelled > 0 && <span className="stat cancelled status-cancelled">⊘{stats.cancelled}</span>}
                               </div>
                             </div>
                           );
@@ -954,28 +934,11 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                     </div>
                     {showLatestRuns && (
                       filteredRuns.length === 0 ? (
-                        <div style={{ color: '#888', fontStyle: 'italic', marginTop: 4 }}>No runs found.</div>
+                        <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: 4 }}>No runs found.</div>
                       ) : (
                         <ul id="latest-runs-section" style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0 0 0' }}>
                           {filteredRuns.slice(0, 10).map(({ branch, workflowKey, workflow }, idx) => {
                             const normalizedStatus = normalizeStatus(workflow.status, workflow.conclusion);
-                            // Color logic for status icon background and color
-                            const badgeBg: Record<string, string> = {
-                              success: 'linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%)',
-                              failure: 'linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%)',
-                              pending: 'linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%)',
-                              cancelled: 'linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%)',
-                              running: 'linear-gradient(90deg, rgba(33,150,243,0.12) 0%, rgba(33,150,243,0.06) 100%)',
-                              unknown: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
-                            };
-                            const badgeColor: Record<string, string> = {
-                              success: '#155724',
-                              failure: '#721c24',
-                              pending: '#856404',
-                              cancelled: '#495057',
-                              running: '#1976d2',
-                              unknown: '#6c757d',
-                            };
                             return (
                               <li
                                 key={branch + workflowKey + idx}
@@ -986,41 +949,37 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                                   padding: '8px 12px',
                                   marginBottom: '6px',
                                   borderRadius: '8px',
-                                  background: statusColors[normalizedStatus] || '#f5f5f5',
-                                  border: `1.5px solid ${statusBorderColors[normalizedStatus] || '#888'}`,
                                   boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
                                   transition: 'background 0.2s',
                                 }}
+                                data-status={normalizedStatus}
                               >
-                                  <span
+                                <span
                                   className={`run-status-badge status-${normalizedStatus}`}
                                   style={{
                                     minWidth: 26,
                                     textAlign: 'center',
                                     fontSize: '1.2em',
-                                    background: badgeBg[normalizedStatus],
-                                    color: badgeColor[normalizedStatus],
                                     borderRadius: '50%',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     border: '1.5px solid transparent',
                                   }}
-                                  >
-                                  {getStatusIcon(workflow.status, workflow.conclusion)}
-                                  </span>
-                                  <span style={{ display: 'inline-block', width: '4px' }} />
-                                  <span
-                                    style={{ fontWeight: 600, fontSize: '1.05em', color: '#222', flex: '1 1 0', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.5em' }}
-                                    title={workflow.name || workflowKey}
-                                  >
-                                      {workflow.name || workflowKey}
-                                    <span style={{ color: '#888', fontSize: '0.97em', fontWeight: 500, background: '#f0f0f0', borderRadius: '4px', padding: '2px 6px' }}>{branch}</span>
-                                  </span>
-                                
+                                >
+                                  <span className="status-icon">{getStatusIcon(workflow.status, workflow.conclusion)}</span>
+                                </span>
+                                <span style={{ display: 'inline-block', width: '4px' }} />
+                                <span
+                                  style={{ fontWeight: 600, fontSize: '1.05em', color: 'var(--text-primary)', flex: '1 1 0', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.5em' }}
+                                  title={workflow.name || workflowKey}
+                                >
+                                  {workflow.name || workflowKey}
+                                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.97em', fontWeight: 500, background: 'var(--bg-tertiary)', borderRadius: '4px', padding: '2px 6px' }}>{branch}</span>
+                                </span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
                                   {workflow.updatedAt && (
-                                    <span style={{ color: '#1976d2', fontSize: '0.97em', fontWeight: 500 }} title={new Date(workflow.updatedAt).toLocaleString()}>
+                                    <span style={{ color: 'var(--primary-color)', fontSize: '0.97em', fontWeight: 500 }} title={new Date(workflow.updatedAt).toLocaleString()}>
                                       {formatRelativeTime(workflow.updatedAt)}
                                     </span>
                                   )}
@@ -1029,7 +988,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                                       href={`${repo.repository.url}/commit/${workflow.commit}`}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      style={{ color: '#1976d2', textDecoration: 'none', fontWeight: 500, fontSize: '0.97em', background: '#e3f2fd', borderRadius: '4px', padding: '2px 6px', marginLeft: '0.5em' }}
+                                      style={{ color: 'var(--primary-color)', textDecoration: 'none', fontWeight: 500, fontSize: '0.97em', background: 'var(--bg-tertiary)', borderRadius: '4px', padding: '2px 6px', marginLeft: '0.5em' }}
                                       title={workflow.commit}
                                     >
                                       {truncateSha(workflow.commit)}
@@ -1040,7 +999,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                                       href={workflow.url}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      style={{ marginLeft: 6, color: '#1976d2', textDecoration: 'none', fontWeight: 600, fontSize: '0.97em', borderRadius: '4px', padding: '2px 8px', background: '#e3f2fd', transition: 'background 0.2s' }}
+                                      style={{ marginLeft: 6, color: 'var(--primary-color)', textDecoration: 'none', fontWeight: 600, fontSize: '0.97em', borderRadius: '4px', padding: '2px 8px', background: 'var(--bg-tertiary)', transition: 'background 0.2s' }}
                                     >
                                       View
                                     </a>
