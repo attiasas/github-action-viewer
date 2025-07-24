@@ -25,6 +25,7 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
   let workflowsWithOnlyFailures = 0;
   // Track workflows not run in the last N days for multiple thresholds
   const notRunThresholds = [30, 60, 90, 120, 150, 365];
+  // For each threshold, count workflows that have not run in that many days (but only the largest threshold per workflow)
   const workflowsNotRunRecently: Record<number, number> = {};
   notRunThresholds.forEach(days => { workflowsNotRunRecently[days] = 0; });
   const consecutiveFailures: Record<string, number> = {};
@@ -44,15 +45,16 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
       workflowsWithNoRuns++;
       return;
     }
-    // Check for workflows not run recently (last run older than each threshold)
+    // For each workflow, only count the largest threshold it exceeds
     if (workflow.length > 0 && workflow[0].updatedAt) {
       const lastRun = new Date(workflow[0].updatedAt).getTime();
       if (!isNaN(lastRun)) {
-        notRunThresholds.forEach(days => {
-          if (now - lastRun > days * 24 * 60 * 60 * 1000) {
-            workflowsNotRunRecently[days] = (workflowsNotRunRecently[days] || 0) + 1;
-          }
-        });
+        // Find the largest threshold exceeded
+        const exceeded = notRunThresholds.filter(days => (now - lastRun > days * 24 * 60 * 60 * 1000));
+        if (exceeded.length > 0) {
+          const maxDays = Math.max(...exceeded);
+          workflowsNotRunRecently[maxDays] = (workflowsNotRunRecently[maxDays] || 0) + 1;
+        }
       }
     }
     // Analyze run statuses for this workflow
@@ -114,18 +116,17 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
         : `${workflowsWithOnlyFailures} workflows have only failures`
     });
   }
-  // Add indications for each threshold, largest first (e.g. 90, 60, 30, 14, 7)
-  notRunThresholds.slice().sort((a, b) => b - a).forEach(days => {
-    const count = workflowsNotRunRecently[days];
-    if (count > 0) {
-      indications.push({
-        type: 'warning',
-        message: count === 1
-          ? `1 workflow has not run in the last ${days} days`
-          : `${count} workflows have not run in the last ${days} days`
-      });
-    }
-  });
+  // Only display the largest threshold indication for not run recently
+  const maxNotRunDays = notRunThresholds.filter(days => workflowsNotRunRecently[days] > 0).sort((a, b) => b - a)[0];
+  if (maxNotRunDays) {
+    const count = workflowsNotRunRecently[maxNotRunDays];
+    indications.push({
+      type: 'warning',
+      message: count === 1
+        ? `1 workflow has not run in the last ${maxNotRunDays} days`
+        : `${count} workflows have not run in the last ${maxNotRunDays} days`
+    });
+  }
   // Only show the most significant (longest) failure and success streaks
   const maxFailureStreak = Object.keys(failureStreaks)
     .map(Number)
