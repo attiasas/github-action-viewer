@@ -383,8 +383,11 @@
   border-radius: 12px;
   width: 100%;
   max-width: 600px;
-  max-height: 80vh;
-  overflow-y: auto;
+  height: 60vh;      /* Fixed height for modal */
+  max-height: 80vh;  /* Prevent modal from growing too tall */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;  /* Prevent double scrollbars */
   box-shadow: var(--shadow-modal);
   animation: modalSlideIn 0.2s ease-out;
 }
@@ -437,6 +440,11 @@
 }
 
 .modal-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
   padding: 24px;
 }
 
