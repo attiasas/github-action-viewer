@@ -29,8 +29,8 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
     running: 3,
     pending: 4,
     unknown: 5,
-    no_runs: 6,
-    success: 7,
+    success: 6,
+    no_runs: 7,
   };
 
   // Helper to count consecutive runs with the same status from the start
@@ -82,12 +82,8 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
               <span className="histogram-branch" style={{ fontSize: '0.93em', color: 'var(--text-secondary, #666)' }}>{branch}</span>
             </div>
             <div className="histogram-cubes" data-count={workflow.length}>
-              {workflow.length === 1 && getNormalizedStatus(workflow[0].status, workflow[0].conclusion) === 'no_runs' ? (
-                <span
-                  className="histogram-cube"
-                  title="No runs yet"
-                  style={{ background: STATUS_COLORS['no_runs'] }}
-                />
+              {(workflow.length === 1 && getNormalizedStatus(workflow[0].status, workflow[0].conclusion) === 'no_runs') ? (
+                <span style={{ color: 'var(--text-secondary, #888)', fontSize: '0.97em', padding: '2px 0' }}>No runs yet</span>
               ) : (
                 workflow.map((run, idx) => {
                   const normalized = getNormalizedStatus(run.status, run.conclusion);
