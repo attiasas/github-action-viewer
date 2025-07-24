@@ -69,7 +69,7 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
       if (status === 'failure') {
         failStreak++;
         totalFailures++;
-        if (i === workflow.length - 1) anyRecentFailure = true;
+        if (i === 0) anyRecentFailure = true;
         successStreak = 0;
         hasFailure = true;
       } else if (status === 'success') {
