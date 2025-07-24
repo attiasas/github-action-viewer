@@ -5,6 +5,8 @@ export type IndicationType = 'info' | 'warning' | 'success' | 'error';
 export interface Indication {
   type: IndicationType;
   message: string;
+  url?: string;
+  timestamp?: string;
 }
 
 export function getIndications(runs: Array<{ branch: string; workflowKey: string; workflow: WorkflowStatus[] }>): Indication[] {
