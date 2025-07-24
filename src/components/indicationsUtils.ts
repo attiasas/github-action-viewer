@@ -1,15 +1,5 @@
 import type { WorkflowStatus } from '../api/Repositories';
-
-export function getNormalizedStatus(status: string, conclusion: string | null): string {
-  if (status === 'no_runs') return 'no_runs';
-  if (conclusion === 'success') return 'success';
-  if (conclusion === 'failure') return 'failure';
-  if (conclusion === 'cancelled') return 'cancelled';
-  if (status === 'running' || status === 'in_progress') return 'running';
-  if (status === 'pending' || status === 'queued') return 'pending';
-  if (status === 'error') return 'error';
-  return 'unknown';
-}
+import { getNormalizedStatus } from './StatusUtils';
 
 export type IndicationType = 'info' | 'warning' | 'success' | 'error';
 export interface Indication {

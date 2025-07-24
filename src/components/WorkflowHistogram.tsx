@@ -2,6 +2,7 @@
 import './WorkflowHistogram.css';
 import React from 'react';
 import type { WorkflowStatus } from '../api/Repositories';
+import { getNormalizedStatus } from './StatusUtils';
 
 const STATUS_COLORS: Record<string, string> = {
   success: '#4caf50',
@@ -14,16 +15,6 @@ const STATUS_COLORS: Record<string, string> = {
   no_runs: '#bdbdbd',
 };
 
-function getNormalizedStatus(status: string, conclusion: string | null): string {
-  if (status === 'no_runs') return 'no_runs';
-  if (conclusion === 'success') return 'success';
-  if (conclusion === 'failure') return 'failure';
-  if (conclusion === 'cancelled') return 'cancelled';
-  if (status === 'running' || status === 'in_progress') return 'running';
-  if (status === 'pending' || status === 'queued') return 'pending';
-  if (status === 'error') return 'error';
-  return 'unknown';
-}
 
 export interface WorkflowHistogramProps {
   runs: Array<{ branch: string; workflowKey: string; workflow: WorkflowStatus[] }>;
@@ -99,13 +90,13 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                 />
               ) : (
                 workflow.map((run, idx) => {
-                  const status = getNormalizedStatus(run.status, run.conclusion);
+                  const normalized = getNormalizedStatus(run.status, run.conclusion);
                   return (
                     <span
                       key={run.runNumber || idx}
                       className="histogram-cube"
-                      title={`Run #${run.runNumber || ''} - ${status}`}
-                      style={{ background: STATUS_COLORS[status] || '#bdbdbd' }}
+                      title={`Run #${run.runNumber || ''} - ${normalized}`}
+                      style={{ background: STATUS_COLORS[normalized] || '#bdbdbd' }}
                     />
                   );
                 })

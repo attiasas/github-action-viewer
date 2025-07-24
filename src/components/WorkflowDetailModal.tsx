@@ -3,6 +3,7 @@ import { getIndications } from './indicationsUtils';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import WorkflowHistogram from './WorkflowHistogram';
 import { useAuth } from '../contexts/AuthContext';
+import { getNormalizedStatus } from './StatusUtils';
 
 import type { TrackedRepository, RepositoryStatus, WorkflowStatus } from '../api/Repositories';
 import './WorkflowDetailModal.css';
@@ -499,17 +500,6 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
     return '?';
   };
 
-  const normalizeStatus = (status: string, conclusion: string | null) => {
-    if (conclusion === 'success') return 'success';
-    if (conclusion === 'failure') return 'failure';
-    if (conclusion === 'cancelled') return 'cancelled';
-    if (status === 'in_progress') return 'running';
-    if (status === 'queued' || status === 'pending') return 'pending';
-    if (status === 'completed' && !conclusion) return 'pending'; // Treat completed without conclusion as pending
-    if (status === 'completed') return 'pending'; // Default completed to pending until we have a conclusion
-    return 'unknown';
-  };
-
   const truncateSha = (sha: string) => {
     return sha?.substring(0, 7) || '';
   };
@@ -808,8 +798,8 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                 // Order filteredRuns by normalized status, then by updatedAt (descending)
                 const statusOrder = ['running', 'failure', 'pending', 'cancelled', 'unknown', 'success'];
                 filteredRuns.sort((a, b) => {
-                  const statusA = normalizeStatus(a.workflow.status, a.workflow.conclusion);
-                  const statusB = normalizeStatus(b.workflow.status, b.workflow.conclusion);
+                  const statusA = getNormalizedStatus(a.workflow.status, a.workflow.conclusion);
+                  const statusB = getNormalizedStatus(b.workflow.status, b.workflow.conclusion);
                   const statusDiff = statusOrder.indexOf(statusA) - statusOrder.indexOf(statusB);
                   if (statusDiff !== 0) return statusDiff;
                   // Secondary sort: most recent updatedAt first
@@ -906,7 +896,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                                     runCount++;
                                     filteredRuns.push({ branch: branchName, workflowKey, workflow: wf });
                                   }
-                                  const normalizedStatus = normalizeStatus(wf.status, wf.conclusion);
+                                  const normalizedStatus = getNormalizedStatus(wf.status, wf.conclusion);
                                   if (normalizedStatus === 'success') stats.success++;
                                   else if (normalizedStatus === 'failure') stats.failure++;
                                   else if (normalizedStatus === 'pending') stats.pending++;
@@ -938,7 +928,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                       ) : (
                         <ul id="latest-runs-section" style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0 0 0' }}>
                           {filteredRuns.slice(0, 10).map(({ branch, workflowKey, workflow }, idx) => {
-                            const normalizedStatus = normalizeStatus(workflow.status, workflow.conclusion);
+                            const normalizedStatus = getNormalizedStatus(workflow.status, workflow.conclusion);
                             return (
                               <li
                                 key={branch + workflowKey + idx}
