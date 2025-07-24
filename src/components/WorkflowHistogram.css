@@ -12,7 +12,7 @@
 }
 .histogram-entry {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 1.2rem;
   background: var(--bg-tertiary, #f8f8f8);
   border-radius: 8px;
@@ -39,7 +39,9 @@
   display: flex;
   align-items: center;
   gap: 0.18em;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  min-height: 22px;
 }
 .histogram-cube {
   width: 18px;
@@ -47,7 +49,7 @@
   border-radius: 4px;
   display: inline-block;
   margin-right: 2px;
-  margin-bottom: 2px;
+  margin-bottom: 0;
   box-shadow: 0 1px 2px rgba(0,0,0,0.07);
   border: 1.5px solid var(--border-secondary, #e0e0e0);
   transition: transform 0.1s;
@@ -56,7 +58,9 @@
 .histogram-cube:hover {
   transform: scale(1.18);
   border-color: var(--primary-color-hover, #888);
-  z-index: 2;
+  /* Remove z-index and margin/font changes to prevent flicker */
+  /* Reserve space for border color change to prevent flicker */
+  box-sizing: border-box;
 }
 
 @media (max-width: 600px) {

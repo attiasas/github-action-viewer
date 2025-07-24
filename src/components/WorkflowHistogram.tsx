@@ -90,7 +90,7 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
               </span>
               <span className="histogram-branch" style={{ fontSize: '0.93em', color: 'var(--text-secondary, #666)' }}>{branch}</span>
             </div>
-            <div className="histogram-cubes">
+            <div className="histogram-cubes" data-count={workflow.length}>
               {workflow.length === 1 && getNormalizedStatus(workflow[0].status, workflow[0].conclusion) === 'no_runs' ? (
                 <span
                   className="histogram-cube"
