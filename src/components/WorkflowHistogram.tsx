@@ -118,6 +118,9 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
           const wfName = workflow && workflow.length > 0 && workflow[0].name;
           const wfPath = workflow && workflow.length > 0 && workflow[0].workflow_path;
           const statusChangeIndicators = getStatusChangeIndicators(workflow);
+          // Find the first (latest) status change index (lowest idx in statusChangeIndicators)
+          const statusChangeIdxs = Object.keys(statusChangeIndicators).map(Number);
+          const firstStatusChangeIdx = statusChangeIdxs.length > 0 ? Math.min(...statusChangeIdxs) : -1;
           return (
             <div className="histogram-entry" key={branch + ':' + workflowKey}>
               <div className="histogram-label">
@@ -138,10 +141,11 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                     const tooltip = `Run #${run.runNumber || ''}\nStatus: ${normalized}\nCommit: ${shortCommit(run.commit)}\nDate: ${formatDate(run.createdAt)}${run.url ? '\nClick to view run' : ''}`;
                     const changeType = statusChangeIndicators[idx];
                     const isStatusChange = !!changeType;
+                    const pulse = isStatusChange && idx === firstStatusChangeIdx;
                     return (
                       <span
                         key={run.runNumber || idx}
-                        className={`histogram-cube${isStatusChange ? ' histogram-cube-status-change' : ''}`}
+                        className={`histogram-cube${isStatusChange ? (pulse ? ' histogram-cube-status-change' : ' histogram-cube-status-change-static') : ''}`}
                         title={tooltip + (isStatusChange ? `\nStatus changed (${changeType}) from previous run` : '')}
                         style={{
                           background: STATUS_COLORS[normalized] || '#bdbdbd',
