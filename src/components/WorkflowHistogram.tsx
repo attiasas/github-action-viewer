@@ -21,6 +21,32 @@ export interface WorkflowHistogramProps {
 }
 
 const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
+  // Status change icons by type
+  const statusChangeIcons: Record<string, React.ReactNode> = {
+    bad: <span className="histogram-status-change-indicator" style={{ color: 'var(--accent-danger, #dc3545)' }} title="Status worsened" aria-label="Status worsened">❌</span>,
+    good: <span className="histogram-status-change-indicator" style={{ color: 'var(--accent-success, #28a745)' }} title="Status improved" aria-label="Status improved">✅</span>,
+    info: <span className="histogram-status-change-indicator" style={{ color: 'var(--accent-warning, #ffc107)' }} title="Status changed" aria-label="Status changed">&#x1F504;</span>,
+  };
+
+  // Helper to determine type of status change
+  function getStatusChangeType(prev: string, curr: string): 'bad' | 'good' | 'info' {
+    if (prev === 'success' && (curr === 'failure' || curr === 'error' || curr === 'cancelled')) return 'bad';
+    if ((prev === 'failure' || prev === 'error' || prev === 'cancelled') && curr === 'success') return 'good';
+    return 'info';
+  }
+
+  // Helper to find status change indices and types in workflow runs (latest first)
+  function getStatusChangeIndicators(workflow: WorkflowStatus[]): Record<number, 'bad' | 'good' | 'info'> {
+    const indicators: Record<number, 'bad' | 'good' | 'info'> = {};
+    for (let i = 0; i < workflow.length - 1; i++) {
+      const curr = getNormalizedStatus(workflow[i].status, workflow[i].conclusion);
+      const next = getNormalizedStatus(workflow[i + 1].status, workflow[i + 1].conclusion);
+      if (curr !== next) {
+        indicators[i] = getStatusChangeType(next, curr); // compare to next (older) run
+      }
+    }
+    return indicators;
+  }
   // Helper to rank statuses (worst first)
   const STATUS_RANK: Record<string, number> = {
     failure: 0,
@@ -91,6 +117,7 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
         {sortedRuns.map(({ branch, workflowKey, workflow }) => {
           const wfName = workflow && workflow.length > 0 && workflow[0].name;
           const wfPath = workflow && workflow.length > 0 && workflow[0].workflow_path;
+          const statusChangeIndicators = getStatusChangeIndicators(workflow);
           return (
             <div className="histogram-entry" key={branch + ':' + workflowKey}>
               <div className="histogram-label">
@@ -109,18 +136,30 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                   workflow.map((run, idx) => {
                     const normalized = getNormalizedStatus(run.status, run.conclusion);
                     const tooltip = `Run #${run.runNumber || ''}\nStatus: ${normalized}\nCommit: ${shortCommit(run.commit)}\nDate: ${formatDate(run.createdAt)}${run.url ? '\nClick to view run' : ''}`;
+                    const changeType = statusChangeIndicators[idx];
+                    const isStatusChange = !!changeType;
                     return (
                       <span
                         key={run.runNumber || idx}
-                        className="histogram-cube"
-                        title={tooltip}
-                        style={{ background: STATUS_COLORS[normalized] || '#bdbdbd', cursor: run.url ? 'pointer' : 'default', border: normalized === 'success' ? '2px solid var(--status-success, #28a745)' : undefined }}
+                        className={`histogram-cube${isStatusChange ? ' histogram-cube-status-change' : ''}`}
+                        title={tooltip + (isStatusChange ? `\nStatus changed (${changeType}) from previous run` : '')}
+                        style={{
+                          background: STATUS_COLORS[normalized] || '#bdbdbd',
+                          cursor: run.url ? 'pointer' : 'default',
+                          border: normalized === 'success' ? '2px solid var(--status-success, #28a745)' : undefined,
+                          position: 'relative',
+                        }}
                         onClick={() => { if (run.url) window.open(run.url, '_blank', 'noopener'); }}
                         tabIndex={run.url ? 0 : -1}
                         aria-label={tooltip.replace(/\n/g, ' ')}
                       >
                         {/* Show run number below cube for clarity on mobile */}
                         <span style={{ display: 'none' }}>{run.runNumber}</span>
+                        {isStatusChange && (
+                          <span className="histogram-status-change-badge" title={`Status changed (${changeType}) from previous run`}>
+                            {statusChangeIcons[changeType]}
+                          </span>
+                        )}
                       </span>
                     );
                   })
