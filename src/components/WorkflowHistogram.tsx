@@ -7,12 +7,12 @@ import { getNormalizedStatus } from './StatusUtils';
 const STATUS_COLORS: Record<string, string> = {
   success: '#4caf50',
   failure: '#f44336',
-  cancelled: '#9e9e9e',
+  cancelled: '#a17fc3', // distinct purple for cancelled
   running: '#2196f3',
   pending: '#ff9800',
   error: '#e91e63',
-  unknown: '#bdbdbd',
-  no_runs: '#bdbdbd',
+  unknown: '#6ec6ff', // light blue for unknown
+  no_runs: '#e0e0e0', // light gray for no_runs
 };
 
 
