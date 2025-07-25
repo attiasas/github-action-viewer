@@ -117,29 +117,32 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
     const bConsec = countConsecutiveSameStatus(b.workflow);
     return bConsec - aConsec;
   });
-
-  // Helper to get daily status: last run of each day, going back from today
+  // Helper to get daily status: last run of each day, from last run date back to today
   function getDailyStatus(workflow: WorkflowStatus[]): Array<{ date: string; run: WorkflowStatus | null }> {
     if (!workflow.length) return [];
     // Map date string (YYYY-MM-DD) to latest run for that day
+    // And also keep track of the last run date
     const map = new Map<string, WorkflowStatus>();
+    let lastRunDate: Date | null = null;
     for (const run of workflow) {
-      if (!run.createdAt) continue;
-      const d = new Date(run.createdAt);
+      const createdAt = run.createdAt || run.updatedAt; // Prefer createdAt, fallback to updatedAt
+      if (!createdAt) continue;
+      const d = new Date(createdAt);
       const dayStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
       // Only keep the latest run for the day (assuming workflow is sorted latest first)
       if (!map.has(dayStr)) {
         map.set(dayStr, run);
+        lastRunDate = d;
       }
     }
-    // Build array from today going back, up to N days (max 14 for UI)
+    if (!lastRunDate) return [];
+    // Build array from today back to last run date
     const days: Array<{ date: string; run: WorkflowStatus | null }> = [];
-    const today = new Date();
-    for (let i = 0; i < 60; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
+    const d = new Date();
+    while (d >= lastRunDate) {
       const dayStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
       days.push({ date: dayStr, run: map.get(dayStr) || null });
+      d.setDate(d.getDate() - 1);
     }
     return days;
   }
