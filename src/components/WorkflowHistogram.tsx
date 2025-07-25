@@ -101,6 +101,32 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
     return bConsec - aConsec;
   });
 
+  // Helper to get daily status: last run of each day, going back from today
+  function getDailyStatus(workflow: WorkflowStatus[]): Array<{ date: string; run: WorkflowStatus | null }> {
+    if (!workflow.length) return [];
+    // Map date string (YYYY-MM-DD) to latest run for that day
+    const map = new Map<string, WorkflowStatus>();
+    for (const run of workflow) {
+      if (!run.createdAt) continue;
+      const d = new Date(run.createdAt);
+      const dayStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      // Only keep the latest run for the day (assuming workflow is sorted latest first)
+      if (!map.has(dayStr)) {
+        map.set(dayStr, run);
+      }
+    }
+    // Build array from today going back, up to N days (max 14 for UI)
+    const days: Array<{ date: string; run: WorkflowStatus | null }> = [];
+    const today = new Date();
+    for (let i = 0; i < 60; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dayStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      days.push({ date: dayStr, run: map.get(dayStr) || null });
+    }
+    return days;
+  }
+
   return (
     <section className="analytics-histogram">
       <h3>Workflow Run Histograms</h3>
@@ -121,6 +147,8 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
           // Find the first (latest) status change index (lowest idx in statusChangeIndicators)
           const statusChangeIdxs = Object.keys(statusChangeIndicators).map(Number);
           const firstStatusChangeIdx = statusChangeIdxs.length > 0 ? Math.min(...statusChangeIdxs) : -1;
+          // Get daily status
+          const dailyStatus = getDailyStatus(workflow);
           return (
             <div className="histogram-entry" key={branch + ':' + workflowKey}>
               <div className="histogram-label">
@@ -132,42 +160,78 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                 )}
                 <span className="histogram-branch" style={{ fontSize: '0.93em', color: 'var(--text-secondary, #666)' }}>{branch}</span>
               </div>
-              <div className="histogram-cubes" data-count={workflow.length}>
-                {(workflow.length === 1 && getNormalizedStatus(workflow[0].status, workflow[0].conclusion) === 'no_runs') ? (
-                  <span style={{ color: 'var(--text-secondary, #888)', fontSize: '0.97em', padding: '2px 0' }}>No runs yet</span>
-                ) : (
-                  workflow.map((run, idx) => {
-                    const normalized = getNormalizedStatus(run.status, run.conclusion);
-                    const tooltip = `Run #${run.runNumber || ''}\nStatus: ${normalized}\nCommit: ${shortCommit(run.commit)}\nDate: ${formatDate(run.createdAt)}${run.url ? '\nClick to view run' : ''}`;
-                    const changeType = statusChangeIndicators[idx];
-                    const isStatusChange = !!changeType;
-                    const pulse = isStatusChange && idx === firstStatusChangeIdx;
-                    return (
-                      <span
-                        key={run.runNumber || idx}
-                        className={`histogram-cube${isStatusChange ? (pulse ? ' histogram-cube-status-change' : ' histogram-cube-status-change-static') : ''}`}
-                        title={tooltip + (isStatusChange ? `\nStatus changed (${changeType}) from previous run` : '')}
-                        style={{
-                          background: STATUS_COLORS[normalized] || '#bdbdbd',
-                          cursor: run.url ? 'pointer' : 'default',
-                          border: normalized === 'success' ? '2px solid var(--status-success, #28a745)' : undefined,
-                          position: 'relative',
-                        }}
-                        onClick={() => { if (run.url) window.open(run.url, '_blank', 'noopener'); }}
-                        tabIndex={run.url ? 0 : -1}
-                        aria-label={tooltip.replace(/\n/g, ' ')}
-                      >
-                        {/* Show run number below cube for clarity on mobile */}
-                        <span style={{ display: 'none' }}>{run.runNumber}</span>
-                        {isStatusChange && (
-                          <span className="histogram-status-change-badge" title={`Status changed (${changeType}) from previous run`}>
-                            {statusChangeIcons[changeType]}
-                          </span>
-                        )}
-                      </span>
-                    );
-                  })
-                )}
+              {/* Main histogram */}
+              <div style={{ width: '100%' }}>
+                <div style={{ fontSize: '0.97em', fontWeight: 500, marginBottom: 2 }}>Recent Runs</div>
+                <div className="histogram-cubes" data-count={workflow.length}>
+                  {(workflow.length === 1 && getNormalizedStatus(workflow[0].status, workflow[0].conclusion) === 'no_runs') ? (
+                    <span style={{ color: 'var(--text-secondary, #888)', fontSize: '0.97em', padding: '2px 0' }}>No runs yet</span>
+                  ) : (
+                    workflow.map((run, idx) => {
+                      const normalized = getNormalizedStatus(run.status, run.conclusion);
+                      const tooltip = `Run #${run.runNumber || ''}\nStatus: ${normalized}\nCommit: ${shortCommit(run.commit)}\nDate: ${formatDate(run.createdAt)}${run.url ? '\nClick to view run' : ''}`;
+                      const changeType = statusChangeIndicators[idx];
+                      const isStatusChange = !!changeType;
+                      const pulse = isStatusChange && idx === firstStatusChangeIdx;
+                      return (
+                        <span
+                          key={run.runNumber || idx}
+                          className={`histogram-cube${isStatusChange ? (pulse ? ' histogram-cube-status-change' : ' histogram-cube-status-change-static') : ''}`}
+                          title={tooltip + (isStatusChange ? `\nStatus changed (${changeType}) from previous run` : '')}
+                          style={{
+                            background: STATUS_COLORS[normalized] || '#bdbdbd',
+                            cursor: run.url ? 'pointer' : 'default',
+                            border: normalized === 'success' ? '2px solid var(--status-success, #28a745)' : undefined,
+                            position: 'relative',
+                          }}
+                          onClick={() => { if (run.url) window.open(run.url, '_blank', 'noopener'); }}
+                          tabIndex={run.url ? 0 : -1}
+                          aria-label={tooltip.replace(/\n/g, ' ')}
+                        >
+                          {/* Show run number below cube for clarity on mobile */}
+                          <span style={{ display: 'none' }}>{run.runNumber}</span>
+                          {isStatusChange && (
+                            <span className="histogram-status-change-badge" title={`Status changed (${changeType}) from previous run`}>
+                              {statusChangeIcons[changeType]}
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })
+                  )}
+                </div>
+                {/* Daily status histogram */}
+                <div style={{ fontSize: '0.97em', fontWeight: 500, margin: '10px 0 2px 0' }}>Daily Status</div>
+                <div className="histogram-cubes" data-count={dailyStatus.length}>
+                  {dailyStatus.every(ds => !ds.run) ? (
+                    <span style={{ color: 'var(--text-secondary, #888)', fontSize: '0.97em', padding: '2px 0' }}>No runs yet</span>
+                  ) : (
+                    dailyStatus.map((ds) => {
+                      const normalized = ds.run ? getNormalizedStatus(ds.run.status, ds.run.conclusion) : 'no_runs';
+                      const tooltip = ds.run
+                        ? `Date: ${ds.date}\nStatus: ${normalized}\nRun #${ds.run.runNumber || ''}\nCommit: ${shortCommit(ds.run.commit)}${ds.run.url ? '\nClick to view run' : ''}`
+                        : `Date: ${ds.date}\nNo run`;
+                      return (
+                        <span
+                          key={ds.date}
+                          className="histogram-cube"
+                          title={tooltip}
+                          style={{
+                            background: STATUS_COLORS[normalized] || '#bdbdbd',
+                            cursor: ds.run && ds.run.url ? 'pointer' : 'default',
+                            opacity: ds.run ? 1 : 0.45,
+                          }}
+                          onClick={() => { if (ds.run && ds.run.url) window.open(ds.run.url, '_blank', 'noopener'); }}
+                          tabIndex={ds.run && ds.run.url ? 0 : -1}
+                          aria-label={tooltip.replace(/\n/g, ' ')}
+                        >
+                          {/* Show date below cube for clarity on mobile */}
+                          <span style={{ display: 'none' }}>{ds.date}</span>
+                        </span>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             </div>
           );
