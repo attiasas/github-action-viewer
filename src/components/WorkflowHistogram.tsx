@@ -149,7 +149,7 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
 
   return (
     <section className="analytics-histogram">
-      <h3>Workflow Run Histograms</h3>
+      <h3>Workflow Run Analysis</h3>
       {/* Status color legend */}
       <div style={{ display: 'flex', gap: '1.5em', marginBottom: '0.7em', flexWrap: 'wrap', fontSize: '0.97em' }}>
         {Object.entries(STATUS_COLORS).map(([status, color]) => (
@@ -162,7 +162,6 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
       <div className="histogram-list">
         {sortedRuns.map(({ branch, workflowKey, workflow }) => {
           const wfName = workflow && workflow.length > 0 && workflow[0].name;
-          const wfPath = workflow && workflow.length > 0 && workflow[0].workflow_path;
           const statusChangeIndicators = getStatusChangeIndicators(workflow);
           // Find the first (latest) status change index (lowest idx in statusChangeIndicators)
           const statusChangeIdxs = Object.keys(statusChangeIndicators).map(Number);
@@ -175,14 +174,11 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                 <span className="histogram-workflow" style={{ fontWeight: 600, fontSize: '1.07em' }}>
                   {wfName && typeof wfName === 'string' && wfName.trim().length > 0 ? wfName : workflowKey}
                 </span>
-                {wfPath && (
-                  <span style={{ fontSize: '0.89em', color: 'var(--text-tertiary, #aaa)' }}>{wfPath}</span>
-                )}
                 <span className="histogram-branch" style={{ fontSize: '0.93em', color: 'var(--text-secondary, #666)' }}>{branch}</span>
               </div>
               {/* Main histogram */}
               <div style={{ width: '100%' }}>
-                <div style={{ fontSize: '0.97em', fontWeight: 500, marginBottom: 2 }}>Recent Runs</div>
+                <div style={{ fontSize: '0.97em', fontWeight: 500, marginBottom: 10 }}>Recent Runs</div>
                 <div className="histogram-cubes" data-count={workflow.length}>
                   {(workflow.length === 1 && getNormalizedStatus(workflow[0].status, workflow[0].conclusion) === 'no_runs') ? (
                     <span style={{ color: 'var(--text-secondary, #888)', fontSize: '0.97em', padding: '2px 0' }}>No runs yet</span>
@@ -221,7 +217,7 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                   )}
                 </div>
                 {/* Daily status histogram */}
-                <div style={{ fontSize: '0.97em', fontWeight: 500, margin: '10px 0 2px 0' }}>Daily Status</div>
+                <div style={{ fontSize: '0.97em', fontWeight: 500, margin: '10px 0 10px 0' }}>Daily Status</div>
                 <div className="histogram-cubes" data-count={dailyStatus.length}>
                   {dailyStatus.every(ds => !ds.run) ? (
                     <span style={{ color: 'var(--text-secondary, #888)', fontSize: '0.97em', padding: '2px 0' }}>No runs yet</span>
