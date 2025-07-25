@@ -29,20 +29,37 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
   };
 
   // Helper to determine type of status change
-  function getStatusChangeType(prev: string, curr: string): 'bad' | 'good' | 'info' {
-    if (prev === 'success' && (curr === 'failure' || curr === 'error' || curr === 'cancelled')) return 'bad';
-    if ((prev === 'failure' || prev === 'error' || prev === 'cancelled') && curr === 'success') return 'good';
-    return 'info';
+
+  // Helper to determine type of status change
+  function getStatusChangeType(currentStatus: string, prev: WorkflowStatus[]): 'bad' | 'good' | 'info' | undefined {
+    if (!prev || !Array.isArray(prev) || prev.length === 0) return undefined;
+    const prevStatus = getNormalizedStatus(prev[0].status, prev[0].conclusion);
+    if (prevStatus === 'success' && (currentStatus === 'failure' || currentStatus === 'error')) return 'bad';
+    if ((prevStatus === 'failure' || prevStatus === 'error') && currentStatus === 'success') return 'good';
+    return undefined;
+  }
+
+  // Helper to get status indicator for a single workflow run
+  function getStatusIndicator(curr: WorkflowStatus, prev: WorkflowStatus[]): 'bad' | 'good' | 'info' | undefined {
+    if (!curr) return undefined;
+    // calculate status indicator based on current status
+    const currentStatus = getNormalizedStatus(curr.status, curr.conclusion);
+    if (currentStatus === 'running' || currentStatus === 'pending' || currentStatus === 'unknown') return 'info';
+    // calculate based on current and previous status
+    return getStatusChangeType(currentStatus, prev);
   }
 
   // Helper to find status change indices and types in workflow runs (latest first)
   function getStatusChangeIndicators(workflow: WorkflowStatus[]): Record<number, 'bad' | 'good' | 'info'> {
     const indicators: Record<number, 'bad' | 'good' | 'info'> = {};
-    for (let i = 0; i < workflow.length - 1; i++) {
-      const curr = getNormalizedStatus(workflow[i].status, workflow[i].conclusion);
-      const next = getNormalizedStatus(workflow[i + 1].status, workflow[i + 1].conclusion);
-      if (curr !== next) {
-        indicators[i] = getStatusChangeType(next, curr); // compare to next (older) run
+    for (let i = 0; i < workflow.length; i++) {
+      let prev: WorkflowStatus[] = [];
+      if (i < workflow.length - 1) {
+        prev = workflow.slice(i + 1);
+      }
+      const changeType = getStatusIndicator(workflow[i], prev);
+      if (changeType) {
+        indicators[i] = changeType;
       }
     }
     return indicators;
