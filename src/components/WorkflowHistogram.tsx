@@ -22,6 +22,18 @@ export interface WorkflowHistogramProps {
 }
 
 const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
+  // Helper to format run time from start and end timestamps
+  function formatRunTime(totalSeconds: number): string {
+    if (isNaN(totalSeconds) || totalSeconds <= 0) return '';
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    let str = '';
+    if (hours > 0) str += `${hours}h `;
+    if (minutes > 0 || hours > 0) str += `${minutes}m `;
+    str += `${seconds}s`;
+    return str.trim();
+  }
   // Status change icons by type
   const statusChangeIcons: Record<string, React.ReactNode> = {
     bad: <span className="histogram-status-change-indicator" style={{ color: 'var(--accent-danger, #dc3545)' }} title="Status worsened" aria-label="Status worsened">❌</span>,
@@ -209,15 +221,8 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                   const info = getWorkflowAggregatedInfo(workflow);
                   const avgRunTimeStr = (() => {
                     if (info.avgRunTime === null) return 'N/A';
-                    const totalSeconds = Math.round(info.avgRunTime / 1000);
-                    const hours = Math.floor(totalSeconds / 3600);
-                    const minutes = Math.floor((totalSeconds % 3600) / 60);
-                    const seconds = totalSeconds % 60;
-                    let str = '';
-                    if (hours > 0) str += `${hours}h `;
-                    if (minutes > 0 || hours > 0) str += `${minutes}m `;
-                    str += `${seconds}s`;
-                    return str.trim();
+                    const avgRunTime = formatRunTime(Math.round(info.avgRunTime / 1000));
+                    return avgRunTime || 'N/A';
                   })();
                   const successRateStr = info.successRate !== null ? `${(info.successRate * 100).toFixed(1)}%` : 'N/A';
                   return (
@@ -252,18 +257,10 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                         const start = new Date(run.runStartedAt).getTime();
                         const end = new Date(run.updatedAt).getTime();
                         if (!isNaN(start) && !isNaN(end) && end > start) {
-                          const totalSeconds = Math.round((end - start) / 1000);
-                          const hours = Math.floor(totalSeconds / 3600);
-                          const minutes = Math.floor((totalSeconds % 3600) / 60);
-                          const seconds = totalSeconds % 60;
-                          let str = '';
-                          if (hours > 0) str += `${hours}h `;
-                          if (minutes > 0 || hours > 0) str += `${minutes}m `;
-                          str += `${seconds}s`;
-                          runTimeStr = `\nRun time: ${str.trim()}`;
+                          runTimeStr = formatRunTime(Math.round((end - start) / 1000));
                         }
                       }
-                      const tooltip = `Run #${run.runNumber || run.runId || ''}\nAttempt: ${run.runAttempt || -1}\nStatus: ${run.conclusion || run.status}\nEvent: ${run.event || ''}\nCommit: ${shortCommit(run.commit)}\nCreated at: ${formatDate(run.createdAt)}\nStarted at: ${formatDate(run.runStartedAt)}\nUpdated at: ${formatDate(run.updatedAt)}${runTimeStr}${run.url ? '\n\nClick to view run' : ''}`;
+                      const tooltip = `Run #${run.runNumber || run.runId || ''}\nAttempt: ${run.runAttempt || -1}\nStatus: ${run.conclusion || run.status}\nEvent: ${run.event || ''}\nCommit: ${shortCommit(run.commit)}\nCreated at: ${formatDate(run.createdAt)}\nStarted at: ${formatDate(run.runStartedAt)}\nUpdated at: ${formatDate(run.updatedAt)}${runTimeStr ? `\nRun time: ${runTimeStr}` : ''}${run.url ? '\n\nClick to view run' : ''}`;
                       const changeType = statusChangeIndicators[idx];
                       const isStatusChange = !!changeType;
                       const pulse = isStatusChange && idx === firstStatusChangeIdx;
