@@ -1,7 +1,7 @@
 import React from 'react';
 import './DailyStatusHistogram.css';
 import type { WorkflowStatus } from '../../api/Repositories';
-import { getNormalizedStatus, getDailyStatus } from '../StatusUtils';
+import { getNormalizedStatus, getDailyStatus, getStatusIndicator } from '../StatusUtils';
 
 const STATUS_COLORS: Record<string, string> = {
   success: '#4caf50',
@@ -16,11 +16,10 @@ const STATUS_COLORS: Record<string, string> = {
 
 interface DailyStatusHistogramProps {
   workflow: WorkflowStatus[];
-  getStatusIndicator: (curr: WorkflowStatus, prev: WorkflowStatus[]) => 'bad' | 'good' | 'info' | undefined;
   shortCommit: (commit: string | null | undefined) => string;
 }
 
-const DailyStatusHistogram: React.FC<DailyStatusHistogramProps> = ({ workflow, getStatusIndicator, shortCommit }) => {
+const DailyStatusHistogram: React.FC<DailyStatusHistogramProps> = ({ workflow, shortCommit }) => {
 
   const dailyStatus: Array<{ date: string; run: WorkflowStatus | null }> = getDailyStatus(workflow);
   // Find the first (latest) status change index in dailyStatus

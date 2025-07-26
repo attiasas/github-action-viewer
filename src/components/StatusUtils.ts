@@ -51,3 +51,43 @@ export function getDailyStatus(workflow: WorkflowStatus[]): Array<{ date: string
   }
   return days;
 }
+
+// Helper to determine type of status change
+export function getStatusChangeType(currentStatus: string, prev: WorkflowStatus[]): 'bad' | 'good' | 'info' | undefined {
+  if (!prev || !Array.isArray(prev) || prev.length === 0) return undefined;
+  let prevStatus = 'no_runs'
+  for (let i = 0; i < prev.length; i++) {
+    // Get the normalized status of the previous run
+    prevStatus = getNormalizedStatus(prev[i].status, prev[i].conclusion);
+    if (prevStatus !== 'no_runs') break; // Use the first non-'no_runs' status
+  }
+  if (prevStatus === 'success' && (currentStatus === 'failure' || currentStatus === 'error')) return 'bad';
+  if ((prevStatus === 'failure' || prevStatus === 'error') && currentStatus === 'success') return 'good';
+  return undefined;
+}
+
+// Helper to get status indicator for a single workflow run
+export function getStatusIndicator(curr: WorkflowStatus, prev: WorkflowStatus[]): 'bad' | 'good' | 'info' | undefined {
+  if (!curr) return undefined;
+  // calculate status indicator based on current status
+  const currentStatus = getNormalizedStatus(curr.status, curr.conclusion);
+  if (currentStatus === 'running' || currentStatus === 'pending' || currentStatus === 'unknown') return 'info';
+  // calculate based on current and previous status
+  return getStatusChangeType(currentStatus, prev);
+}
+
+// Helper to find status change indices and types in workflow runs (latest first)
+export function getStatusChangeIndicators(workflow: WorkflowStatus[]): Record<number, 'bad' | 'good' | 'info'> {
+  const indicators: Record<number, 'bad' | 'good' | 'info'> = {};
+  for (let i = 0; i < workflow.length; i++) {
+    let prev: WorkflowStatus[] = [];
+    if (i < workflow.length - 1) {
+      prev = workflow.slice(i + 1);
+    }
+    const changeType = getStatusIndicator(workflow[i], prev);
+    if (changeType) {
+      indicators[i] = changeType;
+    }
+  }
+  return indicators;
+}

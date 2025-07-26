@@ -2,7 +2,7 @@
 import './WorkflowAnalysis.css';
 import React from 'react';
 import type { WorkflowStatus } from '../api/Repositories';
-import { getNormalizedStatus } from './StatusUtils';
+import { getNormalizedStatus, getStatusChangeIndicators } from './StatusUtils';
 import { getWorkflowAggregatedInfo, calculateRunTime } from './indicationsUtils';
 import RunTimeGraph from './workflowAnalysis/RunTimeGraph';
 import DailyStatusHistogram from './workflowAnalysis/DailyStatusHistogram';
@@ -66,47 +66,6 @@ const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
     info: <span className="histogram-status-change-indicator" style={{ color: 'var(--accent-warning, #ffc107)' }} title="Status changed" aria-label="Status changed">&#x1F504;</span>,
   };
 
-  // Helper to determine type of status change
-
-  // Helper to determine type of status change
-  function getStatusChangeType(currentStatus: string, prev: WorkflowStatus[]): 'bad' | 'good' | 'info' | undefined {
-    if (!prev || !Array.isArray(prev) || prev.length === 0) return undefined;
-    let prevStatus = 'no_runs'
-    for (let i = 0; i < prev.length; i++) {
-      // Get the normalized status of the previous run
-      prevStatus = getNormalizedStatus(prev[i].status, prev[i].conclusion);
-      if (prevStatus !== 'no_runs') break; // Use the first non-'no_runs' status
-    }
-    if (prevStatus === 'success' && (currentStatus === 'failure' || currentStatus === 'error')) return 'bad';
-    if ((prevStatus === 'failure' || prevStatus === 'error') && currentStatus === 'success') return 'good';
-    return undefined;
-  }
-
-  // Helper to get status indicator for a single workflow run
-  function getStatusIndicator(curr: WorkflowStatus, prev: WorkflowStatus[]): 'bad' | 'good' | 'info' | undefined {
-    if (!curr) return undefined;
-    // calculate status indicator based on current status
-    const currentStatus = getNormalizedStatus(curr.status, curr.conclusion);
-    if (currentStatus === 'running' || currentStatus === 'pending' || currentStatus === 'unknown') return 'info';
-    // calculate based on current and previous status
-    return getStatusChangeType(currentStatus, prev);
-  }
-
-  // Helper to find status change indices and types in workflow runs (latest first)
-  function getStatusChangeIndicators(workflow: WorkflowStatus[]): Record<number, 'bad' | 'good' | 'info'> {
-    const indicators: Record<number, 'bad' | 'good' | 'info'> = {};
-    for (let i = 0; i < workflow.length; i++) {
-      let prev: WorkflowStatus[] = [];
-      if (i < workflow.length - 1) {
-        prev = workflow.slice(i + 1);
-      }
-      const changeType = getStatusIndicator(workflow[i], prev);
-      if (changeType) {
-        indicators[i] = changeType;
-      }
-    }
-    return indicators;
-  }
   // Helper to rank statuses (worst first)
   const STATUS_RANK: Record<string, number> = {
     failure: 0,
@@ -275,7 +234,6 @@ const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
                   {selectedViz === 'daily' && (
                     <DailyStatusHistogram
                       workflow={workflow}
-                      getStatusIndicator={getStatusIndicator}
                       shortCommit={shortCommit}
                     />
                   )}
