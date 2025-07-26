@@ -51,28 +51,38 @@ const RecentRunsHistogram: React.FC<RecentRunsHistogramProps> = ({
             const isStatusChange = !!changeType;
             const pulse = isStatusChange && idx === firstStatusChangeIdx;
             return (
-              <span
+              <div
                 key={run.runId || idx}
-                className={`histogram-cube${isStatusChange ? (pulse ? ' histogram-cube-status-change' : ' histogram-cube-status-change-static') : ''}`}
-                title={(isStatusChange ? `Status changed (${changeType}) from previous run\n\n` : '') + tooltip}
-                style={{
-                  background: STATUS_COLORS[normalized] || '#bdbdbd',
-                  cursor: run.url ? 'pointer' : 'default',
-                  border: normalized === 'success' ? '2px solid var(--status-success, #28a745)' : undefined,
-                  position: 'relative',
-                }}
-                onClick={() => { if (run.url) window.open(run.url, '_blank', 'noopener'); }}
-                tabIndex={run.url ? 0 : -1}
-                aria-label={tooltip.replace(/\n/g, ' ')}
+                className={`histogram-cube-label-wrapper${isStatusChange ? ' has-indicator' : ''}`}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', minHeight: 60, position: 'relative' }}
               >
-                {/* Show run number below cube for clarity on mobile */}
-                <span style={{ display: 'none' }}>{run.runId}</span>
+                {/* Floating indicator above cube, always centered */}
                 {isStatusChange && (
-                  <span className="histogram-status-change-badge" title={`Status changed (${changeType}) from previous run`}>
+                  <span
+                    className={`histogram-status-change-badge${pulse ? ' histogram-status-change-badge-pulse' : ''}`}
+                    title={`Status changed (${changeType}) from previous run`}
+                  >
                     {statusChangeIcons[changeType]}
                   </span>
                 )}
-              </span>
+                {/* Cube itself */}
+                <span
+                  className={`histogram-cube${isStatusChange ? (pulse ? ' histogram-cube-status-change' : ' histogram-cube-status-change-static') : ''}`}
+                  title={(isStatusChange ? `Status changed (${changeType}) from previous run\n\n` : '') + tooltip}
+                  style={{
+                    background: STATUS_COLORS[normalized] || '#bdbdbd',
+                    cursor: run.url ? 'pointer' : 'default',
+                    border: normalized === 'success' ? '2px solid var(--status-success, #28a745)' : undefined,
+                    position: 'relative',
+                  }}
+                  onClick={() => { if (run.url) window.open(run.url, '_blank', 'noopener'); }}
+                  tabIndex={run.url ? 0 : -1}
+                  aria-label={tooltip.replace(/\n/g, ' ')}
+                >
+                  {/* Show run number below cube for clarity on mobile */}
+                  <span style={{ display: 'none' }}>{run.runId}</span>
+                </span>
+              </div>
             );
           })
         )}
