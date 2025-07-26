@@ -1,7 +1,7 @@
 import React from 'react';
 import './DailyStatusHistogram.css';
 import type { WorkflowStatus } from '../../api/Repositories';
-import { getNormalizedStatus } from '../StatusUtils';
+import { getNormalizedStatus, getDailyStatus } from '../StatusUtils';
 
 const STATUS_COLORS: Record<string, string> = {
   success: '#4caf50',
@@ -15,20 +15,22 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 interface DailyStatusHistogramProps {
-  dailyStatus: Array<{ date: string; run: WorkflowStatus | null }>;
+  workflow: WorkflowStatus[];
   getStatusIndicator: (curr: WorkflowStatus, prev: WorkflowStatus[]) => 'bad' | 'good' | 'info' | undefined;
   shortCommit: (commit: string | null | undefined) => string;
 }
 
-const DailyStatusHistogram: React.FC<DailyStatusHistogramProps> = ({ dailyStatus, getStatusIndicator, shortCommit }) => {
+const DailyStatusHistogram: React.FC<DailyStatusHistogramProps> = ({ workflow, getStatusIndicator, shortCommit }) => {
+
+  const dailyStatus: Array<{ date: string; run: WorkflowStatus | null }> = getDailyStatus(workflow);
   // Find the first (latest) status change index in dailyStatus
   const statusChangeIdxs = dailyStatus
-    .map((ds, idx) => {
-      const prev = idx < dailyStatus.length - 1 ? dailyStatus.slice(idx + 1).map(d => d.run).filter(Boolean) as WorkflowStatus[] : [];
+    .map((ds: { date: string; run: WorkflowStatus | null }, idx: number) => {
+      const prev: WorkflowStatus[] = idx < dailyStatus.length - 1 ? dailyStatus.slice(idx + 1).map((d: { date: string; run: WorkflowStatus | null }) => d.run).filter(Boolean) as WorkflowStatus[] : [];
       const changeType = ds.run ? getStatusIndicator(ds.run, prev) : undefined;
       return changeType ? idx : null;
     })
-    .filter(idx => idx !== null) as number[];
+    .filter((idx: number | null) => idx !== null) as number[];
   const firstStatusChangeIdx = statusChangeIdxs.length > 0 ? Math.min(...statusChangeIdxs) : -1;
   // Helper to get relative label (today, -1, -2, ...)
   const getRelativeLabel = (idx: number) => {
@@ -38,15 +40,15 @@ const DailyStatusHistogram: React.FC<DailyStatusHistogramProps> = ({ dailyStatus
   return (
     <div className="daily-status-histogram">
       <div className="histogram-cubes" data-count={dailyStatus.length}>
-        {dailyStatus.every(ds => !ds.run) ? (
+        {dailyStatus.every((ds: { date: string; run: WorkflowStatus | null }) => !ds.run) ? (
           <span style={{ color: 'var(--text-secondary, #888)', fontSize: '0.97em', padding: '2px 0' }}>No runs yet</span>
         ) : (
-          dailyStatus.map((ds, idx) => {
+          dailyStatus.map((ds: { date: string; run: WorkflowStatus | null }, idx: number) => {
             const normalized = ds.run ? getNormalizedStatus(ds.run.status, ds.run.conclusion) : 'no_runs';
             const tooltip = ds.run
               ? `Date: ${ds.date}\nStatus: ${ds.run.conclusion || ds.run.status}\nRun #${ds.run.runNumber || ds.run.runId || ''}\nEvent: ${ds.run.event || ''}\nCommit: ${shortCommit(ds.run.commit)}${ds.run.url ? '\n\nClick to view run' : ''}`
               : `Date: ${ds.date}\nNo run`;
-            const prev = idx < dailyStatus.length - 1 ? dailyStatus.slice(idx + 1).map(d => d.run).filter(Boolean) as WorkflowStatus[] : [];
+            const prev: WorkflowStatus[] = idx < dailyStatus.length - 1 ? dailyStatus.slice(idx + 1).map((d: { date: string; run: WorkflowStatus | null }) => d.run).filter(Boolean) as WorkflowStatus[] : [];
             const changeType = ds.run ? getStatusIndicator(ds.run, prev) : undefined;
             const isStatusChange = !!changeType;
             const pulse = isStatusChange && idx === firstStatusChangeIdx;
