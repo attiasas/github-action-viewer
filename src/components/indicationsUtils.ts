@@ -65,7 +65,7 @@ runs.forEach(({ branch, workflowKey, workflow }) => {
   // Start streak from today (idx 0) or first valid run
   let streakType: 'success' | 'failure' | null = null;
   let streakLength = 0;
-  const indicatorCounts: number[] = [5, 10, 15, 20, 25, 30, 60, 180];
+  const indicatorThresholdsCounts: number[] = [5, 10, 15, 20, 25, 30, 60, 90, 180];
   for (let i = 0; i < dailyStatus.length; i++) {
     const ds = dailyStatus[i];
     const status = ds.run ? getNormalizedStatus(ds.run.status, ds.run.conclusion) : 'no_runs';
@@ -78,11 +78,11 @@ runs.forEach(({ branch, workflowKey, workflow }) => {
     } else if (status === 'success' || status === 'failure') {
       // Streak breaks only on transition between success/failure
       if (streakType === 'success') {
-        indicatorCounts.forEach((n) => {
+        indicatorThresholdsCounts.forEach((n) => {
           if (streakLength >= n) dailySuccessStreaks[n] = (dailySuccessStreaks[n] || 0) + 1;
         });
       } else if (streakType === 'failure') {
-        indicatorCounts.forEach((n) => {
+        indicatorThresholdsCounts.forEach((n) => {
           if (streakLength >= n) dailyFailureStreaks[n] = (dailyFailureStreaks[n] || 0) + 1;
         });
       }
@@ -95,11 +95,11 @@ runs.forEach(({ branch, workflowKey, workflow }) => {
   }
   // Final streak at end of array
   if (streakType === 'success') {
-    indicatorCounts.forEach((n) => {
+    indicatorThresholdsCounts.forEach((n) => {
       if (streakLength >= n) dailySuccessStreaks[n] = (dailySuccessStreaks[n] || 0) + 1;
     });
   } else if (streakType === 'failure') {
-    indicatorCounts.forEach((n) => {
+    indicatorThresholdsCounts.forEach((n) => {
       if (streakLength >= n) dailyFailureStreaks[n] = (dailyFailureStreaks[n] || 0) + 1;
     });
   }
@@ -141,7 +141,7 @@ runs.forEach(({ branch, workflowKey, workflow }) => {
   )
   consecutiveFailures[`${branch}:${workflowKey}`] = failStreak;
   consecutiveSuccess[`${branch}:${workflowKey}`] = successStreak;
-  indicatorCounts.forEach((n) => {
+  indicatorThresholdsCounts.forEach((n) => {
     if (failStreak >= n) failureStreaks[n] = (failureStreaks[n] || 0) + 1;
     if (successStreak >= n) successStreaks[n] = (successStreaks[n] || 0) + 1;
   });
