@@ -3,7 +3,7 @@ import './WorkflowHistogram.css';
 import React from 'react';
 import type { WorkflowStatus } from '../api/Repositories';
 import { getNormalizedStatus } from './StatusUtils';
-import { getWorkflowAggregatedInfo } from './indicationsUtils';
+import { getWorkflowAggregatedInfo, calculateRunTime } from './indicationsUtils';
 
 const STATUS_COLORS: Record<string, string> = {
   success: '#4caf50',
@@ -254,11 +254,7 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                       const normalized = getNormalizedStatus(run.status, run.conclusion);
                       let runTimeStr = '';
                       if (run.runStartedAt && run.updatedAt) {
-                        const start = new Date(run.runStartedAt).getTime();
-                        const end = new Date(run.updatedAt).getTime();
-                        if (!isNaN(start) && !isNaN(end) && end > start) {
-                          runTimeStr = formatRunTime(Math.round((end - start) / 1000));
-                        }
+                        runTimeStr = formatRunTime(Math.round(calculateRunTime(new Date(run.runStartedAt).getTime(), new Date(run.updatedAt).getTime()) || 0) / 1000);
                       }
                       const tooltip = `Run #${run.runNumber || run.runId || ''}\nAttempt: ${run.runAttempt || -1}\nStatus: ${run.conclusion || run.status}\nEvent: ${run.event || ''}\nCommit: ${shortCommit(run.commit)}\nCreated at: ${formatDate(run.createdAt)}\nStarted at: ${formatDate(run.runStartedAt)}\nUpdated at: ${formatDate(run.updatedAt)}${runTimeStr ? `\nRun time: ${runTimeStr}` : ''}${run.url ? '\n\nClick to view run' : ''}`;
                       const changeType = statusChangeIndicators[idx];

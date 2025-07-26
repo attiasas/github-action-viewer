@@ -161,6 +161,13 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
   return indications;
 }
 
+export function calculateRunTime(start: number, end: number): number | null {
+  if (isNaN(start) || isNaN(end) || start >= end) return null;
+  const runTime = end - start; // Run time in milliseconds
+  // Skip not valid run times: if run time is 0 negative, Infinity or more than 7 days (This is only estimated, as GitHub does not provide actual run times)
+  return (isNaN(runTime) || runTime <= 0 || runTime === Infinity || runTime > 7 * 24 * 60 * 60 * 1000) ? null : runTime;
+}
+
 /**
  * Returns aggregated info for a workflow run array: total runs, average run time (ms), success rate, etc.
  */
@@ -179,18 +186,13 @@ export function getWorkflowAggregatedInfo(workflow: WorkflowStatus[]): {
       (status === 'success' || status === 'failure') &&
       run.runStartedAt && run.updatedAt
     ) {
-      const start = new Date(run.runStartedAt).getTime();
-      const end = new Date(run.updatedAt).getTime();
-      if (!isNaN(start) && !isNaN(end) && end > start) {
-        const runTime = end - start;
-        // Skip not valid run times: if run time is 0 negative, Infinity || more than 7 days
-        if (isNaN(runTime) || runTime <= 0 || runTime === Infinity || runTime > 7 * 24 * 60 * 60 * 1000) {
-          return;
-        }
-        totalRunTime += runTime;
-        runTimeCount++;
-        totalRuns++;
-      }
+      const runTime = calculateRunTime(new Date(run.runStartedAt).getTime(), new Date(run.updatedAt).getTime());
+      if (runTime === null) return; // Skip invalid run times
+      // If run time is valid, add to totals
+      totalRunTime += runTime;
+      runTimeCount++;
+      // Count this as a run
+      totalRuns++;
     }
     if (run.conclusion === 'success') successCount++;
   });
