@@ -1,5 +1,5 @@
 
-import './WorkflowHistogram.css';
+import './WorkflowAnalysis.css';
 import React from 'react';
 import type { WorkflowStatus } from '../api/Repositories';
 import { getNormalizedStatus } from './StatusUtils';
@@ -20,11 +20,11 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 
-export interface WorkflowHistogramProps {
+export interface WorkflowAnalysisProps {
   runs: Array<{ branch: string; workflowKey: string; workflow: WorkflowStatus[] }>;
 }
 
-const WorkflowAnalysis: React.FC<WorkflowHistogramProps> = ({ runs }) => {
+const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
   // Visualization selector state (per entry)
   const [selectedVizMap, setSelectedVizMap] = React.useState<Record<string, 'recent' | 'daily' | 'runtime'>>({});
   const handleVizChange = (key: string, value: 'recent' | 'daily' | 'runtime') => {
