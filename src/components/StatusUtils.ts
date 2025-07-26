@@ -59,7 +59,7 @@ export function getStatusChangeType(currentStatus: string, prev: WorkflowStatus[
   for (let i = 0; i < prev.length; i++) {
     // Get the normalized status of the previous run
     prevStatus = getNormalizedStatus(prev[i].status, prev[i].conclusion);
-    if (prevStatus !== 'no_runs') break; // Use the first non-'no_runs' status
+    if (prevStatus  === 'success' || prevStatus === 'failure' || prevStatus === 'error') break;
   }
   if (prevStatus === 'success' && (currentStatus === 'failure' || currentStatus === 'error')) return 'bad';
   if ((prevStatus === 'failure' || prevStatus === 'error') && currentStatus === 'success') return 'good';
