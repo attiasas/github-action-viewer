@@ -1,7 +1,7 @@
 import WorkflowIndications from './WorkflowIndications';
 import { getIndications } from './indicationsUtils';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import WorkflowHistogram from './WorkflowHistogram';
+import WorkflowAnalysis from './WorkflowAnalysis';
 import { useAuth } from '../contexts/AuthContext';
 import { getNormalizedStatus } from './StatusUtils';
 
@@ -1002,7 +1002,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                       )
                     )}
                     {/* --- Analytics Section --- */}
-                    <WorkflowHistogram runs={allRunsForAnalytics} />
+                    <WorkflowAnalysis runs={allRunsForAnalytics} />
                   </div>
                 );
               })()}

@@ -24,7 +24,7 @@ export interface WorkflowHistogramProps {
   runs: Array<{ branch: string; workflowKey: string; workflow: WorkflowStatus[] }>;
 }
 
-const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
+const WorkflowAnalysis: React.FC<WorkflowHistogramProps> = ({ runs }) => {
   // Visualization selector state (per entry)
   const [selectedVizMap, setSelectedVizMap] = React.useState<Record<string, 'recent' | 'daily' | 'runtime'>>({});
   const handleVizChange = (key: string, value: 'recent' | 'daily' | 'runtime') => {
@@ -327,4 +327,4 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
   );
 };
 
-export default WorkflowHistogram;
+export default WorkflowAnalysis;
