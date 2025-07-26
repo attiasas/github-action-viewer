@@ -1,7 +1,7 @@
 import React from 'react';
 import './RecentRunsHistogram.css';
 import type { WorkflowStatus } from '../../api/Repositories';
-import { getNormalizedStatus } from '../StatusUtils';
+import { getNormalizedStatus, getStatusChangeIndicators } from '../StatusUtils';
 
 const STATUS_COLORS: Record<string, string> = {
   success: '#4caf50',
@@ -16,8 +16,6 @@ const STATUS_COLORS: Record<string, string> = {
 
 interface RecentRunsHistogramProps {
   workflow: WorkflowStatus[];
-  statusChangeIndicators: Record<number, 'bad' | 'good' | 'info'>;
-  firstStatusChangeIdx: number;
   shortCommit: (commit: string | null | undefined) => string;
   formatDate: (dateStr?: string) => string;
   calculateRunTime: (start: number, end: number) => number | null;
@@ -27,14 +25,15 @@ interface RecentRunsHistogramProps {
 
 const RecentRunsHistogram: React.FC<RecentRunsHistogramProps> = ({
   workflow,
-  statusChangeIndicators,
-  firstStatusChangeIdx,
   shortCommit,
   formatDate,
   calculateRunTime,
   formatRunTime,
   statusChangeIcons,
 }) => {
+  const statusChangeIndicators = getStatusChangeIndicators(workflow);
+  const statusChangeIdxs = Object.keys(statusChangeIndicators).map(Number);
+  const firstStatusChangeIdx = statusChangeIdxs.length > 0 ? Math.min(...statusChangeIdxs) : -1;
   return (
     <div className="recent-runs-histogram">
       <div className="histogram-cubes" data-count={workflow.length}>

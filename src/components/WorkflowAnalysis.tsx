@@ -2,7 +2,7 @@
 import './WorkflowAnalysis.css';
 import React from 'react';
 import type { WorkflowStatus } from '../api/Repositories';
-import { getNormalizedStatus, getStatusChangeIndicators } from './StatusUtils';
+import { getNormalizedStatus } from './StatusUtils';
 import { getWorkflowAggregatedInfo, calculateRunTime } from './indicationsUtils';
 import RunTimeGraph from './workflowAnalysis/RunTimeGraph';
 import DailyStatusHistogram from './workflowAnalysis/DailyStatusHistogram';
@@ -44,21 +44,6 @@ const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
     return str.trim();
   }
 
-  // Helper to get run times in seconds for a workflow
-  // function getRunTimes(workflow: WorkflowStatus[]): number[] {
-  //   return workflow.map(run => {
-  //     if (run.runStartedAt && run.updatedAt) {
-  //       return Math.round((calculateRunTime(new Date(run.runStartedAt).getTime(), new Date(run.updatedAt).getTime()) || 0) / 1000);
-  //     }
-  //     return 0;
-  //   });
-  // }
-
-  // Helper to get max run time for scaling
-  // function getMaxRunTime(workflow: WorkflowStatus[]): number {
-  //   const times = getRunTimes(workflow);
-  //   return Math.max(...times, 0);
-  // }
   // Status change icons by type
   const statusChangeIcons: Record<string, React.ReactNode> = {
     bad: <span className="histogram-status-change-indicator" style={{ color: 'var(--accent-danger, #dc3545)' }} title="Status worsened" aria-label="Status worsened">❌</span>,
@@ -154,11 +139,6 @@ const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
               </div>
             );
           }
-          // ...existing code...
-          const statusChangeIndicators = getStatusChangeIndicators(workflow);
-          const statusChangeIdxs = Object.keys(statusChangeIndicators).map(Number);
-          const firstStatusChangeIdx = statusChangeIdxs.length > 0 ? Math.min(...statusChangeIdxs) : -1;
-          // RunTimeGraph now manages its own filter state and axis logic
           // Visualization options (easy to extend)
           const vizOptions = [
             { key: 'recent', label: 'Recent Runs Histogram' },
@@ -222,8 +202,6 @@ const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
                   {selectedViz === 'recent' && (
                     <RecentRunsHistogram
                       workflow={workflow}
-                      statusChangeIndicators={statusChangeIndicators}
-                      firstStatusChangeIdx={firstStatusChangeIdx}
                       shortCommit={shortCommit}
                       formatDate={formatDate}
                       calculateRunTime={calculateRunTime}
