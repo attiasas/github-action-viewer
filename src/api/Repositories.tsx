@@ -30,7 +30,7 @@ export interface RepositoryStatus {
 
 export interface BranchStatus {
   name: string;
-  workflows: Map<string, WorkflowStatus>;
+  workflows: Map<string, WorkflowStatus[]>;
   overall: OverallStatus;
   status: NormalizedStatus; // Normalized status of the branch
   error?: string; // Error message if any (added when parsing workflows fails)
@@ -38,12 +38,16 @@ export interface BranchStatus {
 
 export interface WorkflowStatus {
   name: string;
-  runNumber: number;
+  runId: number;
+  runNumber?: number; // Run number of the workflow run
+  event?: string; // Event that triggered the workflow run
   commit: string | null; // Commit SHA or null if not available
   status: RunStatus;
   conclusion: string | null; // Conclusion of the workflow run
   createdAt?: string; // Creation date of the workflow run
   updatedAt?: string; // Updated date of the workflow run
+  runStartedAt?: string; // Start date of the workflow run
+  runAttempt?: number; // Attempt number of the workflow run
   url?: string; // URL to the workflow run
   workflow_id?: number; // ID of the workflow
   workflow_path?: string; // Path to the workflow file
