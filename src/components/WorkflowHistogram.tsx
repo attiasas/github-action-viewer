@@ -247,7 +247,23 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                   ) : (
                     workflow.map((run, idx) => {
                       const normalized = getNormalizedStatus(run.status, run.conclusion);
-                      const tooltip = `Run #${run.runNumber || run.runId || ''}\nAttempt: ${run.runAttempt || -1}\nStatus: ${normalized}\nEvent: ${run.event || ''}\nCommit: ${shortCommit(run.commit)}\nCreated at: ${formatDate(run.createdAt)}\nStarted at: ${formatDate(run.runStartedAt)}\nUpdated at: ${formatDate(run.updatedAt)}${run.url ? '\n\nClick to view run' : ''}`;
+                      let runTimeStr = '';
+                      if (run.runStartedAt && run.updatedAt) {
+                        const start = new Date(run.runStartedAt).getTime();
+                        const end = new Date(run.updatedAt).getTime();
+                        if (!isNaN(start) && !isNaN(end) && end > start) {
+                          const totalSeconds = Math.round((end - start) / 1000);
+                          const hours = Math.floor(totalSeconds / 3600);
+                          const minutes = Math.floor((totalSeconds % 3600) / 60);
+                          const seconds = totalSeconds % 60;
+                          let str = '';
+                          if (hours > 0) str += `${hours}h `;
+                          if (minutes > 0 || hours > 0) str += `${minutes}m `;
+                          str += `${seconds}s`;
+                          runTimeStr = `\nRun time: ${str.trim()}`;
+                        }
+                      }
+                      const tooltip = `Run #${run.runNumber || run.runId || ''}\nAttempt: ${run.runAttempt || -1}\nStatus: ${run.conclusion || run.status}\nEvent: ${run.event || ''}\nCommit: ${shortCommit(run.commit)}\nCreated at: ${formatDate(run.createdAt)}\nStarted at: ${formatDate(run.runStartedAt)}\nUpdated at: ${formatDate(run.updatedAt)}${runTimeStr}${run.url ? '\n\nClick to view run' : ''}`;
                       const changeType = statusChangeIndicators[idx];
                       const isStatusChange = !!changeType;
                       const pulse = isStatusChange && idx === firstStatusChangeIdx;
@@ -297,7 +313,7 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                       return dailyStatus.map((ds, idx) => {
                         const normalized = ds.run ? getNormalizedStatus(ds.run.status, ds.run.conclusion) : 'no_runs';
                         const tooltip = ds.run
-                          ? `Date: ${ds.date}\nStatus: ${normalized}\nRun #${ds.run.runNumber || ds.run.runId || ''}\nEvent: ${ds.run.event || ''}\nCommit: ${shortCommit(ds.run.commit)}${ds.run.url ? '\n\nClick to view run' : ''}`
+                          ? `Date: ${ds.date}\nStatus: ${ds.run.conclusion || ds.run.status}\nRun #${ds.run.runNumber || ds.run.runId || ''}\nEvent: ${ds.run.event || ''}\nCommit: ${shortCommit(ds.run.commit)}${ds.run.url ? '\n\nClick to view run' : ''}`
                           : `Date: ${ds.date}\nNo run`;
                         const prev = idx < dailyStatus.length - 1 ? dailyStatus.slice(idx + 1).map(d => d.run).filter(Boolean) as WorkflowStatus[] : [];
                         const changeType = ds.run ? getStatusIndicator(ds.run, prev) : undefined;
