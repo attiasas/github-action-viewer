@@ -160,3 +160,36 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
   }
   return indications;
 }
+
+/**
+ * Returns aggregated info for a workflow run array: total runs, average run time (ms), success rate, etc.
+ */
+export function getWorkflowAggregatedInfo(workflow: WorkflowStatus[]): {
+  totalRuns: number;
+  avgRunTime: number | null;
+  successRate: number | null;
+} {
+  let totalRuns = 0;
+  let totalRunTime = 0;
+  let runTimeCount = 0;
+  let successCount = 0;
+  workflow.forEach(run => {
+    const status = getNormalizedStatus(run.status, run.conclusion);
+    if (
+      (status === 'success' || status === 'failure') &&
+      run.runStartedAt && run.updatedAt
+    ) {
+      const start = new Date(run.runStartedAt).getTime();
+      const end = new Date(run.updatedAt).getTime();
+      if (!isNaN(start) && !isNaN(end) && end > start) {
+        totalRunTime += (end - start);
+        runTimeCount++;
+        totalRuns++;
+      }
+    }
+    if (run.conclusion === 'success') successCount++;
+  });
+  const avgRunTime = runTimeCount > 0 ? totalRunTime / runTimeCount : null;
+  const successRate = totalRuns > 0 ? successCount / totalRuns : null;
+  return { totalRuns: workflow.length, avgRunTime, successRate };
+}

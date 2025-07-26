@@ -1,3 +1,52 @@
+/* Aggregated info styling */
+.histogram-aggregated-info {
+  margin-top: 0.6em;
+  margin-right: 0.2em;
+  background: var(--bg-card, #fff);
+  border-radius: 8px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+  border: 1px solid var(--border-secondary, #e0e0e0);
+  padding: 0.7em 0.7em 0.7em 0.7em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.18em;
+  font-size: 0.98em;
+  color: var(--text-secondary, #444);
+  box-sizing: border-box;
+}
+.aggregated-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 0;
+  white-space: nowrap;
+  /* gap: 1.2em; */
+}
+.aggregated-info-label {
+  font-weight: 500;
+  color: var(--primary-color, #1976d2);
+  font-size: 0.98em;
+  padding-right: 10px;
+}
+.aggregated-info-value {
+  font-weight: 600;
+  color: var(--accent-primary, #222);
+  font-size: 1.01em;
+  letter-spacing: 0.01em;
+}
+@media (max-width: 600px) {
+  .histogram-aggregated-info {
+    font-size: 0.93em;
+    padding: 0.4em 0.5em 0.4em 0.5em;
+    gap: 0.09em;
+  }
+  .aggregated-info-label {
+    font-size: 0.93em;
+  }
+  .aggregated-info-value {
+    font-size: 0.97em;
+  }
+}
 /* WorkflowHistogram.css */
 
 .analytics-histogram h3 {
@@ -32,7 +81,7 @@
 }
 .histogram-label {
   min-width: 180px;
-  max-width: 260px;
+  max-width: 360px;
   display: flex;
   flex-direction: column;
   gap: 0.2em;
@@ -41,7 +90,7 @@
   word-break: break-word;
   overflow-wrap: anywhere;
   white-space: normal;
-  padding-right: 0.5em;
+  /* padding-right: 0.5em; */
 }
 .histogram-branch {
   color: var(--primary-color, #1976d2);

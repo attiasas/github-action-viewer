@@ -241,11 +241,15 @@ function getRepositoryStatusFromCache(tracked) {
                 repositoryStatus.branches[branch].workflows[workflow] = cacheItem.data.map(run => new WorkflowStatus({
                     name: run.workflowName,
                     runId: run.runId,
+                    runNumber: run.runNumber,
+                    event: run.event,
                     commit: run.commit,
                     status: run.status,
                     conclusion: run.conclusion,
                     createdAt: run.createdAt,
                     updatedAt: run.updatedAt,
+                    runStartedAt: run.runStartedAt,
+                    runAttempt: run.runAttempt,
                     url: run.url,
                     workflow_id: run.workflowId,
                     workflow_path: workflowMeta.path

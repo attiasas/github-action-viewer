@@ -3,6 +3,7 @@ import './WorkflowHistogram.css';
 import React from 'react';
 import type { WorkflowStatus } from '../api/Repositories';
 import { getNormalizedStatus } from './StatusUtils';
+import { getWorkflowAggregatedInfo } from './indicationsUtils';
 
 const STATUS_COLORS: Record<string, string> = {
   success: '#4caf50',
@@ -125,24 +126,24 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
     const map = new Map<string, WorkflowStatus>();
     let lastRunDate: Date | null = null;
     for (const run of workflow) {
-      const createdAt = run.createdAt || run.updatedAt; // Prefer createdAt, fallback to updatedAt
-      if (!createdAt) continue;
-      const d = new Date(createdAt);
-      const dayStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      const timestamp = run.createdAt || run.runStartedAt || run.updatedAt;
+      if (!timestamp) continue;
+      const timestampDate = new Date(timestamp);
+      const dayStr = String(timestampDate.getDate()).padStart(2, '0') + '-' + String(timestampDate.getMonth() + 1).padStart(2, '0') + '-' + timestampDate.getFullYear();
       // Only keep the latest run for the day (assuming workflow is sorted latest first)
       if (!map.has(dayStr)) {
         map.set(dayStr, run);
-        lastRunDate = d;
+        lastRunDate = timestampDate;
       }
     }
     if (!lastRunDate) return [];
     // Build array from today back to last run date
     const days: Array<{ date: string; run: WorkflowStatus | null }> = [];
-    const d = new Date();
-    while (d >= lastRunDate) {
-      const dayStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const currentDate = new Date();
+    while (currentDate >= lastRunDate) {
+      const dayStr = String(currentDate.getDate()).padStart(2, '0') + '-' + String(currentDate.getMonth() + 1).padStart(2, '0') + '-' + currentDate.getFullYear();
       days.push({ date: dayStr, run: map.get(dayStr) || null });
-      d.setDate(d.getDate() - 1);
+      currentDate.setDate(currentDate.getDate() - 1);
     }
     return days;
   }
@@ -175,6 +176,40 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                   {wfName && typeof wfName === 'string' && wfName.trim().length > 0 ? wfName : workflowKey}
                 </span>
                 <span className="histogram-branch" style={{ fontSize: '0.93em', color: 'var(--text-secondary, #666)' }}>{branch}</span>
+                {/* Aggregated info rows (only if there are runs) */}
+                {(() => {
+                  if (!workflow || workflow.length === 0 || (workflow.length === 1 && getNormalizedStatus(workflow[0].status, workflow[0].conclusion) === 'no_runs')) return null;
+                  const info = getWorkflowAggregatedInfo(workflow);
+                  const avgRunTimeStr = (() => {
+                    if (info.avgRunTime === null) return 'N/A';
+                    const totalSeconds = Math.round(info.avgRunTime / 1000);
+                    const hours = Math.floor(totalSeconds / 3600);
+                    const minutes = Math.floor((totalSeconds % 3600) / 60);
+                    const seconds = totalSeconds % 60;
+                    let str = '';
+                    if (hours > 0) str += `${hours}h `;
+                    if (minutes > 0 || hours > 0) str += `${minutes}m `;
+                    str += `${seconds}s`;
+                    return str.trim();
+                  })();
+                  const successRateStr = info.successRate !== null ? `${(info.successRate * 100).toFixed(1)}%` : 'N/A';
+                  return (
+                    <div className="histogram-aggregated-info">
+                      <div className="aggregated-info-row">
+                        <span className="aggregated-info-label">Total runs</span>
+                        <span className="aggregated-info-value">{info.totalRuns}</span>
+                      </div>
+                      <div className="aggregated-info-row">
+                        <span className="aggregated-info-label">Avg run time</span>
+                        <span className="aggregated-info-value">{avgRunTimeStr}</span>
+                      </div>
+                      <div className="aggregated-info-row">
+                        <span className="aggregated-info-label">Success rate</span>
+                        <span className="aggregated-info-value">{successRateStr}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               {/* Main histogram */}
               <div style={{ width: '100%' }}>
@@ -185,7 +220,7 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                   ) : (
                     workflow.map((run, idx) => {
                       const normalized = getNormalizedStatus(run.status, run.conclusion);
-                      const tooltip = `Run #${run.runNumber || run.runId || ''}\nStatus: ${normalized}\nCommit: ${shortCommit(run.commit)}\nDate: ${formatDate(run.createdAt)}${run.url ? '\nClick to view run' : ''}`;
+                      const tooltip = `Run #${run.runNumber || run.runId || ''}\nAttempt: ${run.runAttempt || -1}\nStatus: ${normalized}\nEvent: ${run.event || ''}\nCommit: ${shortCommit(run.commit)}\nCreated at: ${formatDate(run.createdAt)}\nStarted at: ${formatDate(run.runStartedAt)}\nUpdated at: ${formatDate(run.updatedAt)}${run.url ? '\n\nClick to view run' : ''}`;
                       const changeType = statusChangeIndicators[idx];
                       const isStatusChange = !!changeType;
                       const pulse = isStatusChange && idx === firstStatusChangeIdx;
@@ -193,7 +228,7 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                         <span
                           key={run.runId || idx}
                           className={`histogram-cube${isStatusChange ? (pulse ? ' histogram-cube-status-change' : ' histogram-cube-status-change-static') : ''}`}
-                          title={tooltip + (isStatusChange ? `\nStatus changed (${changeType}) from previous run` : '')}
+                          title={(isStatusChange ? `Status changed (${changeType}) from previous run\n\n` : '') + tooltip}
                           style={{
                             background: STATUS_COLORS[normalized] || '#bdbdbd',
                             cursor: run.url ? 'pointer' : 'default',
@@ -235,7 +270,7 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                       return dailyStatus.map((ds, idx) => {
                         const normalized = ds.run ? getNormalizedStatus(ds.run.status, ds.run.conclusion) : 'no_runs';
                         const tooltip = ds.run
-                          ? `Date: ${ds.date}\nStatus: ${normalized}\nRun #${ds.run.runId || ''}\nCommit: ${shortCommit(ds.run.commit)}${ds.run.url ? '\nClick to view run' : ''}`
+                          ? `Date: ${ds.date}\nStatus: ${normalized}\nRun #${ds.run.runNumber || ds.run.runId || ''}\nEvent: ${ds.run.event || ''}\nCommit: ${shortCommit(ds.run.commit)}${ds.run.url ? '\n\nClick to view run' : ''}`
                           : `Date: ${ds.date}\nNo run`;
                         const prev = idx < dailyStatus.length - 1 ? dailyStatus.slice(idx + 1).map(d => d.run).filter(Boolean) as WorkflowStatus[] : [];
                         const changeType = ds.run ? getStatusIndicator(ds.run, prev) : undefined;
@@ -245,7 +280,7 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                           <span
                             key={ds.date}
                             className={`histogram-cube${isStatusChange ? (pulse ? ' histogram-cube-status-change' : ' histogram-cube-status-change-static') : ''}`}
-                            title={tooltip + (isStatusChange ? `\nStatus changed (${changeType}) from previous day` : '')}
+                            title={(isStatusChange ? `Status changed (${changeType}) from previous day\n\n` : '') + tooltip}
                             style={{
                               background: STATUS_COLORS[normalized] || '#bdbdbd',
                               cursor: ds.run && ds.run.url ? 'pointer' : 'default',
