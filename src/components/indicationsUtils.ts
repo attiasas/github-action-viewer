@@ -182,7 +182,12 @@ export function getWorkflowAggregatedInfo(workflow: WorkflowStatus[]): {
       const start = new Date(run.runStartedAt).getTime();
       const end = new Date(run.updatedAt).getTime();
       if (!isNaN(start) && !isNaN(end) && end > start) {
-        totalRunTime += (end - start);
+        const runTime = end - start;
+        // Skip not valid run times: if run time is 0 negative, Infinity || more than 7 days
+        if (isNaN(runTime) || runTime <= 0 || runTime === Infinity || runTime > 7 * 24 * 60 * 60 * 1000) {
+          return;
+        }
+        totalRunTime += runTime;
         runTimeCount++;
         totalRuns++;
       }
