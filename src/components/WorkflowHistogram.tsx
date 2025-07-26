@@ -13,7 +13,7 @@ const STATUS_COLORS: Record<string, string> = {
   pending: '#ff9800',
   error: '#e91e63',
   unknown: '#6ec6ff', // light blue for unknown
-  no_runs: '#e0e0e0', // light gray for no_runs
+  no_runs: '#bdbdbd', // light gray for no_runs
 };
 
 
@@ -34,7 +34,12 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
   // Helper to determine type of status change
   function getStatusChangeType(currentStatus: string, prev: WorkflowStatus[]): 'bad' | 'good' | 'info' | undefined {
     if (!prev || !Array.isArray(prev) || prev.length === 0) return undefined;
-    const prevStatus = getNormalizedStatus(prev[0].status, prev[0].conclusion);
+    let prevStatus = 'no_runs'
+    for (let i = 0; i < prev.length; i++) {
+      // Get the normalized status of the previous run
+      prevStatus = getNormalizedStatus(prev[i].status, prev[i].conclusion);
+      if (prevStatus !== 'no_runs') break; // Use the first non-'no_runs' status
+    }
     if (prevStatus === 'success' && (currentStatus === 'failure' || currentStatus === 'error')) return 'bad';
     if ((prevStatus === 'failure' || prevStatus === 'error') && currentStatus === 'success') return 'good';
     return undefined;
@@ -137,12 +142,17 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
       }
     }
     if (!lastRunDate) return [];
+    // Remove time from last run date
+    lastRunDate.setHours(0, 0, 0, 0);
+    if (lastRunDate > new Date()) {
+      lastRunDate = new Date(); // Ensure we don't go into future
+    }
     // Build array from today back to last run date
     const days: Array<{ date: string; run: WorkflowStatus | null }> = [];
     const currentDate = new Date();
     while (currentDate >= lastRunDate) {
       const dayStr = String(currentDate.getDate()).padStart(2, '0') + '-' + String(currentDate.getMonth() + 1).padStart(2, '0') + '-' + currentDate.getFullYear();
-      days.push({ date: dayStr, run: map.get(dayStr) || null });
+      days.push({ date: dayStr, run: map.get(dayStr) || { status: 'no_runs' } as WorkflowStatus });
       currentDate.setDate(currentDate.getDate() - 1);
     }
     return days;
