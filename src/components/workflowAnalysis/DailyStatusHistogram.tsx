@@ -30,23 +30,14 @@ const DailyStatusHistogram: React.FC<DailyStatusHistogramProps> = ({ dailyStatus
     })
     .filter(idx => idx !== null) as number[];
   const firstStatusChangeIdx = statusChangeIdxs.length > 0 ? Math.min(...statusChangeIdxs) : -1;
+  // Helper to get relative label (today, -1, -2, ...)
+  const getRelativeLabel = (idx: number) => {
+    return idx === 0 ? '' : `-${idx}`;
+  };
 
   return (
-    <div className="daily-status-histogram" style={{ width: '100%', overflowX: 'auto', padding: '12px 0 8px 0', minHeight: '48px' }}>
-      <div
-        className="histogram-cubes"
-        data-count={dailyStatus.length}
-        style={{
-          minHeight: '32px',
-          paddingBottom: '8px',
-          paddingTop: '0',
-          gap: '0.3em',
-          justifyContent: 'flex-start',
-          flexWrap: 'nowrap',
-          overflowX: 'auto',
-          display: 'flex',
-        }}
-      >
+    <div className="daily-status-histogram">
+      <div className="histogram-cubes" data-count={dailyStatus.length}>
         {dailyStatus.every(ds => !ds.run) ? (
           <span style={{ color: 'var(--text-secondary, #888)', fontSize: '0.97em', padding: '2px 0' }}>No runs yet</span>
         ) : (
@@ -59,41 +50,18 @@ const DailyStatusHistogram: React.FC<DailyStatusHistogramProps> = ({ dailyStatus
             const changeType = ds.run ? getStatusIndicator(ds.run, prev) : undefined;
             const isStatusChange = !!changeType;
             const pulse = isStatusChange && idx === firstStatusChangeIdx;
+            // Week marker: visually mark every 7th cube (except idx 0)
+            const isWeek = idx > 0 && idx % 7 === 0;
             return (
               <div
                 key={ds.date}
-                className={`histogram-cube-wrapper${isStatusChange ? ' has-indicator' : ''}`}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'flex-end',
-                  minWidth: '22px',
-                  margin: '0 1px',
-                  position: 'relative',
-                }}
+                className={`histogram-cube-label-wrapper${isStatusChange ? ' has-indicator' : ''}${isWeek ? ' week-marker' : ''}`}
               >
                 {/* Indicator above cube, centered horizontally (like RecentRunsHistogram) */}
                 {isStatusChange && (
                   <span
                     className="histogram-status-change-badge"
                     title={`Status changed (${changeType}) from previous day`}
-                    style={{
-                      position: 'absolute',
-                      top: '-28px',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      zIndex: 10,
-                      pointerEvents: 'none',
-                      background: 'var(--bg-card, #fff)',
-                      borderRadius: '50%',
-                      boxShadow: '0 4px 16px rgba(255,193,7,0.18)',
-                      padding: '2px 6px',
-                      fontSize: '1.18em',
-                      border: '2px solid var(--accent-warning, #ffc107)',
-                      fontWeight: 'bold',
-                      marginBottom: '2px',
-                    }}
                   >
                     {/* You may want to pass statusChangeIcons as a prop for custom icons */}
                   </span>
@@ -106,11 +74,6 @@ const DailyStatusHistogram: React.FC<DailyStatusHistogramProps> = ({ dailyStatus
                     background: STATUS_COLORS[normalized] || '#bdbdbd',
                     cursor: ds.run && ds.run.url ? 'pointer' : 'default',
                     opacity: ds.run ? 1 : 0.45,
-                    position: 'relative',
-                    minHeight: '18px',
-                    maxHeight: '32px',
-                    boxSizing: 'border-box',
-                    outline: 'none',
                   }}
                   onClick={() => { if (ds.run && ds.run.url) window.open(ds.run.url, '_blank', 'noopener'); }}
                   tabIndex={ds.run && ds.run.url ? 0 : -1}
@@ -119,23 +82,11 @@ const DailyStatusHistogram: React.FC<DailyStatusHistogramProps> = ({ dailyStatus
                   {/* Accessible date for screen readers */}
                   <span style={{ display: 'none' }}>{ds.date}</span>
                 </span>
-                {/* Label below cube: date (short) */}
+                {/* Label directly below cube, always centered */}
                 <span
-                  className="histogram-cube-label"
-                  style={{
-                    marginTop: '5px',
-                    fontSize: '0.75em',
-                    color: 'var(--text-secondary, #888)',
-                    fontFamily: 'SF Mono, Monaco, monospace',
-                    textAlign: 'center',
-                    maxWidth: '40px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    lineHeight: 1.1,
-                  }}
+                  className={`histogram-cube-label${idx === 0 ? ' histogram-cube-label-hidden' : ''}`}
                 >
-                  {ds.date}
+                  {idx === 0 ? '' : getRelativeLabel(idx)}
                 </span>
               </div>
             );
