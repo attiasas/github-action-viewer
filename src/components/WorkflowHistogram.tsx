@@ -4,6 +4,9 @@ import React from 'react';
 import type { WorkflowStatus } from '../api/Repositories';
 import { getNormalizedStatus } from './StatusUtils';
 import { getWorkflowAggregatedInfo, calculateRunTime } from './indicationsUtils';
+import RunTimeGraph from './workflowAnalysis/RunTimeGraph';
+import DailyStatusHistogram from './workflowAnalysis/DailyStatusHistogram';
+import RecentRunsHistogram from './workflowAnalysis/RecentRunsHistogram';
 
 const STATUS_COLORS: Record<string, string> = {
   success: '#4caf50',
@@ -22,6 +25,12 @@ export interface WorkflowHistogramProps {
 }
 
 const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
+  // Visualization selector state (per entry)
+  const [selectedVizMap, setSelectedVizMap] = React.useState<Record<string, 'recent' | 'daily' | 'runtime'>>({});
+  const handleVizChange = (key: string, value: 'recent' | 'daily' | 'runtime') => {
+    setSelectedVizMap(prev => ({ ...prev, [key]: value }));
+  };
+  // runTimeFilter state moved to RunTimeGraph
   // Helper to format run time from start and end timestamps
   function formatRunTime(totalSeconds: number): string {
     if (isNaN(totalSeconds) || totalSeconds <= 0) return '';
@@ -34,6 +43,22 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
     str += `${seconds}s`;
     return str.trim();
   }
+
+  // Helper to get run times in seconds for a workflow
+  // function getRunTimes(workflow: WorkflowStatus[]): number[] {
+  //   return workflow.map(run => {
+  //     if (run.runStartedAt && run.updatedAt) {
+  //       return Math.round((calculateRunTime(new Date(run.runStartedAt).getTime(), new Date(run.updatedAt).getTime()) || 0) / 1000);
+  //     }
+  //     return 0;
+  //   });
+  // }
+
+  // Helper to get max run time for scaling
+  // function getMaxRunTime(workflow: WorkflowStatus[]): number {
+  //   const times = getRunTimes(workflow);
+  //   return Math.max(...times, 0);
+  // }
   // Status change icons by type
   const statusChangeIcons: Record<string, React.ReactNode> = {
     bad: <span className="histogram-status-change-indicator" style={{ color: 'var(--accent-danger, #dc3545)' }} title="Status worsened" aria-label="Status worsened">❌</span>,
@@ -170,6 +195,7 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
     return days;
   }
 
+  // ...existing code...
   return (
     <section className="analytics-histogram">
       <h3>Workflow Run Analysis</h3>
@@ -208,9 +234,19 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
           const statusChangeIdxs = Object.keys(statusChangeIndicators).map(Number);
           const firstStatusChangeIdx = statusChangeIdxs.length > 0 ? Math.min(...statusChangeIdxs) : -1;
           const dailyStatus = getDailyStatus(workflow);
+          // RunTimeGraph now manages its own filter state and axis logic
+          // Visualization options (easy to extend)
+          const vizOptions = [
+            { key: 'recent', label: 'Recent Runs Histogram' },
+            { key: 'daily', label: 'Daily Status Histogram' },
+            { key: 'runtime', label: 'Run Time Graph' },
+          ];
+          const entryKey = branch + ':' + workflowKey;
+          const selectedViz = selectedVizMap[entryKey] || 'recent';
           return (
-            <div className="histogram-entry" key={branch + ':' + workflowKey}>
-              <div className="histogram-label">
+            <div className="histogram-entry" key={entryKey} style={{ display: 'flex', alignItems: 'stretch', gap: '1.5rem', overflow: 'visible', maxWidth: '100%' }}>
+              {/* Left: label, branch, aggregated info */}
+              <div className="histogram-label" style={{ flex: '0 0 auto', minWidth: 140, maxWidth: 220, width: 'max-content', display: 'flex', flexDirection: 'column', gap: '0.2em', fontSize: '1rem', fontWeight: 500, wordBreak: 'break-word', overflowWrap: 'anywhere', whiteSpace: 'normal' }}>
                 <span className="histogram-workflow" style={{ fontWeight: 600, fontSize: '1.07em' }}>
                   {wfName && typeof wfName === 'string' && wfName.trim().length > 0 ? wfName : workflowKey}
                 </span>
@@ -243,101 +279,43 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                   );
                 })()}
               </div>
-              {/* Main histogram */}
-              <div style={{ width: '100%' }}>
-                <div style={{ fontSize: '0.97em', fontWeight: 500, marginBottom: 10 }}>Recent Runs</div>
-                <div className="histogram-cubes" data-count={workflow.length}>
-                  {(workflow.length === 1 && getNormalizedStatus(workflow[0].status, workflow[0].conclusion) === 'no_runs') ? (
-                    <span style={{ color: 'var(--text-secondary, #888)', fontSize: '0.97em', padding: '2px 0' }}>No runs yet</span>
-                  ) : (
-                    workflow.map((run, idx) => {
-                      const normalized = getNormalizedStatus(run.status, run.conclusion);
-                      let runTimeStr = '';
-                      if (run.runStartedAt && run.updatedAt) {
-                        runTimeStr = formatRunTime(Math.round(calculateRunTime(new Date(run.runStartedAt).getTime(), new Date(run.updatedAt).getTime()) || 0) / 1000);
-                      }
-                      const tooltip = `Run #${run.runNumber || run.runId || ''}\nAttempt: ${run.runAttempt || -1}\nStatus: ${run.conclusion || run.status}\nEvent: ${run.event || ''}\nCommit: ${shortCommit(run.commit)}\nCreated at: ${formatDate(run.createdAt)}\nStarted at: ${formatDate(run.runStartedAt)}\nUpdated at: ${formatDate(run.updatedAt)}${runTimeStr ? `\nRun time: ${runTimeStr}` : ''}${run.url ? '\n\nClick to view run' : ''}`;
-                      const changeType = statusChangeIndicators[idx];
-                      const isStatusChange = !!changeType;
-                      const pulse = isStatusChange && idx === firstStatusChangeIdx;
-                      return (
-                        <span
-                          key={run.runId || idx}
-                          className={`histogram-cube${isStatusChange ? (pulse ? ' histogram-cube-status-change' : ' histogram-cube-status-change-static') : ''}`}
-                          title={(isStatusChange ? `Status changed (${changeType}) from previous run\n\n` : '') + tooltip}
-                          style={{
-                            background: STATUS_COLORS[normalized] || '#bdbdbd',
-                            cursor: run.url ? 'pointer' : 'default',
-                            border: normalized === 'success' ? '2px solid var(--status-success, #28a745)' : undefined,
-                            position: 'relative',
-                          }}
-                          onClick={() => { if (run.url) window.open(run.url, '_blank', 'noopener'); }}
-                          tabIndex={run.url ? 0 : -1}
-                          aria-label={tooltip.replace(/\n/g, ' ')}
-                        >
-                          {/* Show run number below cube for clarity on mobile */}
-                          <span style={{ display: 'none' }}>{run.runId}</span>
-                          {isStatusChange && (
-                            <span className="histogram-status-change-badge" title={`Status changed (${changeType}) from previous run`}>
-                              {statusChangeIcons[changeType]}
-                            </span>
-                          )}
-                        </span>
-                      );
-                    })
-                  )}
+              {/* Right: visualization selector and display */}
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'stretch', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1em', marginBottom: 8, flexWrap: 'wrap', alignSelf: 'flex-start' }}>
+                  <label htmlFor={`viz-select-${branch}-${workflowKey}`} style={{ fontSize: '0.97em', color: 'var(--text-secondary, #888)', fontWeight: 500 }}>Show:</label>
+                  <select
+                    id={`viz-select-${branch}-${workflowKey}`}
+                    value={selectedViz}
+                    onChange={e => handleVizChange(entryKey, e.target.value as 'recent' | 'daily' | 'runtime')}
+                    style={{ fontSize: '0.97em', padding: '2px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: 'var(--bg-tertiary, #f8f8f8)', color: 'var(--text-secondary, #666)', fontWeight: 500 }}
+                  >
+                    {vizOptions.map(opt => (
+                      <option key={opt.key} value={opt.key}>{opt.label}</option>
+                    ))}
+                  </select>
                 </div>
-                {/* Daily status histogram */}
-                <div style={{ fontSize: '0.97em', fontWeight: 500, margin: '10px 0 10px 0' }}>Daily Status</div>
-                <div className="histogram-cubes" data-count={dailyStatus.length}>
-                  {dailyStatus.every(ds => !ds.run) ? (
-                    <span style={{ color: 'var(--text-secondary, #888)', fontSize: '0.97em', padding: '2px 0' }}>No runs yet</span>
-                  ) : (
-                    (() => {
-                      // Find the first (latest) status change index in dailyStatus
-                      const statusChangeIdxs = dailyStatus
-                        .map((ds, idx) => {
-                          const prev = idx < dailyStatus.length - 1 ? dailyStatus.slice(idx + 1).map(d => d.run).filter(Boolean) as WorkflowStatus[] : [];
-                          const changeType = ds.run ? getStatusIndicator(ds.run, prev) : undefined;
-                          return changeType ? idx : null;
-                        })
-                        .filter(idx => idx !== null) as number[];
-                      const firstStatusChangeIdx = statusChangeIdxs.length > 0 ? Math.min(...statusChangeIdxs) : -1;
-                      return dailyStatus.map((ds, idx) => {
-                        const normalized = ds.run ? getNormalizedStatus(ds.run.status, ds.run.conclusion) : 'no_runs';
-                        const tooltip = ds.run
-                          ? `Date: ${ds.date}\nStatus: ${ds.run.conclusion || ds.run.status}\nRun #${ds.run.runNumber || ds.run.runId || ''}\nEvent: ${ds.run.event || ''}\nCommit: ${shortCommit(ds.run.commit)}${ds.run.url ? '\n\nClick to view run' : ''}`
-                          : `Date: ${ds.date}\nNo run`;
-                        const prev = idx < dailyStatus.length - 1 ? dailyStatus.slice(idx + 1).map(d => d.run).filter(Boolean) as WorkflowStatus[] : [];
-                        const changeType = ds.run ? getStatusIndicator(ds.run, prev) : undefined;
-                        const isStatusChange = !!changeType;
-                        const pulse = isStatusChange && idx === firstStatusChangeIdx;
-                        return (
-                          <span
-                            key={ds.date}
-                            className={`histogram-cube${isStatusChange ? (pulse ? ' histogram-cube-status-change' : ' histogram-cube-status-change-static') : ''}`}
-                            title={(isStatusChange ? `Status changed (${changeType}) from previous day\n\n` : '') + tooltip}
-                            style={{
-                              background: STATUS_COLORS[normalized] || '#bdbdbd',
-                              cursor: ds.run && ds.run.url ? 'pointer' : 'default',
-                              opacity: ds.run ? 1 : 0.45,
-                              position: 'relative',
-                            }}
-                            onClick={() => { if (ds.run && ds.run.url) window.open(ds.run.url, '_blank', 'noopener'); }}
-                            tabIndex={ds.run && ds.run.url ? 0 : -1}
-                            aria-label={tooltip.replace(/\n/g, ' ')}
-                          >
-                            {/* Show date below cube for clarity on mobile */}
-                            <span style={{ display: 'none' }}>{ds.date}</span>
-                            {isStatusChange && (
-                              <span className="histogram-status-change-badge" title={`Status changed (${changeType}) from previous day`}>
-                                {statusChangeIcons[changeType!]}
-                              </span>
-                            )}
-                          </span>
-                        );
-                      });
-                    })()
+                <div style={{ width: '100%', minHeight: 60, maxHeight: 360, overflowY: 'auto', overflowX: 'visible', paddingRight: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+                  {selectedViz === 'recent' && (
+                    <RecentRunsHistogram
+                      workflow={workflow}
+                      statusChangeIndicators={statusChangeIndicators}
+                      firstStatusChangeIdx={firstStatusChangeIdx}
+                      shortCommit={shortCommit}
+                      formatDate={formatDate}
+                      calculateRunTime={calculateRunTime}
+                      formatRunTime={formatRunTime}
+                      statusChangeIcons={statusChangeIcons}
+                    />
+                  )}
+                  {selectedViz === 'daily' && (
+                    <DailyStatusHistogram
+                      dailyStatus={dailyStatus}
+                      getStatusIndicator={getStatusIndicator}
+                      shortCommit={shortCommit}
+                    />
+                  )}
+                  {selectedViz === 'runtime' && workflow.length > 0 && (
+                    <RunTimeGraph workflow={workflow} />
                   )}
                 </div>
               </div>

@@ -1,0 +1,40 @@
+.daily-status-histogram {
+  margin: 10px 0 10px 0;
+  width: 100%;
+}
+.daily-status-histogram .histogram-cubes {
+  display: flex;
+  gap: 0.18em;
+  flex-wrap: wrap;
+}
+.daily-status-histogram .histogram-cube {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1.5px solid var(--border-secondary, #e0e0e0);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.10);
+  transition: box-shadow 0.18s, opacity 0.18s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.daily-status-histogram .histogram-cube-status-change {
+  animation: pulse-status-change 1.2s infinite;
+  border: 2px solid var(--accent-warning, #ffc107);
+}
+.daily-status-histogram .histogram-cube-status-change-static {
+  border: 2px solid var(--accent-warning, #ffc107);
+}
+@keyframes pulse-status-change {
+  0% { box-shadow: 0 0 0 0 rgba(255,193,7,0.4); }
+  70% { box-shadow: 0 0 0 8px rgba(255,193,7,0); }
+  100% { box-shadow: 0 0 0 0 rgba(255,193,7,0); }
+}
+.daily-status-histogram .histogram-status-change-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 1.1em;
+  z-index: 2;
+}
