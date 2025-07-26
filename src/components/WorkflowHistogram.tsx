@@ -185,13 +185,13 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                   ) : (
                     workflow.map((run, idx) => {
                       const normalized = getNormalizedStatus(run.status, run.conclusion);
-                      const tooltip = `Run #${run.runNumber || ''}\nStatus: ${normalized}\nCommit: ${shortCommit(run.commit)}\nDate: ${formatDate(run.createdAt)}${run.url ? '\nClick to view run' : ''}`;
+                      const tooltip = `Run #${run.runNumber || run.runId || ''}\nStatus: ${normalized}\nCommit: ${shortCommit(run.commit)}\nDate: ${formatDate(run.createdAt)}${run.url ? '\nClick to view run' : ''}`;
                       const changeType = statusChangeIndicators[idx];
                       const isStatusChange = !!changeType;
                       const pulse = isStatusChange && idx === firstStatusChangeIdx;
                       return (
                         <span
-                          key={run.runNumber || idx}
+                          key={run.runId || idx}
                           className={`histogram-cube${isStatusChange ? (pulse ? ' histogram-cube-status-change' : ' histogram-cube-status-change-static') : ''}`}
                           title={tooltip + (isStatusChange ? `\nStatus changed (${changeType}) from previous run` : '')}
                           style={{
@@ -205,7 +205,7 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                           aria-label={tooltip.replace(/\n/g, ' ')}
                         >
                           {/* Show run number below cube for clarity on mobile */}
-                          <span style={{ display: 'none' }}>{run.runNumber}</span>
+                          <span style={{ display: 'none' }}>{run.runId}</span>
                           {isStatusChange && (
                             <span className="histogram-status-change-badge" title={`Status changed (${changeType}) from previous run`}>
                               {statusChangeIcons[changeType]}
@@ -235,7 +235,7 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
                       return dailyStatus.map((ds, idx) => {
                         const normalized = ds.run ? getNormalizedStatus(ds.run.status, ds.run.conclusion) : 'no_runs';
                         const tooltip = ds.run
-                          ? `Date: ${ds.date}\nStatus: ${normalized}\nRun #${ds.run.runNumber || ''}\nCommit: ${shortCommit(ds.run.commit)}${ds.run.url ? '\nClick to view run' : ''}`
+                          ? `Date: ${ds.date}\nStatus: ${normalized}\nRun #${ds.run.runId || ''}\nCommit: ${shortCommit(ds.run.commit)}${ds.run.url ? '\nClick to view run' : ''}`
                           : `Date: ${ds.date}\nNo run`;
                         const prev = idx < dailyStatus.length - 1 ? dailyStatus.slice(idx + 1).map(d => d.run).filter(Boolean) as WorkflowStatus[] : [];
                         const changeType = ds.run ? getStatusIndicator(ds.run, prev) : undefined;

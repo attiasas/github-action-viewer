@@ -57,24 +57,32 @@ export class BranchStatus {
 export class WorkflowStatus {
     constructor({
         name,
+        runId,
         runNumber,
+        event,
         commit,
         status,
         conclusion,
         createdAt,
         updatedAt,
+        runStartedAt,
+        runAttempt,
         url,
         workflow_id,
         workflow_path
     }) {
         this.name = name;
+        this.runId = runId;
         this.runNumber = runNumber;
+        this.event = event;
         this.commit = commit;
         this.status = status;
         this.normalizeStatus = normalizeWorkflowStatus(conclusion, status);
         this.conclusion = conclusion;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        this.runStartedAt = runStartedAt;
+        this.runAttempt = runAttempt;
         this.url = url;
         this.workflow_id = workflow_id;
         this.workflow_path = workflow_path;
@@ -232,7 +240,7 @@ function getRepositoryStatusFromCache(tracked) {
             } else {
                 repositoryStatus.branches[branch].workflows[workflow] = cacheItem.data.map(run => new WorkflowStatus({
                     name: run.workflowName,
-                    runNumber: run.runId,
+                    runId: run.runId,
                     commit: run.commit,
                     status: run.status,
                     conclusion: run.conclusion,
