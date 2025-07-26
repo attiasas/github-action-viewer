@@ -2,6 +2,7 @@ import React from 'react';
 import './RunTimeGraph.css';
 import type { WorkflowStatus } from '../../api/Repositories';
 import { getNormalizedStatus } from '../StatusUtils';
+import { calculateRunTime } from '../indicationsUtils';
 
 const STATUS_COLORS: Record<string, string> = {
   success: '#4caf50',
@@ -48,16 +49,14 @@ const RunTimeGraph: React.FC<RunTimeGraphProps> = ({ workflow }) => {
     filteredRuns = workflow;
   }
 
-  // Run times
-  function getRunTimes(wf: WorkflowStatus[]): number[] {
-    return wf.map(run => {
-      if (run.runStartedAt && run.updatedAt) {
-        return Math.round((new Date(run.updatedAt).getTime() - new Date(run.runStartedAt).getTime()) / 1000);
-      }
-      return 0;
-    });
-  }
-  const runTimes = getRunTimes(filteredRuns);
+  // Run times (in seconds)
+  const runTimes = filteredRuns.map(run => {
+    if (run.runStartedAt && run.updatedAt) {
+      const ms = calculateRunTime(new Date(run.runStartedAt).getTime(), new Date(run.updatedAt).getTime());
+      return ms ? Math.round(ms / 1000) : 0;
+    }
+    return 0;
+  });
   const maxRunTime = Math.max(...runTimes, 0);
   const minRunTime = Math.min(...runTimes.filter(t => t > 0), maxRunTime);
   let yAxisTicks = [minRunTime, Math.round((minRunTime + maxRunTime) / 2), maxRunTime].filter(v => v > 0);
@@ -99,27 +98,15 @@ const RunTimeGraph: React.FC<RunTimeGraphProps> = ({ workflow }) => {
                 title={tooltip}
                 className="run-time-graph-bar"
                 style={{
-                  width: 16,
-                  minWidth: 16,
-                  maxWidth: 16,
                   height: barHeight,
                   background: runTimeFilter === 'all' ? STATUS_COLORS[getNormalizedStatus(run.status, run.conclusion)] || '#bdbdbd' : STATUS_COLORS['success'],
-                  borderRadius: 4,
-                  marginRight: 2,
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.10)',
-                  border: '1.5px solid var(--border-secondary, #e0e0e0)',
-                  display: 'flex',
-                  alignItems: 'flex-end',
-                  justifyContent: 'center',
                   cursor: run.url ? 'pointer' : 'default',
-                  position: 'relative',
-                  transition: 'height 0.18s, box-shadow 0.18s',
                 }}
                 onClick={() => { if (run.url) window.open(run.url, '_blank', 'noopener'); }}
                 tabIndex={run.url ? 0 : -1}
                 aria-label={tooltip.replace(/\n/g, ' ')}
               >
-                <span style={{ position: 'absolute', bottom: barHeight + 4, left: '50%', transform: 'translateX(-50%)', fontSize: '0.82em', color: 'var(--text-secondary, #888)', whiteSpace: 'nowrap', pointerEvents: 'none', opacity: 0, transition: 'opacity 0.18s', zIndex: 3 }} className="run-time-label">{formatRunTime(rt)}</span>
+                <span className="run-time-label">{formatRunTime(rt)}</span>
               </div>
             );
           })}
