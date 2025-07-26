@@ -173,11 +173,28 @@ const WorkflowHistogram: React.FC<WorkflowHistogramProps> = ({ runs }) => {
       <div className="histogram-list">
         {sortedRuns.map(({ branch, workflowKey, workflow }) => {
           const wfName = workflow && workflow.length > 0 && workflow[0].name;
+          const hasNoRuns = !workflow || workflow.length === 0 || (workflow.length === 1 && getNormalizedStatus(workflow[0].status, workflow[0].conclusion) === 'no_runs');
+          if (hasNoRuns) {
+            return (
+              <div className="histogram-entry histogram-entry-empty" key={branch + ':' + workflowKey} style={{ justifyContent: 'center', alignItems: 'center', minHeight: 100, background: 'var(--bg-tertiary, #f8f8f8)', borderRadius: 14, border: '1.5px solid var(--border-secondary, #e0e0e0)', boxShadow: 'var(--shadow-card, 0 2px 8px rgba(0,0,0,0.07))', marginBottom: '0.5rem', textAlign: 'center', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                  <span className="histogram-workflow" style={{ fontWeight: 600, fontSize: '1.07em', marginBottom: 4 }}>
+                    {wfName && typeof wfName === 'string' && wfName.trim().length > 0 ? wfName : workflowKey}
+                  </span>
+                  <span className="histogram-branch" style={{ fontSize: '0.93em', color: 'var(--text-secondary, #666)', marginBottom: 8 }}>{branch}</span>
+                  <span style={{ color: 'var(--text-secondary, #888)', fontSize: '1.05em', padding: '8px 0', fontWeight: 500, letterSpacing: '0.01em', display: 'flex', alignItems: 'center', gap: '0.5em' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style={{ marginRight: 4 }} aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="#bdbdbd" strokeWidth="2" fill="#f8f8f8" /><path d="M8 12h8M12 8v8" stroke="#bdbdbd" strokeWidth="2" strokeLinecap="round" /></svg>
+                    No workflow runs found
+                  </span>
+                  <span style={{ color: 'var(--text-secondary, #aaa)', fontSize: '0.97em', marginTop: 2 }}>Start a workflow run to see analytics here.</span>
+                </div>
+              </div>
+            );
+          }
+          // ...existing code...
           const statusChangeIndicators = getStatusChangeIndicators(workflow);
-          // Find the first (latest) status change index (lowest idx in statusChangeIndicators)
           const statusChangeIdxs = Object.keys(statusChangeIndicators).map(Number);
           const firstStatusChangeIdx = statusChangeIdxs.length > 0 ? Math.min(...statusChangeIdxs) : -1;
-          // Get daily status
           const dailyStatus = getDailyStatus(workflow);
           return (
             <div className="histogram-entry" key={branch + ':' + workflowKey}>
