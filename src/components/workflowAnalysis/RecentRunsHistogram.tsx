@@ -86,6 +86,10 @@ const RecentRunsHistogram: React.FC<RecentRunsHistogramProps> = ({
                   {/* Show run number below cube for clarity on mobile */}
                   <span style={{ display: 'none' }}>{run.runId}</span>
                 </span>
+                {/* Attempt number label if multiple attempts exist */}
+                {run.runAttempt && run.runAttempt > 1 && (
+                  <span className="histogram-cube-attempt-label" title={`Attempt #${run.runAttempt}`}>x{run.runAttempt}</span>
+                )}
               </div>
             );
           })

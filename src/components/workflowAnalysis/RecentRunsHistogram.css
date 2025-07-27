@@ -85,6 +85,31 @@
 .recent-runs-histogram .histogram-status-change-badge-pulse {
   animation: pulse-warning 1.2s infinite;
 }
+/* Attempt number label for cubes with multiple attempts */
+.recent-runs-histogram .histogram-cube-attempt-label {
+  position: absolute;
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-card, #fff);
+  color: var(--primary-color, #1976d2);
+  font-size: 0.85em;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 2px 7px;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.10);
+  border: 1px solid var(--primary-color, #1976d2);
+  z-index: 9;
+  pointer-events: none;
+}
+@media (max-width: 600px) {
+  .recent-runs-histogram .histogram-cube-attempt-label {
+    bottom: -12px;
+    font-size: 0.72em;
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+}
 @keyframes pulse-warning {
   0% {
     box-shadow: 0 0 0 3px var(--accent-warning, #ffc107), 0 2px 8px rgba(255,193,7,0.12);
