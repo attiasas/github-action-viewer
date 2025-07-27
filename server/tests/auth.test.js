@@ -18,7 +18,6 @@ describe('Auth API', () => {
   beforeAll(() => {
     vi.spyOn(dbUtils, 'IsUserExists').mockImplementation(async (uid) => uid === userId);
     vi.spyOn(dbUtils, 'CreateUser').mockImplementation(async (uid) => true);
-    vi.spyOn(dbUtils, 'GetUserById').mockImplementation(async (uid) => uid === userId ? userMock : null);
   });
 
   afterAll(() => {
@@ -70,23 +69,6 @@ describe('Auth API', () => {
       vi.spyOn(dbUtils, 'IsUserExists').mockImplementationOnce(async () => true);
       const res = await request.post('/api/auth/create-user').send({ userId });
       expect(res.status).toBe(409);
-      expect(res.body.error).toBeDefined();
-    });
-  });
-
-  describe('GET /api/auth/user/:userId', () => {
-    it('gets user info', async () => {
-      const res = await request.get(`/api/auth/user/${userId}`);
-      expect(res.status).toBe(200);
-      expect(res.body.userId).toBe(userId);
-    });
-    it('fails for missing userId', async () => {
-      const res = await request.get('/api/auth/user/');
-      expect(res.status).toBe(404); // Express will not match route
-    });
-    it('fails for unknown user', async () => {
-      const res = await request.get('/api/auth/user/nouser');
-      expect(res.status).toBe(404);
       expect(res.body.error).toBeDefined();
     });
   });

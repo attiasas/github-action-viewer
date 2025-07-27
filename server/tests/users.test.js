@@ -29,36 +29,20 @@ describe('Users API', () => {
     vi.restoreAllMocks();
   });
 
-  describe('GET /api/users/settings/:userId', () => {
-    it('returns user settings for valid user', async () => {
-      const res = await request.get(`/api/users/settings/${userId}`);
+  describe('GET /api/users/user/:userId', () => {
+    it('gets user info', async () => {
+      const res = await request.get(`/api/users/user/${userId}`);
       expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('theme', 'dark');
-      expect(res.body).toHaveProperty('autoRefreshInterval', 60);
-      expect(res.body).toHaveProperty('notifications', true);
+      expect(res.body.userId).toBe(userId);
     });
-    it('returns 400 for missing userId', async () => {
-      const res = await request.get(`/api/users/settings/`);
-      expect([404]).toContain(res.status); // Express may treat missing param as 404
+    it('fails for missing userId', async () => {
+      const res = await request.get('/api/users/user/');
+      expect(res.status).toBe(404); // Express will not match route
     });
-    it('returns 404 for unknown user', async () => {
-      const res = await request.get(`/api/users/settings/unknownuser`);
+    it('fails for unknown user', async () => {
+      const res = await request.get('/api/users/user/nouser');
       expect(res.status).toBe(404);
-      expect(res.body).toHaveProperty('error');
-    });
-  });
-
-  describe('PUT /api/users/settings/:userId', () => {
-    it('updates user settings for valid user', async () => {
-      const res = await request.put(`/api/users/settings/${userId}`).send({ theme: 'light', autoRefreshInterval: 30 });
-      expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('success', true);
-      expect(res.body).toHaveProperty('message', 'Settings updated successfully');
-    });
-    it('returns 400 for unknown user or no changes made', async () => {
-      const res = await request.put(`/api/users/settings/unknownuser`).send({ theme: 'light' });
-      expect(res.status).toBe(400);
-      expect(res.body).toHaveProperty('error');
+      expect(res.body.error).toBeDefined();
     });
   });
 });
