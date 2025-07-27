@@ -49,7 +49,8 @@ export const initializeDatabase = () => {
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      run_retention INTEGER DEFAULT 200
     )
   `);
 
@@ -85,16 +86,6 @@ export const initializeDatabase = () => {
       display_name TEXT, -- Optional custom repository name
       FOREIGN KEY (user_id) REFERENCES users (id),
       FOREIGN KEY (github_server_id) REFERENCES github_servers (id)
-    )
-  `);
-
-  // User settings table
-  db.run(`
-    CREATE TABLE IF NOT EXISTS user_settings (
-      user_id TEXT PRIMARY KEY,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id)
     )
   `);
 

@@ -1,49 +1,12 @@
-import e from 'express';
 import { db } from '../database.js';
 
 export class User {
-  constructor(id, createdAt, updatedAt) {
+  constructor(id, createdAt, updatedAt, runRetention) {
     this.id = id;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
+    this.runRetention = runRetention;
   }
-}
-export class UserSettings {
-  constructor(userId, createdAt, updatedAt) {
-    this.userId = userId;
-    this.createdAt = createdAt;
-    this.updatedAt = updatedAt;
-  }
-}
-
-export async function GetUserSettings(userId) {
-  const row = await new Promise((resolve, reject) => {
-    db.get(
-      'SELECT * FROM user_settings WHERE user_id = ?',
-      [userId],
-      (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      }
-    );
-  });
-  if (!row) return null;
-  return new UserSettings(row.user_id, row.created_at, row.updated_at);
-}
-
-export async function UpdateUserSettings(userId) {
-  return new Promise((resolve, reject) => {
-    db.run(
-      `UPDATE user_settings 
-       SET updated_at = CURRENT_TIMESTAMP 
-       WHERE user_id = ?`,
-      [userId],
-      function(err) {
-        if (err) reject(err);
-        else resolve(this.changes > 0);
-      }
-    );
-  });
 }
 
 export async function IsUserExists(userId) {
@@ -67,7 +30,8 @@ export async function GetUserById(userId) {
   return new User(
     user.id,
     user.created_at,
-    user.updated_at
+    user.updated_at,
+    user.run_retention
   );
 }
 
@@ -78,15 +42,7 @@ export async function CreateUser(userId) {
       [userId],
       function(err) {
         if (err) reject(err);
-        // Create default settings
-        db.run(
-          'INSERT INTO user_settings (user_id) VALUES (?)',
-          [userId],
-          (err) => {
-            if (err) reject(err);
-            else resolve(this);
-          }
-        );
+        else resolve(this);
       }
     );
   });
