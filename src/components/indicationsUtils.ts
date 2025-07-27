@@ -216,9 +216,6 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
   if (totalFailures > 0 && totalSuccess === 0) {
     indications.push({ type: 'error', message: 'All runs failed' });
   }
-  if (indications.length === 0) {
-    indications.push({ type: 'info', message: 'No significant patterns detected' });
-  }
   return indications;
 }
 
