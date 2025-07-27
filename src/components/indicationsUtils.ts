@@ -241,6 +241,23 @@ export function calculateRunTime(start: number, end: number): number | null {
   return (isNaN(runTime) || runTime <= 0 || runTime === Infinity || runTime > 7 * 24 * 60 * 60 * 1000) ? null : runTime;
 }
 
+export function formatRunTime(totalSeconds: number): string {
+  if (isNaN(totalSeconds) || totalSeconds <= 0) return '';
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  let str = '';
+  if (hours > 0) str += `${hours}h `;
+  if (minutes > 0 || hours > 0) str += `${minutes}m `;
+  str += `${seconds}s`;
+  return str.trim();
+}
+
+// Helper to shorten commit SHA
+export function shortCommit(commit: string | null | undefined) {
+  return commit && commit.length > 7 ? commit.slice(0, 7) : commit || '';
+}
+
 /**
  * Returns aggregated info for a workflow run array: total runs, average run time (ms), success rate, etc.
  */

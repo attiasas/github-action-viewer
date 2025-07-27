@@ -1,6 +1,7 @@
 import React from 'react';
 import './RecentRunsHistogram.css';
 import type { WorkflowStatus } from '../../api/Repositories';
+import { calculateRunTime, formatRunTime, shortCommit } from '../indicationsUtils';
 import { getNormalizedStatus, getStatusChangeIndicators } from '../StatusUtils';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -14,23 +15,26 @@ const STATUS_COLORS: Record<string, string> = {
   no_runs: '#bdbdbd',
 };
 
+// Status change icons by type
+const statusChangeIcons: Record<string, React.ReactNode> = {
+  bad: <span className="histogram-status-change-indicator" style={{ color: 'var(--accent-danger, #dc3545)' }} title="Status worsened" aria-label="Status worsened">❌</span>,
+  good: <span className="histogram-status-change-indicator" style={{ color: 'var(--accent-success, #28a745)' }} title="Status improved" aria-label="Status improved">✅</span>,
+  info: <span className="histogram-status-change-indicator" style={{ color: 'var(--accent-warning, #ffc107)' }} title="Status changed" aria-label="Status changed">&#x1F504;</span>,
+};
+
 interface RecentRunsHistogramProps {
   workflow: WorkflowStatus[];
-  shortCommit: (commit: string | null | undefined) => string;
-  formatDate: (dateStr?: string) => string;
-  calculateRunTime: (start: number, end: number) => number | null;
-  formatRunTime: (totalSeconds: number) => string;
-  statusChangeIcons: Record<string, React.ReactNode>;
 }
 
 const RecentRunsHistogram: React.FC<RecentRunsHistogramProps> = ({
   workflow,
-  shortCommit,
-  formatDate,
-  calculateRunTime,
-  formatRunTime,
-  statusChangeIcons,
 }) => {
+  // Helper to format date
+  function formatDate(dateStr?: string) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
   const statusChangeIndicators = getStatusChangeIndicators(workflow);
   const statusChangeIdxs = Object.keys(statusChangeIndicators).map(Number);
   const firstStatusChangeIdx = statusChangeIdxs.length > 0 ? Math.min(...statusChangeIdxs) : -1;

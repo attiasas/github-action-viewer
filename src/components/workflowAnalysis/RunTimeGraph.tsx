@@ -2,7 +2,7 @@ import React from 'react';
 import './RunTimeGraph.css';
 import type { WorkflowStatus } from '../../api/Repositories';
 import { getNormalizedStatus } from '../StatusUtils';
-import { calculateRunTime } from '../indicationsUtils';
+import { calculateRunTime, formatRunTime } from '../indicationsUtils';
 
 const STATUS_COLORS: Record<string, string> = {
   success: '#4caf50',
@@ -14,19 +14,6 @@ const STATUS_COLORS: Record<string, string> = {
   unknown: '#6ec6ff',
   no_runs: '#bdbdbd',
 };
-
-function formatRunTime(totalSeconds: number): string {
-  if (isNaN(totalSeconds) || totalSeconds <= 0) return '';
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  let str = '';
-  if (hours > 0) str += `${hours}h `;
-  if (minutes > 0 || hours > 0) str += `${minutes}m `;
-  str += `${seconds}s`;
-  return str.trim();
-}
-
 
 interface RunTimeGraphProps {
   workflow: WorkflowStatus[];
@@ -112,7 +99,6 @@ const RunTimeGraph: React.FC<RunTimeGraphProps> = ({ workflow }) => {
           })}
         </div>
       </div>
-      <div style={{ fontSize: '0.85em', color: 'var(--text-secondary, #aaa)', marginTop: 4 }}>Y axis: Run time (duration). Bar color = {runTimeFilter === 'all' ? 'run status' : 'success'}. Hover for details. Click bar to open run.</div>
     </div>
   );
 };

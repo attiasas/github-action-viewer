@@ -1,6 +1,7 @@
 import React from 'react';
 import './DailyStatusHistogram.css';
 import type { WorkflowStatus } from '../../api/Repositories';
+import { shortCommit } from '../indicationsUtils';
 import { getNormalizedStatus, getDailyStatus, getStatusIndicator } from '../StatusUtils';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -16,10 +17,9 @@ const STATUS_COLORS: Record<string, string> = {
 
 interface DailyStatusHistogramProps {
   workflow: WorkflowStatus[];
-  shortCommit: (commit: string | null | undefined) => string;
 }
 
-const DailyStatusHistogram: React.FC<DailyStatusHistogramProps> = ({ workflow, shortCommit }) => {
+const DailyStatusHistogram: React.FC<DailyStatusHistogramProps> = ({ workflow }) => {
 
   const dailyStatus: Array<{ date: string; run: WorkflowStatus | null }> = getDailyStatus(workflow);
   // Find the first (latest) status change index in dailyStatus
@@ -45,7 +45,7 @@ const DailyStatusHistogram: React.FC<DailyStatusHistogramProps> = ({ workflow, s
           dailyStatus.map((ds: { date: string; run: WorkflowStatus | null }, idx: number) => {
             const normalized = ds.run ? getNormalizedStatus(ds.run.status, ds.run.conclusion) : 'no_runs';
             const tooltip = ds.run
-              ? `Date: ${ds.date}\nStatus: ${ds.run.conclusion || ds.run.status}\nRun #${ds.run.runNumber || ds.run.runId || ''}\nEvent: ${ds.run.event || ''}\nCommit: ${shortCommit(ds.run.commit)}${ds.run.url ? '\n\nClick to view run' : ''}`
+              ? `Date: ${ds.date}\nStatus: ${ds.run.conclusion || ds.run.status}${ds.run.runNumber || ds.run.runId ? `\nRun #${ds.run.runNumber || ds.run.runId}` : ''}${ds.run.event ? `\nEvent: ${ds.run.event}` : ''}${ds.run.commit ? `\nCommit: ${shortCommit(ds.run.commit)}` : ''}${ds.run.url ? '\n\nClick to view run' : ''}`
               : `Date: ${ds.date}\nNo run`;
             const prev: WorkflowStatus[] = idx < dailyStatus.length - 1 ? dailyStatus.slice(idx + 1).map((d: { date: string; run: WorkflowStatus | null }) => d.run).filter(Boolean) as WorkflowStatus[] : [];
             const changeType = ds.run ? getStatusIndicator(ds.run, prev) : undefined;
@@ -62,7 +62,7 @@ const DailyStatusHistogram: React.FC<DailyStatusHistogramProps> = ({ workflow, s
                 {isStatusChange && (
                   <span
                     className="histogram-status-change-badge"
-                    title={`Status changed (${changeType}) from previous day`}
+                    title={`Status changed (${changeType}) from previous run`}
                   >
                     {/* You may want to pass statusChangeIcons as a prop for custom icons */}
                   </span>
@@ -70,7 +70,7 @@ const DailyStatusHistogram: React.FC<DailyStatusHistogramProps> = ({ workflow, s
                 {/* Cube itself */}
                 <span
                   className={`histogram-cube${isStatusChange ? (pulse ? ' histogram-cube-status-change' : ' histogram-cube-status-change-static') : ''}`}
-                  title={(isStatusChange ? `Status changed (${changeType}) from previous day\n\n` : '') + tooltip}
+                  title={(isStatusChange ? `Status changed (${changeType}) from previous run\n\n` : '') + tooltip}
                   style={{
                     background: STATUS_COLORS[normalized] || '#bdbdbd',
                     cursor: ds.run && ds.run.url ? 'pointer' : 'default',

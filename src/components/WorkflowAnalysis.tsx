@@ -3,7 +3,7 @@ import './WorkflowAnalysis.css';
 import React from 'react';
 import type { WorkflowStatus } from '../api/Repositories';
 import { getNormalizedStatus } from './StatusUtils';
-import { getWorkflowAggregatedInfo, calculateRunTime } from './indicationsUtils';
+import { getWorkflowAggregatedInfo, formatRunTime } from './indicationsUtils';
 import RunTimeGraph from './workflowAnalysis/RunTimeGraph';
 import DailyStatusHistogram from './workflowAnalysis/DailyStatusHistogram';
 import RecentRunsHistogram from './workflowAnalysis/RecentRunsHistogram';
@@ -30,26 +30,6 @@ const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
   const handleVizChange = (key: string, value: 'recent' | 'daily' | 'runtime') => {
     setSelectedVizMap(prev => ({ ...prev, [key]: value }));
   };
-  // runTimeFilter state moved to RunTimeGraph
-  // Helper to format run time from start and end timestamps
-  function formatRunTime(totalSeconds: number): string {
-    if (isNaN(totalSeconds) || totalSeconds <= 0) return '';
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    let str = '';
-    if (hours > 0) str += `${hours}h `;
-    if (minutes > 0 || hours > 0) str += `${minutes}m `;
-    str += `${seconds}s`;
-    return str.trim();
-  }
-
-  // Status change icons by type
-  const statusChangeIcons: Record<string, React.ReactNode> = {
-    bad: <span className="histogram-status-change-indicator" style={{ color: 'var(--accent-danger, #dc3545)' }} title="Status worsened" aria-label="Status worsened">❌</span>,
-    good: <span className="histogram-status-change-indicator" style={{ color: 'var(--accent-success, #28a745)' }} title="Status improved" aria-label="Status improved">✅</span>,
-    info: <span className="histogram-status-change-indicator" style={{ color: 'var(--accent-warning, #ffc107)' }} title="Status changed" aria-label="Status changed">&#x1F504;</span>,
-  };
 
   // Helper to rank statuses (worst first)
   const STATUS_RANK: Record<string, number> = {
@@ -62,18 +42,6 @@ const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
     success: 6,
     no_runs: 7,
   };
-
-  // Helper to shorten commit SHA
-  function shortCommit(commit: string | null | undefined) {
-    return commit && commit.length > 7 ? commit.slice(0, 7) : commit || '';
-  }
-
-  // Helper to format date
-  function formatDate(dateStr?: string) {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
 
   // Helper to count consecutive runs with the same status from the start
   function countConsecutiveSameStatus(workflow: WorkflowStatus[]): number {
@@ -200,20 +168,10 @@ const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
                 </div>
                 <div style={{ width: '100%', minHeight: 60, maxHeight: 360, overflowY: 'auto', overflowX: 'visible', paddingRight: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
                   {selectedViz === 'recent' && (
-                    <RecentRunsHistogram
-                      workflow={workflow}
-                      shortCommit={shortCommit}
-                      formatDate={formatDate}
-                      calculateRunTime={calculateRunTime}
-                      formatRunTime={formatRunTime}
-                      statusChangeIcons={statusChangeIcons}
-                    />
+                    <RecentRunsHistogram workflow={workflow} />
                   )}
                   {selectedViz === 'daily' && (
-                    <DailyStatusHistogram
-                      workflow={workflow}
-                      shortCommit={shortCommit}
-                    />
+                    <DailyStatusHistogram workflow={workflow} />
                   )}
                   {selectedViz === 'runtime' && workflow.length > 0 && (
                     <RunTimeGraph workflow={workflow} />
