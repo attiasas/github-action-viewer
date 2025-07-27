@@ -28,6 +28,7 @@ const FILTERS = [
 
 const RunTimeGraph: React.FC<RunTimeGraphProps> = ({ workflow }) => {
   const [runTimeFilter, setRunTimeFilter] = React.useState<'successFirst' | 'successAll' | 'all'>('successFirst');
+  const [ignoreOutliers, setIgnoreOutliers] = React.useState<boolean>(false);
 
   // Filtering logic
   let filteredRuns: WorkflowStatus[] = [];
@@ -42,14 +43,38 @@ const RunTimeGraph: React.FC<RunTimeGraphProps> = ({ workflow }) => {
     filteredRuns = workflow;
   }
 
-  // Run times (in seconds)
-  const runTimes = filteredRuns.map(run => {
+  // Outlier filtering logic
+  let runTimes = filteredRuns.map(run => {
     if (run.runStartedAt && run.updatedAt) {
       const ms = calculateRunTime(new Date(run.runStartedAt).getTime(), new Date(run.updatedAt).getTime());
       return ms ? Math.round(ms / 1000) : 0;
     }
     return 0;
   });
+
+  let filteredRunsFinal = filteredRuns;
+  if (ignoreOutliers && runTimes.length > 4) {
+    // Use IQR method to filter outliers
+    const sorted = [...runTimes].filter(rt => rt > 0).sort((a, b) => a - b);
+    const q1 = sorted[Math.floor((sorted.length / 4))];
+    const q3 = sorted[Math.floor((sorted.length * 3) / 4)];
+    const iqr = q3 - q1;
+    const lower = q1 - 1.5 * iqr;
+    const upper = q3 + 1.5 * iqr;
+    filteredRunsFinal = filteredRuns.filter((_, idx) => {
+      const rt = runTimes[idx];
+      return rt >= lower && rt <= upper;
+    });
+    runTimes = filteredRunsFinal.map(run => {
+      if (run.runStartedAt && run.updatedAt) {
+        const ms = calculateRunTime(new Date(run.runStartedAt).getTime(), new Date(run.updatedAt).getTime());
+        return ms ? Math.round(ms / 1000) : 0;
+      }
+      return 0;
+    });
+  }
+
+  // Run times (in seconds)
   const maxRunTime = Math.max(...runTimes, 0);
   const minRunTime = Math.min(...runTimes.filter(t => t > 0), maxRunTime);
   const avgRunTime = runTimes.length > 0 ? Math.round(runTimes.reduce((a, b) => a + b, 0) / runTimes.length) : 0;
@@ -87,7 +112,7 @@ const RunTimeGraph: React.FC<RunTimeGraphProps> = ({ workflow }) => {
     return Math.max(8, Math.round((rt / maxRunTime) * GRAPH_HEIGHT));
   };
 
-  const hasRuns = filteredRuns.length > 0 && runTimes.some(rt => rt > 0);
+  const hasRuns = filteredRunsFinal.length > 0 && runTimes.some(rt => rt > 0);
 
   return (
     <div className="run-time-graph-container" style={{ position: 'relative', overflowX: 'auto' }}>
@@ -106,6 +131,15 @@ const RunTimeGraph: React.FC<RunTimeGraphProps> = ({ workflow }) => {
             {f.label}
           </button>
         ))}
+        <button
+          className={`run-time-graph-filter-btn${ignoreOutliers ? ' active' : ''}`}
+          style={{ marginLeft: 10 }}
+          onClick={() => setIgnoreOutliers(v => !v)}
+          type="button"
+          aria-pressed={ignoreOutliers}
+        >
+          {ignoreOutliers ? 'Ignoring Outliers' : 'Include Outliers'}
+        </button>
       </div>
       {hasRuns ? (
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-end', width: '100%' }}>
@@ -160,7 +194,7 @@ const RunTimeGraph: React.FC<RunTimeGraphProps> = ({ workflow }) => {
               position: 'relative',
             }}
           >
-            {filteredRuns.map((run, idx) => {
+            {filteredRunsFinal.map((run, idx) => {
               const rt = runTimes[idx];
               if (rt === 0) return null;
               const barHeight = getBarHeight(rt);
