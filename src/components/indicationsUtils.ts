@@ -28,9 +28,8 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
   const successStreaks: Record<number, number> = {};
   const now = Date.now();
 
-  const indicatorThresholdsCounts: number[] = [5, 10, 15, 20, 25, 30, 60, 90, 180];
-
   // Aggregate daily streaks for all workflows
+  const indicatorThresholdsCounts: number[] = [5, 10, 15, 20, 25, 30, 60, 90, 180];
   const dailySuccessStreaks: Record<number, number> = {};
   const dailyFailureStreaks: Record<number, number> = {};
 
@@ -56,20 +55,22 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
       }
     }
 
-    // --- Aggregate daily streaks (success/failure in days) ---
+    // --- Aggregate daily streaks (success/failure in days) only if streak starts from today (idx 0) ---
     const dailyStatus = getDailyStatus(workflow);
-    // Start streak from today (idx 0) or first valid run
-    let streakType: 'success' | 'failure' | null = null;
-    let streakLength = 0;
-    for (let i = 0; i < dailyStatus.length; i++) {
-      const ds = dailyStatus[i];
-      const status = ds.run ? getNormalizedStatus(ds.run.status, ds.run.conclusion) : 'no_runs';
-      if (status !== 'success' && status !== 'failure') {
-        streakLength++;
-        continue; // Skip non-success/failure days
-      }
-      if (streakType !== status) {
-        // Streak breaks only on transition between success/failure
+    if (dailyStatus.length > 0) {
+      const firstStatus = dailyStatus[0].run ? getNormalizedStatus(dailyStatus[0].run.status, dailyStatus[0].run.conclusion) : 'no_runs';
+      if (firstStatus === 'success' || firstStatus === 'failure') {
+        const streakType = firstStatus as 'success' | 'failure';
+        let streakLength = 1;
+        for (let i = 1; i < dailyStatus.length; i++) {
+          const ds = dailyStatus[i];
+          const status = ds.run ? getNormalizedStatus(ds.run.status, ds.run.conclusion) : 'no_runs';
+          if (status === streakType) {
+            streakLength++;
+          } else if (status === 'success' || status === 'failure') {
+            break; // Streak only counts from today, stop at first transition
+          }
+        }
         if (streakType === 'success') {
           indicatorThresholdsCounts.forEach((n) => {
             if (streakLength >= n) dailySuccessStreaks[n] = (dailySuccessStreaks[n] || 0) + 1;
@@ -79,19 +80,7 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
             if (streakLength >= n) dailyFailureStreaks[n] = (dailyFailureStreaks[n] || 0) + 1;
           });
         }
-        streakType = status as 'success' | 'failure';
-        streakLength = 1;
       }
-    }
-    // Final streak at end of array
-    if (streakType === 'success') {
-      indicatorThresholdsCounts.forEach((n) => {
-        if (streakLength >= n) dailySuccessStreaks[n] = (dailySuccessStreaks[n] || 0) + 1;
-      });
-    } else if (streakType === 'failure') {
-      indicatorThresholdsCounts.forEach((n) => {
-        if (streakLength >= n) dailyFailureStreaks[n] = (dailyFailureStreaks[n] || 0) + 1;
-      });
     }
 
     // --- Existing: Analyze run statuses for this workflow ---
@@ -191,7 +180,6 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
         : `${count} workflows have succeeded ${maxSuccessStreak} or more times in a row`
     });
   }
-
   // Show most significant daily streaks (day-based)
   const maxDailyFailureStreak = Object.keys(dailyFailureStreaks)
     .map(Number)
