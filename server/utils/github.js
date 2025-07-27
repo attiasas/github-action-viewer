@@ -80,14 +80,18 @@ export async function GetRepositoryBranches(serverUrl, apiToken, owner, repo) {
 }
 
 export class WorkflowRun {
-  constructor(runId, workflowId, workflowName, status, conclusion, createdAt, updatedAt, url, branch, commit) {
+  constructor(runId, runNumber, event, workflowId, workflowName, status, conclusion, createdAt, updatedAt, runStartedAt, runAttempt, url, branch, commit) {
     this.runId = runId;
+    this.runNumber = runNumber;
+    this.event = event;
     this.workflowId = workflowId;
     this.workflowName = workflowName;
     this.status = status;
     this.conclusion = conclusion;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
+    this.runStartedAt = runStartedAt;
+    this.runAttempt = runAttempt;
     this.url = url;
     this.branch = branch;
     this.commit = commit;
@@ -102,12 +106,16 @@ export async function FetchWorkflowRuns(serverUrl, apiToken, repository, branch,
   const runs = await FetchRepositoryRuns(serverUrl, apiToken, owner, repoName, branch, workflowId, 100);
   return runs.workflow_runs.map(run => new WorkflowRun(
     run.id,
+    run.run_number,
+    run.event,
     run.workflow_id,
     run.name,
     run.status,
     run.conclusion,
     run.created_at,
     run.updated_at,
+    run.run_started_at,
+    run.run_attempt,
     run.html_url,
     run.head_branch,
     run.head_sha

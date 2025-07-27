@@ -1,0 +1,125 @@
+.run-time-graph-container {
+  background: var(--bg-card, #fff);
+  border-radius: 8px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+  border: 1px solid var(--border-secondary, #e0e0e0);
+  margin: 18px 0 0 0;
+  padding: 0.7em 0.5em;
+  min-height: 180px;
+  min-width: 600px;
+  position: relative;
+  overflow-x: auto;
+}
+.run-time-graph-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.run-time-graph-title {
+  font-size: 1.08em;
+  font-weight: 600;
+  color: var(--accent-primary, #222);
+  letter-spacing: 0.01em;
+}
+.run-time-graph-filter-group {
+  display: flex;
+  gap: 0.5em;
+}
+.run-time-graph-filter-btn {
+  background: var(--bg-tertiary, #f8f8f8);
+  color: var(--text-secondary, #666);
+  border: 1px solid var(--border-secondary, #e0e0e0);
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-size: 0.97em;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, border 0.18s;
+  outline: none;
+}
+.run-time-graph-filter-btn.active,
+.run-time-graph-filter-btn:focus {
+  background: var(--primary-color, #1976d2);
+  color: #fff;
+  border-color: var(--primary-color, #1976d2);
+}
+.run-time-graph-filter-btn:hover {
+  background: var(--primary-color-hover, #e3f2fd);
+  color: var(--primary-color, #1976d2);
+}
+.run-time-graph-yaxis {
+  position: absolute;
+  left: 0;
+  top: 54px;
+  height: 120px;
+  width: 48px;
+  z-index: 2;
+  pointer-events: none;
+}
+.run-time-graph-yaxis-tick {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  font-size: 0.85em;
+  color: var(--text-secondary, #888);
+  text-align: right;
+  margin-bottom: 0;
+  background: transparent;
+  pointer-events: none;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.run-time-graph-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.18em;
+  height: 120px;
+  margin-left: 48px;
+  width: calc(100% - 48px);
+  position: relative;
+}
+.run-time-graph-bar {
+  width: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  border-radius: 4px;
+  margin-right: 2px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.10);
+  border: 1.5px solid var(--border-secondary, #e0e0e0);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  position: relative;
+  transition: height 0.18s, box-shadow 0.18s, background 0.18s;
+  outline: none;
+}
+.run-time-graph-bar:focus {
+  border-color: var(--primary-color, #1976d2);
+  box-shadow: 0 0 0 2px var(--primary-color, #1976d2), 0 2px 6px rgba(0,0,0,0.10);
+}
+.run-time-graph-bar:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.13);
+  background: var(--primary-color-hover, #e3f2fd);
+  z-index: 2;
+}
+.run-time-label {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-6px);
+  font-size: 0.82em;
+  color: var(--text-secondary, #888);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s;
+  z-index: 3;
+  background: var(--bg-card, #fff);
+  padding: 2px 7px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  border: 1px solid var(--border-secondary, #e0e0e0);
+}
+.run-time-graph-bar:hover .run-time-label {
+  opacity: 1;
+}

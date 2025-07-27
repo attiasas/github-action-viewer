@@ -1,7 +1,11 @@
+import WorkflowIndications from './WorkflowIndications';
+import { getIndications } from './indicationsUtils';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import WorkflowAnalysis from './WorkflowAnalysis';
 import { useAuth } from '../contexts/AuthContext';
+import { getNormalizedStatus } from './StatusUtils';
 
-import type { TrackedRepository, RepositoryStatus, BranchStatus, WorkflowStatus } from '../api/Repositories';
+import type { TrackedRepository, RepositoryStatus, WorkflowStatus } from '../api/Repositories';
 import './WorkflowDetailModal.css';
 
 
@@ -16,7 +20,6 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
   const [repositoryData, setRepositoryData] = useState<RepositoryStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
   
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
@@ -25,6 +28,10 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
   const [newWorkflow, setNewWorkflow] = useState('');
   const [newBranch, setNewBranch] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Selector state for branch and workflow
+  const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
+  const [selectedWorkflow, setSelectedWorkflow] = useState<string | null>(null);
   
   // Available options for suggestions
   const [availableWorkflows, setAvailableWorkflows] = useState<Array<{name: string, path: string}>>([]);
@@ -40,6 +47,8 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
   const workflowInputRef = useRef<HTMLInputElement>(null);
   const branchInputRef = useRef<HTMLInputElement>(null);
 
+  // Expand/collapse state for latest runs section
+  const [showLatestRuns, setShowLatestRuns] = useState(true);
   // Load detailed workflow status using new API
   const loadWorkflowDetails = useCallback(async () => {
     if (!user || !isOpen) return;
@@ -69,16 +78,6 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
       loadWorkflowDetails();
     }
   }, [isOpen, loadWorkflowDetails]);
-
-  // Auto-expand single branch when data loads
-  useEffect(() => {
-    if (repositoryData) {
-      const branches = Object.keys(repositoryData.branches);
-      if (branches.length === 1) {
-        setExpandedBranches(new Set([branches[0]]));
-      }
-    }
-  }, [repositoryData]);
 
   // Handle escape key
   useEffect(() => {
@@ -466,7 +465,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
   if (!isOpen) return null;
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+    return new Date(dateString).toLocaleDateString();
   };
 
   const formatRelativeTime = (dateString: string) => {
@@ -482,19 +481,6 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
     return formatDate(dateString);
-  };
-
-  const getStatusDisplayText = (status: string, conclusion: string | null) => {
-    if (conclusion === 'success') return 'Success';
-    if (conclusion === 'failure') return 'Failed';
-    if (conclusion === 'cancelled') return 'Cancelled';
-    if (status === 'in_progress') return 'Running';
-    if (status === 'queued') return 'Pending';
-    if (status === 'pending') return 'Pending';
-    if (status === 'completed' && !conclusion) return 'Pending'; // Completed but no conclusion means still pending
-    if (status === 'completed') return 'Pending'; // Default completed to pending until we have a conclusion
-    // Fallback for any unexpected values - treat as pending if no conclusion
-    return conclusion ? (conclusion.charAt(0).toUpperCase() + conclusion.slice(1)) : 'Pending';
   };
 
   const getStatusIcon = (status: string, conclusion: string | null) => {
@@ -514,46 +500,25 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
     return '?';
   };
 
-  const normalizeStatus = (status: string, conclusion: string | null) => {
-    if (conclusion === 'success') return 'success';
-    if (conclusion === 'failure') return 'failure';
-    if (conclusion === 'cancelled') return 'cancelled';
-    if (status === 'in_progress') return 'running';
-    if (status === 'queued' || status === 'pending') return 'pending';
-    if (status === 'completed' && !conclusion) return 'pending'; // Treat completed without conclusion as pending
-    if (status === 'completed') return 'pending'; // Default completed to pending until we have a conclusion
-    return 'unknown';
-  };
-
-  // Add missing getStatusPriority and truncateSha for workflow sorting and commit display
-  const getStatusPriority = (status: string, conclusion: string | null) => {
-    if (status === 'in_progress') return 1;
-    if (conclusion === 'failure') return 2;
-    if (conclusion === 'cancelled') return 3;
-    if (conclusion === 'success') return 4;
-    if (status === 'queued' || status === 'pending') return 5;
-    return 6;
-  };
-
   const truncateSha = (sha: string) => {
     return sha?.substring(0, 7) || '';
   };
 
-  const toggleBranch = (branchName: string) => {
-    setExpandedBranches(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(branchName)) {
-        newSet.delete(branchName);
-      } else {
-        newSet.add(branchName);
-      }
-      return newSet;
-    });
-  };
-
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="workflow-detail-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="workflow-detail-modal"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 'auto',
+          minWidth: 540,
+          maxWidth: '90vw',
+          maxHeight: '95vh',
+          height: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         <div className="modal-header">
           <div className="modal-title">
             <h2>
@@ -772,175 +737,276 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
               </div>
             </div>
           ) : repositoryData ? (
-            <div className="workflow-details">
-              {Object.entries(repositoryData.branches).map(([branchName, branchData]: [string, BranchStatus]) => {
-                const isExpanded = expandedBranches.has(branchName);
-                return (
-                  <div key={branchName} className="branch-section">
-                    <div 
-                      className="branch-header clickable"
-                      onClick={() => toggleBranch(branchName)}
-                    >
-                      <h3 className="branch-title">
-                        <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
-                        <span className="branch-name" title={branchName}>{branchName}</span>
-                      </h3>
-                      {!branchData.error && (
-                        <div className="branch-summary">
-                          <span className="workflow-count">
-                            {Object.keys(branchData.workflows).length} workflow{Object.keys(branchData.workflows).length !== 1 ? 's' : ''}
-                          </span>
-                          <div className="branch-stats">
-                            {(() => {
-                              const stats = { success: 0, failure: 0, pending: 0, cancelled: 0, running: 0 };
-                              Object.values(branchData.workflows).forEach((workflow: WorkflowStatus) => {
-                                const normalizedStatus = normalizeStatus(workflow.status, workflow.conclusion);
-                                if (normalizedStatus === 'success') stats.success++;
-                                else if (normalizedStatus === 'failure') stats.failure++;
-                                else if (normalizedStatus === 'pending') stats.pending++;
-                                else if (normalizedStatus === 'cancelled') stats.cancelled++;
-                                else if (normalizedStatus === 'running') stats.running++;
-                              });
-                              return (
-                                <>
-                                  {stats.running > 0 && <span className="stat running" style={{ color: '#1976d2', fontWeight: 'bold' }}>
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2196f3" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: 2 }}>
-                                      <circle cx="12" cy="12" r="10" stroke="#2196f3" strokeWidth="3" fill="none"/>
-                                      <path d="M12 6v6l4 2" stroke="#1976d2"/>
-                                    </svg>
-                                    {stats.running}
-                                  </span>}
-                                  {stats.success > 0 && <span className="stat success">✓{stats.success}</span>}
-                                  {stats.failure > 0 && <span className="stat failure">✗{stats.failure}</span>}
-                                  {stats.pending > 0 && <span className="stat pending">○{stats.pending}</span>}
-                                  {stats.cancelled > 0 && <span className="stat cancelled">⊘{stats.cancelled}</span>}
-                                </>
-                              );
-                            })()}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {isExpanded && (
-                      <>
-                        {branchData.error ? (
-                          <div className="branch-error">
-                            <span className="error-icon">⚠</span>
-                            <span>{branchData.error}</span>
-                          </div>
-                        ) : (
-                          <div className="workflows-list">
-                            {Object.entries(branchData.workflows)
-                              .sort(([, workflowA]: [string, WorkflowStatus], [, workflowB]: [string, WorkflowStatus]) => {
-                                const priorityA = getStatusPriority(workflowA.status, workflowA.conclusion);
-                                const priorityB = getStatusPriority(workflowB.status, workflowB.conclusion);
-                                return priorityA - priorityB;
-                              })
-                              .map(([workflowKey, workflow]: [string, WorkflowStatus]) => {
-                                const normalizedStatus = normalizeStatus(workflow.status, workflow.conclusion);
-                                return (
-                                  <div key={workflowKey} className={`workflow-card status-${normalizedStatus}`}>
-                                    <div className="workflow-main">
-                                      <div className="workflow-info">
-                                        <div className="workflow-header">
-                                          <div className="workflow-title-section">
-                                            <h4 className="workflow-name">{workflow && workflow.name ? workflow.name : workflowKey}</h4>
-                                            {workflow && workflow.url && (
-                                              <a 
-                                                href={workflow.url || ''} 
-                                                target="_blank" 
-                                                rel="noopener noreferrer"
-                                                className="action-button compact"
-                                                aria-label={`View workflow run for ${workflow && workflow.name ? workflow.name : workflowKey}`}
-                                              >
-                                                <span>View Run</span>
-                                                <span className="button-icon">→</span>
-                                              </a>
-                                            )}
-                                          </div>
-                                        </div>
-
-                                        {workflow.workflow_path && (
-                                          <div className="workflow-path">
-                                            <span className="meta-label">Path:</span>
-                                            <a 
-                                              href={`${repo.repository.url}/blob/${branchName}/${workflow.workflow_path}`}
-                                              target="_blank" 
-                                              rel="noopener noreferrer"
-                                              className="path-link"
-                                              title={workflow.workflow_path}
-                                            >
-                                              {workflow.workflow_path}
-                                            </a>
-                                          </div>
-                                        )}
-                                        
-                                        <div className="workflow-meta">
-                                          {'run_number' in workflow && (
-                                            <div className="meta-item">
-                                              <span className="meta-label">Run:</span>
-                                              <span className="workflow-run-number">
-                                                #{workflow.runNumber}
-                                              </span>
-                                            </div>
-                                          )}
-                                          
-                                          {workflow.runNumber && workflow.commit && (
-                                            <div className="meta-item">
-                                              <span className="meta-label">Commit:</span>
-                                              <a 
-                                                href={`${repo.repository.url}/commit/${workflow.commit}`}
-                                                target="_blank" 
-                                                rel="noopener noreferrer"
-                                                className="commit-link"
-                                                title={workflow.commit}
-                                              >
-                                                {truncateSha(workflow.commit)}
-                                              </a>
-                                            </div>
-                                          )}
-                                          
-                                          {workflow.runNumber && workflow.updatedAt && (
-                                            <div className="meta-item">
-                                              <span className="meta-label">Updated:</span>
-                                              <time className="timestamp" title={new Date(workflow.updatedAt).toISOString()}>
-                                                {formatRelativeTime(workflow.updatedAt)}
-                                              </time>
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-
-                                      <div className="workflow-status-section">
-                                        {workflow.status !== 'no_runs' ? (
-                                          <div className={`status-badge status-${normalizedStatus}`}>
-                                            <span className="status-icon">
-                                              {getStatusIcon(workflow.status, workflow.conclusion)}
-                                            </span>
-                                            <span className="status-text">
-                                              {getStatusDisplayText(workflow.status, workflow.conclusion)}
-                                            </span>
-                                          </div>
-                                        ) : (
-                                          <div className="status-badge status-unknown">
-                                            <span className="status-icon">○</span>
-                                            <span className="status-text">No runs</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                          </div>
-                        )}
-                      </>
+            <>
+              {!isEditMode && repositoryData && (
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
+                <div>
+                  <label htmlFor="branch-selector">Branch: </label>
+                  <select
+                    id="branch-selector"
+                    value={selectedBranch || ''}
+                    onChange={e => setSelectedBranch(e.target.value || null)}
+                  >
+                    <option value="">All</option>
+                    {repo.repository.trackedBranches.map(branch => (
+                      <option key={branch} value={branch}>{branch}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="workflow-selector">Workflow: </label>
+                  <select
+                    id="workflow-selector"
+                    value={selectedWorkflow || ''}
+                    onChange={e => setSelectedWorkflow(e.target.value || null)}
+                  >
+                    <option value="">All</option>
+                    {repo.repository.trackedWorkflowsPaths.map(workflow => (
+                      <option key={workflow} value={workflow}>{workflow}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              )}
+              {(() => {
+                // Compute filteredRuns for display
+                const filteredRuns: Array<{ branch: string, workflowKey: string, workflow: WorkflowStatus }> = [];
+                Object.entries(repositoryData.branches)
+                  .filter(([branchName]) => !selectedBranch || branchName === selectedBranch)
+                  .forEach(([branchName, branchData]) => {
+                    Object.entries(branchData.workflows)
+                      .filter(([workflowKey, workflowRuns]) => {
+                        const runs = workflowRuns as WorkflowStatus[];
+                        const wf = runs[0] as WorkflowStatus;
+                        if (!selectedWorkflow) return true;
+                        return (
+                          workflowKey === selectedWorkflow ||
+                          wf.name === selectedWorkflow ||
+                          wf.workflow_path === selectedWorkflow
+                        );
+                      })
+                      .forEach(([workflowKey, workflowRuns]) => {
+                        const runs = workflowRuns as WorkflowStatus[];
+                        if (runs.length === 0) return; // Skip empty workflows
+                        // Use the first run as the representative workflow status
+                        const wf = runs[0] as WorkflowStatus;
+                        if (wf.status !== 'no_runs') {
+                          filteredRuns.push({ branch: branchName, workflowKey, workflow: wf });
+                        }
+                      });
+                  });
+                // Order filteredRuns by normalized status, then by updatedAt (descending)
+                const statusOrder = ['running', 'failure', 'pending', 'cancelled', 'unknown', 'success'];
+                filteredRuns.sort((a, b) => {
+                  const statusA = getNormalizedStatus(a.workflow.status, a.workflow.conclusion);
+                  const statusB = getNormalizedStatus(b.workflow.status, b.workflow.conclusion);
+                  const statusDiff = statusOrder.indexOf(statusA) - statusOrder.indexOf(statusB);
+                  if (statusDiff !== 0) return statusDiff;
+                  // Secondary sort: most recent updatedAt first
+                  const dateA = a.workflow.updatedAt ? new Date(a.workflow.updatedAt).getTime() : 0;
+                  const dateB = b.workflow.updatedAt ? new Date(b.workflow.updatedAt).getTime() : 0;
+                  return dateB - dateA;
+                });
+                // Color map for status
+                // (statusColors and statusBorderColors removed; now using CSS classes)
+                // --- Collect all runs for analytics ---
+                const allRunsForAnalytics: Array<{ branch: string, workflowKey: string, workflow: WorkflowStatus[] }> = [];
+                Object.entries(repositoryData.branches)
+                  .filter(([branchName]) => !selectedBranch || branchName === selectedBranch)
+                  .forEach(([branchName, branchData]) => {
+                    Object.entries(branchData.workflows)
+                      .filter(([workflowKey, workflowRuns]) => {
+                        if (!selectedWorkflow) return true;
+                        const runs = workflowRuns as WorkflowStatus[];
+                        const wf = runs[0] as WorkflowStatus;
+                        return (
+                          workflowKey === selectedWorkflow ||
+                          (wf && (wf.name === selectedWorkflow || wf.workflow_path === selectedWorkflow))
+                        );
+                      })
+                      .forEach(([workflowKey, workflowRuns]) => {
+                        allRunsForAnalytics.push({ branch: branchName, workflowKey, workflow: workflowRuns as WorkflowStatus[] });
+                      });
+                  });
+                // --- End collect all runs for analytics ---
+                // --- Compute indications for analytics ---
+                const indications = getIndications(allRunsForAnalytics);
+                return ( 
+                  <div className="latest-runs-list" style={{ width: '100%', marginTop: '1rem' }}>
+                    {/* --- Indications Section --- */}
+                    {indications && indications.length > 0 && (
+                      <WorkflowIndications indications={indications} />
                     )}
+                    <div className="latest-runs-header" style={{ display: 'flex', alignItems: 'center', gap: '0.5em', userSelect: 'none' }}>
+                      <button
+                        type="button"
+                        aria-expanded={showLatestRuns}
+                        aria-controls="latest-runs-section"
+                        onClick={() => setShowLatestRuns(v => !v)}
+                        className="latest-runs-toggle"
+                        title={showLatestRuns ? 'Hide latest runs' : 'Show latest runs'}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '1.1em',
+                          padding: 0,
+                          color: 'var(--primary-color)',
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span style={{ display: 'inline-block', transition: 'transform 0.2s', transform: showLatestRuns ? 'rotate(90deg)' : 'rotate(0deg)', marginRight: 6 }}>
+                          ▶
+                        </span>
+                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, flex: 'none', color: 'inherit' }}>
+                          Workflows Latest Runs Status
+                        </h3>
+                      </button>
+                      {/* Status count for filtered branch/workflow */}
+                      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        {(() => {
+                          // Compute stats for filtered branches and workflows
+                          const stats = { success: 0, failure: 0, pending: 0, cancelled: 0, running: 0 };
+                          let runCount = 0;
+                          // Collect filtered runs for display
+                          const filteredRuns: Array<{ branch: string, workflowKey: string, workflow: WorkflowStatus }> = [];
+                          Object.entries(repositoryData.branches)
+                            .filter(([branchName]) => !selectedBranch || branchName === selectedBranch)
+                            .forEach(([branchName, branchData]) => {
+                              Object.entries(branchData.workflows)
+                                .filter(([workflowKey, workflowRuns]) => {
+                                  const runs = workflowRuns as WorkflowStatus[];
+                                  if (runs.length === 0) return false; // Skip empty workflows
+                                  // Check if workflow matches selected workflow
+                                  const wf = runs[0] as WorkflowStatus;
+                                  if (!selectedWorkflow) return true;
+                                  return (
+                                    workflowKey === selectedWorkflow ||
+                                    wf.name === selectedWorkflow ||
+                                    wf.workflow_path === selectedWorkflow
+                                  );
+                                })
+                                .forEach(([workflowKey, workflowRuns]) => {
+                                  const runs = workflowRuns as WorkflowStatus[];
+                                  if (runs.length === 0) return; // Skip empty workflows
+                                  // Use the first run as the representative workflow status
+                                  const wf = runs[0] as WorkflowStatus;
+                                  if (wf.status !== 'no_runs') {
+                                    runCount++;
+                                    filteredRuns.push({ branch: branchName, workflowKey, workflow: wf });
+                                  }
+                                  const normalizedStatus = getNormalizedStatus(wf.status, wf.conclusion);
+                                  if (normalizedStatus === 'success') stats.success++;
+                                  else if (normalizedStatus === 'failure') stats.failure++;
+                                  else if (normalizedStatus === 'pending') stats.pending++;
+                                  else if (normalizedStatus === 'cancelled') stats.cancelled++;
+                                  else if (normalizedStatus === 'running') stats.running++;
+                                });
+                            });
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span className="run-count" style={{ display: 'flex', alignItems: 'center', fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                                <span>{runCount}</span>
+                                <span style={{ marginLeft: 4, fontWeight: 'normal' }}>run{runCount !== 1 ? 's' : ''}</span>
+                              </span>
+                              <div className="branch-stats">
+                                {stats.running > 0 && <span className="stat running status-running"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2196f3" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: 2 }}><circle cx="12" cy="12" r="10" stroke="#2196f3" strokeWidth="3" fill="none"/><path d="M12 6v6l4 2" stroke="#1976d2"/></svg>{stats.running}</span>}
+                                {stats.success > 0 && <span className="stat success status-success">✓{stats.success}</span>}
+                                {stats.failure > 0 && <span className="stat failure status-failure">✗{stats.failure}</span>}
+                                {stats.pending > 0 && <span className="stat pending status-pending">○{stats.pending}</span>}
+                                {stats.cancelled > 0 && <span className="stat cancelled status-cancelled">⊘{stats.cancelled}</span>}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                    {showLatestRuns && (
+                      filteredRuns.length === 0 ? (
+                        <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: 4 }}>No runs found.</div>
+                      ) : (
+                        <ul id="latest-runs-section" style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0 0 0' }}>
+                          {filteredRuns.slice(0, 10).map(({ branch, workflowKey, workflow }, idx) => {
+                            const normalizedStatus = getNormalizedStatus(workflow.status, workflow.conclusion);
+                            return (
+                              <li
+                                key={branch + workflowKey + idx}
+                                className={`latest-run-entry status-${normalizedStatus}`}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  padding: '8px 12px',
+                                  marginBottom: '6px',
+                                  borderRadius: '8px',
+                                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                                  transition: 'background 0.2s',
+                                }}
+                                data-status={normalizedStatus}
+                              >
+                                <span
+                                  className={`run-status-badge status-${normalizedStatus}`}
+                                  style={{
+                                    minWidth: 26,
+                                    textAlign: 'center',
+                                    fontSize: '1.2em',
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    border: '1.5px solid transparent',
+                                  }}
+                                >
+                                  <span className="status-icon">{getStatusIcon(workflow.status, workflow.conclusion)}</span>
+                                </span>
+                                <span style={{ display: 'inline-block', width: '4px' }} />
+                                <span
+                                  style={{ fontWeight: 600, fontSize: '1.05em', color: 'var(--text-primary)', flex: '1 1 0', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.5em' }}
+                                  title={workflow.name || workflowKey}
+                                >
+                                  {workflow.name || workflowKey}
+                                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.97em', fontWeight: 500, background: 'var(--bg-tertiary)', borderRadius: '4px', padding: '2px 6px' }}>{branch}</span>
+                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
+                                  {workflow.updatedAt && (
+                                    <span style={{ color: 'var(--primary-color)', fontSize: '0.97em', fontWeight: 500 }} title={new Date(workflow.updatedAt).toLocaleString()}>
+                                      {formatRelativeTime(workflow.updatedAt)}
+                                    </span>
+                                  )}
+                                  {workflow.commit && (
+                                    <a
+                                      href={`${repo.repository.url}/commit/${workflow.commit}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ color: 'var(--primary-color)', textDecoration: 'none', fontWeight: 500, fontSize: '0.97em', background: 'var(--bg-tertiary)', borderRadius: '4px', padding: '2px 6px', marginLeft: '0.5em' }}
+                                      title={workflow.commit}
+                                    >
+                                      {truncateSha(workflow.commit)}
+                                    </a>
+                                  )}
+                                  {workflow.url && (
+                                    <a
+                                      href={workflow.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ marginLeft: 6, color: 'var(--primary-color)', textDecoration: 'none', fontWeight: 600, fontSize: '0.97em', borderRadius: '4px', padding: '2px 8px', background: 'var(--bg-tertiary)', transition: 'background 0.2s' }}
+                                    >
+                                      View
+                                    </a>
+                                  )}
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )
+                    )}
+                    {/* --- Analytics Section --- */}
+                    <WorkflowAnalysis runs={allRunsForAnalytics} />
                   </div>
                 );
-              })}
-            </div>
+              })()}
+            </>
           ) : (
             <div className="empty-state">
               <p>No workflow data available</p>
