@@ -5,9 +5,77 @@
   border: 1px solid var(--border-secondary, #e0e0e0);
   margin: 18px 0 10px 0;
   padding: 0.7em 0.5em;
-  min-height: 80px;
+  min-height: 180px;
   position: relative;
   overflow-x: auto;
+}
+.run-time-graph-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.run-time-graph-title {
+  font-size: 1.08em;
+  font-weight: 600;
+  color: var(--accent-primary, #222);
+  letter-spacing: 0.01em;
+}
+.run-time-graph-filter-group {
+  display: flex;
+  gap: 0.5em;
+}
+.run-time-graph-filter-btn {
+  background: var(--bg-tertiary, #f8f8f8);
+  color: var(--text-secondary, #666);
+  border: 1px solid var(--border-secondary, #e0e0e0);
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-size: 0.97em;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, border 0.18s;
+  outline: none;
+}
+.run-time-graph-filter-btn.active,
+.run-time-graph-filter-btn:focus {
+  background: var(--primary-color, #1976d2);
+  color: #fff;
+  border-color: var(--primary-color, #1976d2);
+}
+.run-time-graph-filter-btn:hover {
+  background: var(--primary-color-hover, #e3f2fd);
+  color: var(--primary-color, #1976d2);
+}
+.run-time-graph-yaxis {
+  position: absolute;
+  left: 0;
+  top: 54px;
+  height: 120px;
+  width: 48px;
+  z-index: 2;
+  pointer-events: none;
+}
+.run-time-graph-yaxis-tick {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  font-size: 0.85em;
+  color: var(--text-secondary, #888);
+  text-align: right;
+  margin-bottom: 0;
+  background: transparent;
+  pointer-events: none;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.run-time-graph-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.18em;
+  height: 120px;
+  margin-left: 48px;
+  width: calc(100% - 48px);
+  position: relative;
 }
 .run-time-graph-bar {
   width: 16px;
