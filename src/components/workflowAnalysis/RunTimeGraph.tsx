@@ -75,7 +75,7 @@ const RunTimeGraph: React.FC<RunTimeGraphProps> = ({ workflow }) => {
     yAxisTicks = Array.from(new Set(yAxisTicks)).sort((a, b) => b - a);
   }
 
-  // Place y-axis ticks proportionally
+  // Place y-axis ticks so their baseline matches the bottom of the corresponding bar
   const getTickPosition = (tick: number) => {
     if (maxRunTime === 0) return 0;
     return ((maxRunTime - tick) / maxRunTime) * GRAPH_HEIGHT;
@@ -87,61 +87,124 @@ const RunTimeGraph: React.FC<RunTimeGraphProps> = ({ workflow }) => {
     return Math.max(8, Math.round((rt / maxRunTime) * GRAPH_HEIGHT));
   };
 
+  const hasRuns = filteredRuns.length > 0 && runTimes.some(rt => rt > 0);
+
   return (
-    <div className="run-time-graph-container">
+    <div className="run-time-graph-container" style={{ position: 'relative', overflowX: 'auto' }}>
       <div className="run-time-graph-header">
         <span className="run-time-graph-title">Run Time Graph</span>
-        <div className="run-time-graph-filter-group">
-          {FILTERS.map(f => (
-            <button
-              key={f.value}
-              className={`run-time-graph-filter-btn${runTimeFilter === f.value ? ' active' : ''}`}
-              onClick={() => setRunTimeFilter(f.value as 'successFirst' | 'successAll' | 'all')}
-              type="button"
-              aria-pressed={runTimeFilter === f.value}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
       </div>
-      <div className="run-time-graph-yaxis" style={{ height: GRAPH_HEIGHT, position: 'absolute', left: 0, top: 54, width: YAXIS_WIDTH }}>
-        {yAxisTicks.map((tick) => (
-          <span
-            key={tick}
-            className="run-time-graph-yaxis-tick"
-            style={{ position: 'absolute', left: 0, width: '100%', top: getTickPosition(tick) }}
+      <div className="run-time-graph-filter-group" style={{ marginBottom: 12 }}>
+        {FILTERS.map(f => (
+          <button
+            key={f.value}
+            className={`run-time-graph-filter-btn${runTimeFilter === f.value ? ' active' : ''}`}
+            onClick={() => setRunTimeFilter(f.value as 'successFirst' | 'successAll' | 'all')}
+            type="button"
+            aria-pressed={runTimeFilter === f.value}
           >
-            {formatRunTime(tick)}
-          </span>
+            {f.label}
+          </button>
         ))}
       </div>
-      <div className="run-time-graph-bars" style={{ height: GRAPH_HEIGHT, marginLeft: YAXIS_WIDTH }}>
-        {filteredRuns.map((run, idx) => {
-          const rt = runTimes[idx];
-          if (rt === 0) return null;
-          const barHeight = getBarHeight(rt);
-          const tooltip = `Run #${run.runNumber || run.runId || ''}\n${run.runStartedAt ? 'Started: ' + run.runStartedAt : ''}\n${run.updatedAt ? 'Ended: ' + run.updatedAt : ''}\nRun time: ${formatRunTime(rt)}`;
-          return (
-            <div
-              key={run.runId || idx}
-              title={tooltip}
-              className="run-time-graph-bar"
-              style={{
-                height: barHeight,
-                alignSelf: 'flex-end',
-                background: runTimeFilter === 'all' ? STATUS_COLORS[getNormalizedStatus(run.status, run.conclusion)] || '#bdbdbd' : STATUS_COLORS['success'],
-                cursor: run.url ? 'pointer' : 'default',
-              }}
-              onClick={() => { if (run.url) window.open(run.url, '_blank', 'noopener'); }}
-              tabIndex={run.url ? 0 : -1}
-              aria-label={tooltip.replace(/\n/g, ' ')}
-            >
-              <span className="run-time-label">{formatRunTime(rt)}</span>
-            </div>
-          );
-        })}
-      </div>
+      {hasRuns ? (
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-end', width: '100%' }}>
+          <div
+            className="run-time-graph-yaxis"
+            style={{
+              height: GRAPH_HEIGHT,
+              width: YAXIS_WIDTH,
+              position: 'sticky',
+              left: 0,
+              zIndex: 10,
+              background: 'var(--bg-card, #fff)',
+              borderRight: '1px solid var(--border-secondary, #e0e0e0)',
+              marginRight: 12,
+              boxShadow: '2px 0 8px -4px rgba(0,0,0,0.07)',
+              minWidth: YAXIS_WIDTH,
+              maxWidth: YAXIS_WIDTH,
+              display: 'block',
+            }}
+          >
+            {yAxisTicks.map((tick) => (
+              <span
+                key={tick}
+                className="run-time-graph-yaxis-tick"
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  width: '100%',
+                  top: getTickPosition(tick),
+                  background: 'var(--bg-card, #fff)',
+                  paddingRight: 6,
+                  paddingLeft: 2,
+                  borderRadius: 4,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                }}
+              >
+                {formatRunTime(tick)}
+              </span>
+            ))}
+          </div>
+          <div
+            className="run-time-graph-bars"
+            style={{
+              height: GRAPH_HEIGHT,
+              minWidth: 400,
+              marginLeft: 0,
+              paddingLeft: 18,
+              width: `calc(100% - ${YAXIS_WIDTH}px)`,
+              display: 'flex',
+              alignItems: 'flex-end',
+              gap: '0.18em',
+              position: 'relative',
+            }}
+          >
+            {filteredRuns.map((run, idx) => {
+              const rt = runTimes[idx];
+              if (rt === 0) return null;
+              const barHeight = getBarHeight(rt);
+              const tooltip = `Run #${run.runNumber || run.runId || ''}\n${run.runStartedAt ? 'Started: ' + run.runStartedAt : ''}\n${run.updatedAt ? 'Ended: ' + run.updatedAt : ''}\nRun time: ${formatRunTime(rt)}`;
+              return (
+                <div
+                  key={run.runId || idx}
+                  title={tooltip}
+                  className="run-time-graph-bar"
+                  style={{
+                    height: barHeight,
+                    alignSelf: 'flex-end',
+                    background: runTimeFilter === 'all' ? STATUS_COLORS[getNormalizedStatus(run.status, run.conclusion)] || '#bdbdbd' : STATUS_COLORS['success'],
+                    cursor: run.url ? 'pointer' : 'default',
+                  }}
+                  onClick={() => { if (run.url) window.open(run.url, '_blank', 'noopener'); }}
+                  tabIndex={run.url ? 0 : -1}
+                  aria-label={tooltip.replace(/\n/g, ' ')}
+                >
+                  <span className="run-time-label">{formatRunTime(rt)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: GRAPH_HEIGHT + 40,
+          minHeight: 180, width: '100%', padding: '32px 0', color: 'var(--text-secondary, #888)',
+        }}>
+          <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginBottom: 12, opacity: 0.7 }}>
+            <rect x="8" y="44" width="8" height="12" rx="2" fill="#e0e0e0"/>
+            <rect x="20" y="36" width="8" height="20" rx="2" fill="#e0e0e0"/>
+            <rect x="32" y="28" width="8" height="28" rx="2" fill="#e0e0e0"/>
+            <rect x="44" y="52" width="8" height="4" rx="2" fill="#e0e0e0"/>
+            <rect x="56" y="40" width="8" height="16" rx="2" fill="#e0e0e0"/>
+            <rect x="8" y="8" width="56" height="4" rx="2" fill="#bdbdbd"/>
+          </svg>
+          <div style={{ fontSize: '1.08em', fontWeight: 500, marginBottom: 4 }}>No runs to display</div>
+          <div style={{ fontSize: '0.97em', color: 'var(--text-secondary, #aaa)', textAlign: 'center', maxWidth: 320 }}>
+            There are no workflow runs matching the selected filter.<br />Try changing the filter or check back later.
+          </div>
+        </div>
+      )}
     </div>
   );
 };

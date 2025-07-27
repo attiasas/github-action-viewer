@@ -3,9 +3,10 @@
   border-radius: 8px;
   box-shadow: 0 1px 6px rgba(0,0,0,0.07);
   border: 1px solid var(--border-secondary, #e0e0e0);
-  margin: 18px 0 10px 0;
+  margin: 18px 0 0 0;
   padding: 0.7em 0.5em;
   min-height: 180px;
+  min-width: 600px;
   position: relative;
   overflow-x: auto;
 }
