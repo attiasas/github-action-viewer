@@ -9,16 +9,6 @@ export class User {
   }
 }
 
-export async function IsUserExists(userId) {
-  const user = await new Promise((resolve, reject) => {
-    db.get('SELECT id FROM users WHERE id = ?', [userId], (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
-  return user ? true : false;
-}
-
 export async function GetUserById(userId) {
   const user = await new Promise((resolve, reject) => {
     db.get('SELECT * FROM users WHERE id = ?', [userId], (err, row) => {
@@ -35,6 +25,20 @@ export async function GetUserById(userId) {
   );
 }
 
+// Update user's settings
+export async function UpdateUserSettings(userId, runRetention) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'UPDATE users SET run_retention = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [runRetention, userId],
+      function(err) {
+        if (err) reject(err);
+        else resolve(this.changes > 0);
+      }
+    );
+  });
+}
+
 export async function CreateUser(userId) {
   await new Promise((resolve, reject) => {
     db.run(
@@ -46,6 +50,16 @@ export async function CreateUser(userId) {
       }
     );
   });
+}
+
+export async function IsUserExists(userId) {
+  const user = await new Promise((resolve, reject) => {
+    db.get('SELECT id FROM users WHERE id = ?', [userId], (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+  return user ? true : false;
 }
 
 export class ServerDetails {
