@@ -220,3 +220,38 @@
     padding: 1px 2px;
   }
 }
+
+/* WorkflowAnalysis run limit slider */
+.workflow-analysis-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5em;
+  margin-bottom: 0.2em;
+}
+.run-limit-slider-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.98em;
+  background: var(--bg-tertiary, #f8f8f8);
+  border-radius: 8px;
+  padding: 0.3em 0.8em;
+  border: 1px solid var(--border-secondary, #e0e0e0);
+}
+.run-limit-slider-label {
+  color: var(--text-secondary, #888);
+  font-weight: 500;
+}
+.run-limit-slider {
+  width: 120px;
+  accent-color: var(--primary-color, #1976d2);
+  margin: 0 0.2em;
+}
+.run-limit-slider-value {
+  font-weight: 600;
+  color: var(--primary-color, #1976d2);
+  min-width: 2.2em;
+  text-align: center;
+  font-size: 1.05em;
+}

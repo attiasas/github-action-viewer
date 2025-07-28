@@ -1,4 +1,3 @@
-
 import './WorkflowAnalysis.css';
 import React from 'react';
 import type { WorkflowStatus } from '../api/Repositories';
@@ -20,17 +19,23 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 
+
 export interface WorkflowAnalysisProps {
   runs: Array<{ branch: string; workflowKey: string; workflow: WorkflowStatus[] }>;
 }
 
 const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
+  // Calculate the max number of runs across all workflows
+  const maxRunCount = React.useMemo(() => {
+    return runs.reduce((max, { workflow }) => Math.max(max, workflow.length), 1);
+  }, [runs]);
+  // Slider state for limiting number of runs shown
+  const [runLimit, setRunLimit] = React.useState(maxRunCount);
   // Visualization selector state (per entry)
   const [selectedVizMap, setSelectedVizMap] = React.useState<Record<string, 'recent' | 'daily' | 'runtime'>>({});
   const handleVizChange = (key: string, value: 'recent' | 'daily' | 'runtime') => {
     setSelectedVizMap(prev => ({ ...prev, [key]: value }));
   };
-
   // Helper to rank statuses (worst first)
   const STATUS_RANK: Record<string, number> = {
     failure: 0,
@@ -42,7 +47,6 @@ const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
     success: 6,
     no_runs: 7,
   };
-
   // Helper to count consecutive runs with the same status from the start
   function countConsecutiveSameStatus(workflow: WorkflowStatus[]): number {
     if (!workflow.length) return 0;
@@ -58,7 +62,6 @@ const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
     }
     return count;
   }
-
   // Sort runs by latest run status, then by most consecutive runs with same status (worst first)
   const sortedRuns = [...runs].sort((a, b) => {
     const aLatest = a.workflow[0];
@@ -72,24 +75,52 @@ const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
     const bConsec = countConsecutiveSameStatus(b.workflow);
     return bConsec - aConsec;
   });
-
-  // ...existing code...
   return (
     <section className="analytics-histogram">
-      <h3>Workflow Run Analysis</h3>
-      {/* Status color legend */}
+      <div className="workflow-analysis-header">
+        <h3 style={{ marginBottom: 0 }}>Workflow Run Analysis</h3>
+        <div className="run-limit-slider-container">
+          <label htmlFor="run-limit-slider" className="run-limit-slider-label">Show last</label>
+          <input
+            id="run-limit-slider"
+            type="range"
+            min={1}
+            max={maxRunCount}
+            value={runLimit}
+            onChange={e => setRunLimit(Number(e.target.value))}
+            className="run-limit-slider"
+          />
+          <span className="run-limit-slider-value">{runLimit}</span>
+          <span className="run-limit-slider-label">runs</span>
+        </div>
+      </div>
+      {/* Status color legend (only show statuses present in filtered runs) */}
       <div style={{ display: 'flex', gap: '1.5em', marginBottom: '0.7em', flexWrap: 'wrap', fontSize: '0.97em' }}>
-        {Object.entries(STATUS_COLORS).map(([status, color]) => (
+        {(() => {
+          // Collect all statuses present in the filtered runs (with runLimit)
+          const presentStatuses = new Set<string>();
+          runs.forEach(({ workflow }) => {
+            workflow.slice(0, runLimit).forEach(run => {
+              presentStatuses.add(getNormalizedStatus(run.status, run.conclusion));
+            });
+          });
+          // Only show legend items for present statuses
+          return Object.entries(STATUS_COLORS)
+        .filter(([status]) => presentStatuses.has(status))
+        .map(([status, color]) => (
           <span key={status} style={{ display: 'flex', alignItems: 'center', gap: '0.4em' }}>
             <span style={{ width: 16, height: 16, background: color, borderRadius: 4, display: 'inline-block', border: '1px solid #e0e0e0' }} />
             <span style={{ color: 'var(--text-secondary, #888)' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
           </span>
-        ))}
+        ));
+        })()}
       </div>
       <div className="histogram-list">
         {sortedRuns.map(({ branch, workflowKey, workflow }) => {
-          const wfName = workflow && workflow.length > 0 && workflow[0].name;
-          const hasNoRuns = !workflow || workflow.length === 0 || (workflow.length === 1 && getNormalizedStatus(workflow[0].status, workflow[0].conclusion) === 'no_runs');
+          // Only show the latest N runs, where N = runLimit
+          const filteredWorkflow = workflow ? workflow.slice(0, runLimit) : [];
+          const wfName = filteredWorkflow && filteredWorkflow.length > 0 && filteredWorkflow[0].name;
+          const hasNoRuns = !filteredWorkflow || filteredWorkflow.length === 0 || (filteredWorkflow.length === 1 && getNormalizedStatus(filteredWorkflow[0].status, filteredWorkflow[0].conclusion) === 'no_runs');
           if (hasNoRuns) {
             return (
               <div className="histogram-entry histogram-entry-empty" key={branch + ':' + workflowKey} style={{ justifyContent: 'center', alignItems: 'center', minHeight: 100, background: 'var(--bg-tertiary, #f8f8f8)', borderRadius: 14, border: '1.5px solid var(--border-secondary, #e0e0e0)', boxShadow: 'var(--shadow-card, 0 2px 8px rgba(0,0,0,0.07))', marginBottom: '0.5rem', textAlign: 'center', width: '100%' }}>
@@ -125,8 +156,8 @@ const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
                 <span className="histogram-branch" style={{ fontSize: '0.93em', color: 'var(--text-secondary, #666)' }}>{branch}</span>
                 {/* Aggregated info rows (only if there are runs) */}
                 {(() => {
-                  if (!workflow || workflow.length === 0 || (workflow.length === 1 && getNormalizedStatus(workflow[0].status, workflow[0].conclusion) === 'no_runs')) return null;
-                  const info = getWorkflowAggregatedInfo(workflow);
+                  if (!filteredWorkflow || filteredWorkflow.length === 0 || (filteredWorkflow.length === 1 && getNormalizedStatus(filteredWorkflow[0].status, filteredWorkflow[0].conclusion) === 'no_runs')) return null;
+                  const info = getWorkflowAggregatedInfo(filteredWorkflow);
                   const avgRunTimeStr = (() => {
                     if (info.avgRunTime === null) return 'N/A';
                     const avgRunTime = formatRunTime(Math.round(info.avgRunTime / 1000));
@@ -168,13 +199,13 @@ const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
                 </div>
                 <div style={{ width: '100%', minHeight: 60, maxHeight: 360, overflowY: 'auto', overflowX: 'visible', paddingRight: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
                   {selectedViz === 'recent' && (
-                    <RecentRunsHistogram workflow={workflow} />
+                    <RecentRunsHistogram workflow={filteredWorkflow} />
                   )}
                   {selectedViz === 'daily' && (
-                    <DailyStatusHistogram workflow={workflow} />
+                    <DailyStatusHistogram workflow={filteredWorkflow} />
                   )}
-                  {selectedViz === 'runtime' && workflow.length > 0 && (
-                    <RunTimeGraph workflow={workflow} />
+                  {selectedViz === 'runtime' && filteredWorkflow.length > 0 && (
+                    <RunTimeGraph workflow={filteredWorkflow} />
                   )}
                 </div>
               </div>

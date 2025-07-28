@@ -511,7 +511,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
         onClick={(e) => e.stopPropagation()}
         style={{
           width: 'auto',
-          minWidth: 540,
+          minWidth: '90vw',
           maxWidth: '90vw',
           maxHeight: '95vh',
           height: 'auto',
