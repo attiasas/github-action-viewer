@@ -98,12 +98,12 @@ export class WorkflowRun {
   }
 }
 
-export async function FetchWorkflowRuns(serverUrl, apiToken, repository, branch, workflowId) {
+export async function FetchWorkflowRuns(serverUrl, apiToken, repository, branch, workflowId, maxResults = 200) {
   const [owner, repoName] = repository.split('/');
   if (!owner || !repoName) {
     throw new Error('Invalid repository format. Expected format: owner/repo');
   }
-  const runs = await FetchRepositoryRuns(serverUrl, apiToken, owner, repoName, branch, workflowId, 100);
+  const runs = await FetchRepositoryRuns(serverUrl, apiToken, owner, repoName, branch, workflowId, maxResults);
   return runs.workflow_runs.map(run => new WorkflowRun(
     run.id,
     run.run_number,
@@ -140,16 +140,7 @@ export async function FetchRepositoryWorkflows(serverUrl, apiToken, repository) 
   return workflowsResponse.data.workflows;
 }
 
-export async function FetchWorkflowsLatestRuns(serverUrl, apiToken, repository, branch, workflowId) {
-  const [owner, repoName] = repository.split('/');
-  if (!owner || !repoName) {
-    throw new Error('Invalid repository format. Expected format: owner/repo');
-  }
-  const response = await FetchRepositoryRuns(serverUrl, apiToken, owner, repoName, branch, workflowId, 1);
-  return response.workflow_runs;
-}
-
-export async function FetchRepositoryRuns(serverUrl, apiToken, owner, repo, branch, workflowId, maxResults = 50) {
+export async function FetchRepositoryRuns(serverUrl, apiToken, owner, repo, branch, workflowId, maxResults) {
   const baseUrl = serverUrl.replace(/\/$/, '');
   const apiUrl = baseUrl.includes('github.com') 
     ? 'https://api.github.com' 

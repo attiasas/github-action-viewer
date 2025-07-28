@@ -8,9 +8,16 @@ export class CachedItem {
 }
 
 class WorkflowRunsCache {
-  constructor(maxRunsPerWorkflow = 100) {
+  constructor(maxRunsPerWorkflow = 200) {
     this.cache = new Map(); // gitServer -> repo -> branch -> workflow -> runs[]
     this.maxRunsPerWorkflow = maxRunsPerWorkflow;
+  }
+
+  // Allow updating maxRunsPerWorkflow at runtime
+  setMaxRunsPerWorkflow(newMax) {
+    if (typeof newMax === 'number' && newMax > 0) {
+      this.maxRunsPerWorkflow = newMax;
+    }
   }
 
   // Helper to get or create nested map structure
@@ -107,8 +114,18 @@ class WorkflowRunsCache {
   clear() {
     this.cache = new Map();
   }
+
 }
 
-// Export a singleton instance
-const RunsCache = new WorkflowRunsCache();
-export default RunsCache;
+// Singleton map: userId -> WorkflowRunsCache
+const userWorkflowRunsCaches = new Map();
+
+// Helper to get or create a WorkflowRunsCache for a userId
+function getUserWorkflowRunsCache(userId, maxRunsPerWorkflow = 200) {
+  if (!userWorkflowRunsCaches.has(userId)) {
+    userWorkflowRunsCaches.set(userId, new WorkflowRunsCache(maxRunsPerWorkflow));
+  }
+  return userWorkflowRunsCaches.get(userId);
+}
+
+export { getUserWorkflowRunsCache };
