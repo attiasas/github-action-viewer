@@ -6,6 +6,7 @@ import ThemeSelector from '../components/ThemeSelector';
 import './SettingsPage.css';
 import type { ServerDetails, User } from '../api/User';
 
+
 export default function SettingsPage() {
   const { user: authUser, logout, addGitHubServer, updateGitHubServer } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
@@ -20,6 +21,13 @@ export default function SettingsPage() {
   });
   const [serverError, setServerError] = useState('');
   const [serverSuccess, setServerSuccess] = useState('');
+
+  // User Preferences Editing State
+  const [editingUserPrefs, setEditingUserPrefs] = useState(false);
+  // Local temp state for editing user preferences
+  const [editRunRetention, setEditRunRetention] = useState<number>(200);
+  const [editShowHistogram, setEditShowHistogram] = useState(true);
+  const [editHistogramType, setEditHistogramType] = useState('refresh');
 
   // Histogram settings state
   const [showHistogram, setShowHistogram] = useState(() => {
@@ -56,41 +64,7 @@ export default function SettingsPage() {
       setIsLoading(false);
     }
   }, [authUser]);
-  // Handle run retention change
-  const handleRunRetentionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = Number(e.target.value);
-    setRunRetention(value);
-    setRunRetentionStatus('');
-  };
-
-  const handleRunRetentionSave = async () => {
-    if (!user) {
-      setRunRetentionStatus('User not found');
-      return;
-    }
-    if (runRetention < 200 || runRetention > 1000) {
-      setRunRetentionStatus('Value must be between 200 and 1000');
-      return;
-    }
-    setRunRetentionStatus('');
-    try {
-      const res = await fetch(`/api/users/user/${user.id}/settings`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ runRetention })
-      });
-      if (res.ok) {
-        setRunRetentionStatus('Saved!');
-        // Update user state with new value
-        setUser(prev => prev ? { ...prev, runRetention } : prev);
-      } else {
-        const err = await res.json();
-        setRunRetentionStatus(err.error || 'Failed to save settings');
-      }
-    } catch (e) {
-      setRunRetentionStatus('Failed to save: ' + (e instanceof Error ? e.message : 'Unknown error'));
-    }
-  };
+  
   // Persist histogram settings to localStorage
   useEffect(() => {
     localStorage.setItem('gav_showHistogram', String(showHistogram));
@@ -103,6 +77,15 @@ export default function SettingsPage() {
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
+
+  // When entering edit mode, initialize temp state from current values
+  useEffect(() => {
+    if (editingUserPrefs) {
+      setEditRunRetention(runRetention);
+      setEditShowHistogram(showHistogram);
+      setEditHistogramType(histogramType);
+    }
+  }, [editingUserPrefs]);
 
   const handleServerFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -214,86 +197,186 @@ export default function SettingsPage() {
             <ThemeSelector />
             
             <div className="settings-card">
-              <div className="card-header">
-                <h2>User Preferences</h2>
+              <div className="card-header" style={{ justifyContent: 'space-between' }}>
+                <div>
+                  <h2 style={{ marginBottom: 4 }}>User Preferences</h2>
+                  <span className="card-subtitle" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Personalize your experience</span>
+                </div>
+                <button
+                  className="add-server-button"
+                  style={{ minWidth: 90 }}
+                  onClick={() => setEditingUserPrefs(true)}
+                  disabled={editingUserPrefs}
+                  title="Edit User Preferences"
+                >
+                  {editingUserPrefs ? 'Editing...' : 'Edit'}
+                </button>
               </div>
-              <div className="card-content">
-                <div className="user-info">
+              <div className="card-content user-preferences-content">
+                {/* User Info Section */}
+                <section className="user-info-section" style={{ marginBottom: 20 }}>
+                  <div className="section-header" style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8, fontSize: 15 }}>Account</div>
                   <div className="info-item">
                     <span className="info-label">User ID</span>
                     <span className="info-value">{user?.id}</span>
                   </div>
-                  <div className="info-item">
-                    <span className="info-label">Current Run Retention</span>
-                    <span className="info-value">{user?.runRetention ?? '—'}</span>
-                  </div>
-                </div>
-                <div className="histogram-settings">
-                  <div className="info-item">
-                    <label className="info-label" htmlFor="showHistogramSwitch">
-                      <input
-                        id="showHistogramSwitch"
-                        type="checkbox"
-                        checked={showHistogram}
-                        onChange={e => setShowHistogram(e.target.checked)}
-                        style={{ marginRight: 8 }}
-                      />
-                      Show Repository Card Histogram
-                    </label>
-                  </div>
-                  {showHistogram && (
-                    <div className="info-item" style={{ marginTop: 8 }}>
-                      <label className="info-label" htmlFor="histogramTypeSelect">
-                        Histogram Type
-                        <select
-                          id="histogramTypeSelect"
-                          value={histogramType}
-                          onChange={e => setHistogramType(e.target.value)}
-                          style={{ marginLeft: 8 }}
-                        >
-                          <option value="refresh">Refresh Histogram</option>
-                          {/* Future options can be added here */}
-                        </select>
-                      </label>
-                    </div>
-                  )}
-                </div>
-                <div className="run-retention-settings" style={{ marginTop: 16 }}>
-                  <div className="info-item" style={{ alignItems: 'flex-end', flexDirection: 'column', gap: 4 }}>
-                    <label className="info-label" htmlFor="runRetentionInput" style={{ width: '100%' }}>
-                      Maximum Run Retention
-                      <input
-                        id="runRetentionInput"
-                        type="number"
-                        min={200}
-                        max={1000}
-                        value={runRetention}
-                        onChange={handleRunRetentionChange}
-                        style={{ marginLeft: 8, width: 80 }}
-                      />
-                    </label>
-                    {runRetentionStatus && (
-                      <div className={runRetentionStatus === 'Saved!' ? 'success-message' : 'error-message'} style={{ marginTop: 14, width: '100%' }}>
-                        {runRetentionStatus}
+                </section>
+
+                {/* Editable Preferences Section */}
+                {editingUserPrefs ? (
+                  <form
+                    className="user-prefs-edit-form"
+                    onSubmit={e => {
+                      e.preventDefault();
+                      // Only update state and persist when Save is pressed
+                      setRunRetention(editRunRetention);
+                      setShowHistogram(editShowHistogram);
+                      setHistogramType(editHistogramType);
+                      setEditingUserPrefs(false);
+                      // Only call backend for runRetention (other prefs are localStorage only)
+                      if (editRunRetention !== runRetention) {
+                        (async () => {
+                          if (!user) return;
+                          if (editRunRetention < 200 || editRunRetention > 1000) {
+                            setRunRetentionStatus('Value must be between 200 and 1000');
+                            return;
+                          }
+                          setRunRetentionStatus('');
+                          try {
+                            const res = await fetch(`/api/users/user/${user.id}/settings`, {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ runRetention: editRunRetention })
+                            });
+                            if (res.ok) {
+                              setRunRetentionStatus('Saved!');
+                              setUser(prev => prev ? { ...prev, runRetention: editRunRetention } : prev);
+                            } else {
+                              const err = await res.json();
+                              setRunRetentionStatus(err.error || 'Failed to save settings');
+                            }
+                          } catch (e) {
+                            setRunRetentionStatus('Failed to save: ' + (e instanceof Error ? e.message : 'Unknown error'));
+                          }
+                        })();
+                      }
+                      // Persist histogram settings to localStorage
+                      localStorage.setItem('gav_showHistogram', String(editShowHistogram));
+                      localStorage.setItem('gav_histogramType', editHistogramType);
+                    }}
+                    style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
+                  >
+                    {/* Histogram Preferences Section */}
+                    <section className="histogram-section">
+                      <div className="section-header" style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8, fontSize: 15 }}>Repository Card Display</div>
+                      <div className="info-item" style={{ alignItems: 'center' }}>
+                        <label className="info-label" htmlFor="showHistogramSwitch" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <input
+                            id="showHistogramSwitch"
+                            type="checkbox"
+                            checked={editShowHistogram}
+                            onChange={e => setEditShowHistogram(e.target.checked)}
+                            style={{ marginRight: 8 }}
+                          />
+                          Show Histogram
+                        </label>
                       </div>
-                    )}
-                    <button
-                      type="button"
-                      className="save-button"
-                      style={{ marginLeft: 0, marginTop: 4, width: 100 }}
-                      onClick={handleRunRetentionSave}
-                      disabled={runRetention < 200 || runRetention > 1000}
-                    >
-                      Save
-                    </button>
-                  </div>
-                </div>
+                      {editShowHistogram && (
+                        <div className="info-item" style={{ marginTop: 8, alignItems: 'center' }}>
+                          <label className="info-label" htmlFor="histogramTypeSelect" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            Histogram Type
+                            <select
+                              id="histogramTypeSelect"
+                              value={editHistogramType}
+                              onChange={e => setEditHistogramType(e.target.value)}
+                              style={{ marginLeft: 8, minWidth: 140 }}
+                            >
+                              <option value="refresh">Refresh Histogram</option>
+                              {/* Future options can be added here */}
+                            </select>
+                          </label>
+                        </div>
+                      )}
+                    </section>
+
+                    {/* Run Retention Section */}
+                    <section className="run-retention-section">
+                      <div className="section-header" style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8, fontSize: 15 }}>Workflow Run Retention</div>
+                      <div className="info-item" style={{ alignItems: 'center', gap: 12 }}>
+                        <label className="info-label" htmlFor="runRetentionInput" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          Maximum Run Retention
+                          <input
+                            id="runRetentionInput"
+                            type="number"
+                            min={200}
+                            max={1000}
+                            value={editRunRetention}
+                            onChange={e => setEditRunRetention(Number(e.target.value))}
+                            style={{ width: 90 }}
+                          />
+                        </label>
+                        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                          (200–1000)
+                        </span>
+                      </div>
+                      {runRetentionStatus && (
+                        <div className={runRetentionStatus === 'Saved!' ? 'success-message' : 'error-message'} style={{ marginTop: 4, width: '100%' }}>
+                          {runRetentionStatus}
+                        </div>
+                      )}
+                    </section>
+                    <div className="form-actions" style={{ marginTop: 8, justifyContent: 'center', display: 'flex' }}>
+                      <button
+                        type="submit"
+                        className="save-button"
+                        disabled={editRunRetention < 200 || editRunRetention > 1000}
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        className="cancel-button"
+                        onClick={() => { setEditingUserPrefs(false); setRunRetentionStatus(''); }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    {/* Histogram Preferences Section */}
+                    <section className="histogram-section" style={{ marginBottom: 24 }}>
+                      <div className="section-header" style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8, fontSize: 15 }}>Repository Card Display</div>
+                      <div className="info-item" style={{ alignItems: 'center' }}>
+                        <span className="info-label">Show Histogram</span>
+                        <span className="info-value">{showHistogram ? 'Yes' : 'No'}</span>
+                      </div>
+                      {showHistogram && (
+                        <div className="info-item" style={{ marginTop: 8, alignItems: 'center' }}>
+                          <span className="info-label">Histogram Type</span>
+                          <span className="info-value">{histogramType === 'refresh' ? 'Refresh Histogram' : histogramType}</span>
+                        </div>
+                      )}
+                    </section>
+
+                    {/* Run Retention Section */}
+                    <section className="run-retention-section">
+                      <div className="section-header" style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8, fontSize: 15 }}>Workflow Run Retention</div>
+                      <div className="info-item" style={{ alignItems: 'center', gap: 12 }}>
+                        <span className="info-label">Maximum Run Retention</span>
+                        <span className="info-value">{runRetention}</span>
+                      </div>
+                    </section>
+                  </>
+                )}
               </div>
             </div>
-
             <div className="settings-card github-servers-card">
-              <div className="card-header">
-                <h2>GitHub Servers</h2>
+              <div className="card-header" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <h2 style={{ marginBottom: 4 }}>GitHub Servers</h2>
+                  <span className="card-subtitle" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Manage your connected GitHub servers</span>
+                </div>
                 <button 
                   onClick={() => setShowAddServerForm(true)} 
                   className="add-server-button"
@@ -302,12 +385,14 @@ export default function SettingsPage() {
                   + Add Server
                 </button>
               </div>
-              <div className="card-content">
-                <GitHubServerManager 
-                  showHeader={false} 
-                  onAddServer={() => setShowAddServerForm(true)}
-                  onEditServer={handleEditServer}
-                />
+              <div className="card-content github-servers-content" style={{ paddingTop: 10, paddingBottom: 10 }}>
+                <div className="github-servers-list" style={{ borderTop: '1px solid var(--border-secondary)', paddingTop: 10 }}>
+                  <GitHubServerManager 
+                    showHeader={false} 
+                    onAddServer={() => setShowAddServerForm(true)}
+                    onEditServer={handleEditServer}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -473,7 +558,7 @@ export default function SettingsPage() {
                     </label>
                   </div>
 
-                  <div className="form-actions">
+                  <div className="form-actions" style={{ justifyContent: 'center', display: 'flex' }}>
                     <button type="submit" className="save-button">
                       {editingServer ? 'Update Server' : 'Add Server'}
                     </button>
