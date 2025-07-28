@@ -4,10 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import GitHubServerManager from '../components/GitHubServerManager';
 import ThemeSelector from '../components/ThemeSelector';
 import './SettingsPage.css';
-import type { ServerDetails } from '../api/User';
+import type { ServerDetails, User } from '../api/User';
 
 export default function SettingsPage() {
-  const { user, logout, addGitHubServer, updateGitHubServer } = useAuth();
+  const { user: authUser, logout, addGitHubServer, updateGitHubServer } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showAddServerForm, setShowAddServerForm] = useState(false);
@@ -31,18 +31,66 @@ export default function SettingsPage() {
     return localStorage.getItem('gav_histogramType') || 'refresh';
   });
 
+  // User state (from API)
+  const [user, setUser] = useState<User | null>(null);
+  const [runRetention, setRunRetention] = useState<number>(200);
+  const [runRetentionStatus, setRunRetentionStatus] = useState<string>('');
+
   const loadSettings = useCallback(async () => {
-    if (!user) return;
+    if (!authUser) return;
     setIsLoading(true);
     try {
-      // Load any necessary settings here if needed in the future
+      // Load user settings from backend
+      const res = await fetch(`/api/users/user/${authUser.id}`);
+      if (res.ok) {
+        const data: User = await res.json();
+        setUser(data);
+        if (typeof data.runRetention === 'number') {
+          setRunRetention(data.runRetention);
+        }
+      }
       // Histogram settings are loaded from localStorage above
-    } catch (error) {
-      console.error('Error loading settings:', error);
+    } catch (e) {
+      console.error('Error loading settings:', e);
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [authUser]);
+  // Handle run retention change
+  const handleRunRetentionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = Number(e.target.value);
+    setRunRetention(value);
+    setRunRetentionStatus('');
+  };
+
+  const handleRunRetentionSave = async () => {
+    if (!user) {
+      setRunRetentionStatus('User not found');
+      return;
+    }
+    if (runRetention < 200 || runRetention > 1000) {
+      setRunRetentionStatus('Value must be between 200 and 1000');
+      return;
+    }
+    setRunRetentionStatus('');
+    try {
+      const res = await fetch(`/api/users/user/${user.id}/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ runRetention })
+      });
+      if (res.ok) {
+        setRunRetentionStatus('Saved!');
+        // Update user state with new value
+        setUser(prev => prev ? { ...prev, runRetention } : prev);
+      } else {
+        const err = await res.json();
+        setRunRetentionStatus(err.error || 'Failed to save settings');
+      }
+    } catch (e) {
+      setRunRetentionStatus('Failed to save: ' + (e instanceof Error ? e.message : 'Unknown error'));
+    }
+  };
   // Persist histogram settings to localStorage
   useEffect(() => {
     localStorage.setItem('gav_showHistogram', String(showHistogram));
@@ -175,6 +223,10 @@ export default function SettingsPage() {
                     <span className="info-label">User ID</span>
                     <span className="info-value">{user?.id}</span>
                   </div>
+                  <div className="info-item">
+                    <span className="info-label">Current Run Retention</span>
+                    <span className="info-value">{user?.runRetention ?? '—'}</span>
+                  </div>
                 </div>
                 <div className="histogram-settings">
                   <div className="info-item">
@@ -205,6 +257,36 @@ export default function SettingsPage() {
                       </label>
                     </div>
                   )}
+                </div>
+                <div className="run-retention-settings" style={{ marginTop: 16 }}>
+                  <div className="info-item" style={{ alignItems: 'flex-end', flexDirection: 'column', gap: 4 }}>
+                    <label className="info-label" htmlFor="runRetentionInput" style={{ width: '100%' }}>
+                      Maximum Run Retention
+                      <input
+                        id="runRetentionInput"
+                        type="number"
+                        min={200}
+                        max={1000}
+                        value={runRetention}
+                        onChange={handleRunRetentionChange}
+                        style={{ marginLeft: 8, width: 80 }}
+                      />
+                    </label>
+                    {runRetentionStatus && (
+                      <div className={runRetentionStatus === 'Saved!' ? 'success-message' : 'error-message'} style={{ marginTop: 14, width: '100%' }}>
+                        {runRetentionStatus}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      className="save-button"
+                      style={{ marginLeft: 0, marginTop: 4, width: 100 }}
+                      onClick={handleRunRetentionSave}
+                      disabled={runRetention < 200 || runRetention > 1000}
+                    >
+                      Save
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

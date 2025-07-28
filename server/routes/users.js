@@ -17,6 +17,7 @@ router.get('/user/:userId', async (req, res) => {
       console.warn(`⚠️ [${req.requestId}] User not found`);
       return res.status(404).json({ error: 'User not found' });
     }
+    console.log(`✅ [${req.requestId}] User info fetched successfully`, user);
     res.json(user);
   } catch (error) {
     console.error(`❌ [${req.requestId}] Error fetching user info:`, error);
@@ -28,7 +29,7 @@ router.get('/user/:userId', async (req, res) => {
 router.put('/user/:userId/settings', async (req, res) => {
   const { userId } = req.params;
   const { runRetention } = req.body;
-  console.log(`🛠️ [${req.requestId}] Updating settings for user: ${userId}`);
+  console.log(`🛠️ [${req.requestId}] Updating settings for user: ${userId}`, { runRetention });
   if (!userId) {
     console.warn(`⚠️ [${req.requestId}] User ID is required to update settings`);
     return res.status(400).json({ error: 'User ID is required' });

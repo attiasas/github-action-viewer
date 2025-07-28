@@ -1,4 +1,11 @@
 
+export interface User {
+    id: number; // Unique identifier for the user (name)
+    createdAt: string; // ISO date string
+    updatedAt: string; // ISO date string
+    runRetention: number; // Number of days to retain workflow runs
+}
+
 export interface ServerDetails {
     id: number;
     serverName: string;
