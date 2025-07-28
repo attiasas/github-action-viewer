@@ -147,18 +147,36 @@ export async function FetchRepositoryRuns(serverUrl, apiToken, owner, repo, bran
     : `${baseUrl}/api/v3`;
 
   let url = `${apiUrl}/repos/${owner}/${repo}/actions/runs`;
-  const params = { per_page: maxResults };
-
-  if (branch) params.branch = branch;
   if (workflowId) url = `${apiUrl}/repos/${owner}/${repo}/actions/workflows/${workflowId}/runs`;
 
-  const response = await axios.get(url, {
-    params: params,
-    headers: {
-      'Authorization': `token ${apiToken}`,
-      'Accept': 'application/vnd.github.v3+json'
-    }
-  });
+  const perPage = maxResults < 100 ? maxResults : 100; // GitHub API max per_page is 100
+  let page = 1;
+  let allRuns = [];
+  let totalFetched = 0;
+  let keepFetching = true;
 
-  return response.data;
+  while (keepFetching && totalFetched < maxResults) {
+    const params = { per_page: perPage, page };
+    if (branch) params.branch = branch;
+    const response = await axios.get(url, {
+      params: params,
+      headers: {
+        'Authorization': `token ${apiToken}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    const runs = response.data.workflow_runs || [];
+    allRuns = allRuns.concat(runs);
+    totalFetched += runs.length;
+    if (runs.length < perPage || totalFetched >= maxResults) {
+      keepFetching = false;
+    } else {
+      page++;
+    }
+  }
+
+  // Return the same structure as before, but with truncated runs if needed
+  return {
+    ...((allRuns.length > 0 && allRuns[0].id) ? { workflow_runs: allRuns.slice(0, maxResults) } : { workflow_runs: [] })
+  };
 }

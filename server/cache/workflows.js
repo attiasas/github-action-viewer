@@ -124,8 +124,12 @@ const userWorkflowRunsCaches = new Map();
 function getUserWorkflowRunsCache(userId, maxRunsPerWorkflow = 200) {
   if (!userWorkflowRunsCaches.has(userId)) {
     userWorkflowRunsCaches.set(userId, new WorkflowRunsCache(maxRunsPerWorkflow));
+  } 
+  const existingCache = userWorkflowRunsCaches.get(userId);
+  if (maxRunsPerWorkflow !== existingCache.maxRunsPerWorkflow) {
+    existingCache.setMaxRunsPerWorkflow(maxRunsPerWorkflow);
   }
-  return userWorkflowRunsCaches.get(userId);
+  return existingCache;
 }
 
 export { getUserWorkflowRunsCache };

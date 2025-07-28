@@ -174,10 +174,8 @@ router.put('/tracked/:userId/:repoId', async (req, res) => {
     console.warn(`⚠️ [${req.requestId}] Invalid tracking settings format`);
     return res.status(400).json({ error: 'tracked_workflows and tracked_branches must be arrays' });
   }
-  const workflowsJson = JSON.stringify(tracked_workflows);
-  const branchesJson = JSON.stringify(tracked_branches);
   try {
-    if (!await UpdateUserTrackedRepository(repoId, userId, workflowsJson, branchesJson)) {
+    if (!await UpdateUserTrackedRepository(repoId, userId, tracked_branches, tracked_workflows)) {
       console.warn(`⚠️ [${req.requestId}] Repository not found for user`);
       return res.status(404).json({ error: 'Repository not found' });
     }

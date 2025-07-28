@@ -137,6 +137,7 @@ router.post('/refresh/:userId/:repoId', async (req, res) => {
             console.warn(`⚠️ [${req.requestId}] User not found: ${userIdRefresh}`);
             return res.status(404).json({ error: 'User not found' });
         }
+        console.log(`[${req.requestId}] User info found:`, userInfo);
         const runsCacheRefresh = getUserWorkflowRunsCache(userIdRefresh, userInfo.runRetention);
         // Fetch workflows runs from GitHub
         for (const branch of req.tracked.repository.trackedBranches) {
@@ -150,6 +151,7 @@ router.post('/refresh/:userId/:repoId', async (req, res) => {
                         workflow,
                         userInfo.runRetention
                     );
+                    console.log(`[${req.requestId}] Fetched ${runs.length} runs for ${req.tracked.repository.name}/${branch}/${workflow}`);
                     // Update cache with fetched runs
                     runsCacheRefresh.updateRuns({
                         gitServer: req.tracked.serverUrl,
