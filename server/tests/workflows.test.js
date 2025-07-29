@@ -9,6 +9,12 @@ import { refreshingRepositories } from '../routes/workflows.js';
 const request = supertest(app);
 
 const userId = 'testuser';
+const userMock = {
+  id: userId,
+  name: 'Test User',
+  runRetention: 300
+};
+
 const repoId = 'testrepo';
 const serverId = 'server1';
 const repoName = 'octocat/hello-world';
@@ -49,6 +55,10 @@ describe('Workflows API', () => {
     });
     vi.spyOn(githubUtils, 'FetchRepositoryWorkflows').mockImplementation(async () => [{ id: 1, name: 'CI', path: 'ci.yml' }]);
     vi.spyOn(githubUtils, 'FetchWorkflowRuns').mockImplementation(async () => workflowRunsMock);
+    vi.spyOn(dbUtils, 'GetUserById').mockImplementation(async (uid) => {
+      if (uid === userId) return { ...userMock };
+      return null;
+    });
     // runsCache mocks
     global.runsCache = {
       updateRuns: vi.fn(),
