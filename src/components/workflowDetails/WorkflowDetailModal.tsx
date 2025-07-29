@@ -1,11 +1,11 @@
 import WorkflowIndications from './WorkflowIndications';
-import { getIndications } from './indicationsUtils';
+import { getIndications } from '../utils/indicationsUtils';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import WorkflowAnalysis from './WorkflowAnalysis';
-import { useAuth } from '../contexts/AuthContext';
-import { getNormalizedStatus } from './StatusUtils';
+import { useAuth } from '../../contexts/AuthContext';
+import { getNormalizedStatus } from '../utils/StatusUtils';
 
-import type { TrackedRepository, RepositoryStatus, WorkflowStatus } from '../api/Repositories';
+import type { TrackedRepository, RepositoryStatus, WorkflowStatus } from '../../api/Repositories';
 import './WorkflowDetailModal.css';
 
 

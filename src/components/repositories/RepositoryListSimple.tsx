@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import RepositoryCard from './RepositoryCard';
-import type { TrackedRepository, RepositoryStatus } from '../api/Repositories';
+import type { TrackedRepository, RepositoryStatus } from '../../api/Repositories';
 import './RepositoryListSimple.css';
 
 

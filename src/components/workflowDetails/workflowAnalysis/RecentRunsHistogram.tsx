@@ -1,8 +1,8 @@
 import React from 'react';
 import './RecentRunsHistogram.css';
-import type { WorkflowStatus } from '../../api/Repositories';
-import { calculateRunTime, formatRunTime, shortCommit } from '../indicationsUtils';
-import { getNormalizedStatus, getStatusChangeIndicators } from '../StatusUtils';
+import type { WorkflowStatus } from '../../../api/Repositories';
+import { calculateRunTime, formatRunTime, shortCommit } from '../../utils/indicationsUtils';
+import { getNormalizedStatus, getStatusChangeIndicators } from '../../utils/StatusUtils';
 
 const STATUS_COLORS: Record<string, string> = {
   success: '#4caf50',

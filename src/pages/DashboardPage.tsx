@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import type { TrackedRepository, RepositoryStatus } from '../api/Repositories';
-import RepositorySearch from '../components/RepositorySearch';
-import RepositoryListSimple from '../components/RepositoryListSimple';
+import RepositorySearch from '../components/repositories/RepositorySearch';
+import RepositoryListSimple from '../components/repositories/RepositoryListSimple';
 import './DashboardPage.css';
 
 

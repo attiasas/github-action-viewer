@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import WorkflowDetailModal from './WorkflowDetailModal';
-import type { TrackedRepository, RepositoryStatus } from '../api/Repositories';
+import { useAuth } from '../../contexts/AuthContext';
+import WorkflowDetailModal from './../workflowDetails/WorkflowDetailModal';
+import type { TrackedRepository, RepositoryStatus } from '../../api/Repositories';
 import './RepositoryCard.css';
 
 

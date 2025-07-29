@@ -1,8 +1,8 @@
 import './WorkflowAnalysis.css';
 import React from 'react';
-import type { WorkflowStatus } from '../api/Repositories';
-import { getNormalizedStatus } from './StatusUtils';
-import { getWorkflowAggregatedInfo, formatRunTime } from './indicationsUtils';
+import type { WorkflowStatus } from '../../api/Repositories';
+import { getNormalizedStatus } from '../utils/StatusUtils';
+import { getWorkflowAggregatedInfo, formatRunTime } from '../utils/indicationsUtils';
 import RunTimeGraph from './workflowAnalysis/RunTimeGraph';
 import DailyStatusHistogram from './workflowAnalysis/DailyStatusHistogram';
 import RecentRunsHistogram from './workflowAnalysis/RecentRunsHistogram';

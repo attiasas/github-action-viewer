@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import type { TrackedRepository } from '../api/Repositories';
+import { useAuth } from '../../contexts/AuthContext';
+import type { TrackedRepository } from '../../api/Repositories';
 import './RepositorySearch.css';
 
 interface Repository {

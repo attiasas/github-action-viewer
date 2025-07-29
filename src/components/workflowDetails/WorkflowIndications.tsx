@@ -2,7 +2,7 @@
 
 import './WorkflowIndications.css';
 import React from 'react';
-import type { Indication } from './indicationsUtils';
+import type { Indication } from '../utils/indicationsUtils';
 
 export interface WorkflowIndicationsProps {
   indications: Indication[];

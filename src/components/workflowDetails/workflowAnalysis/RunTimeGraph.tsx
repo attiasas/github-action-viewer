@@ -1,8 +1,8 @@
 import React from 'react';
 import './RunTimeGraph.css';
-import type { WorkflowStatus } from '../../api/Repositories';
-import { getNormalizedStatus } from '../StatusUtils';
-import { calculateRunTime, formatRunTime } from '../indicationsUtils';
+import type { WorkflowStatus } from '../../../api/Repositories';
+import { getNormalizedStatus } from '../../utils/StatusUtils';
+import { calculateRunTime, formatRunTime } from '../../utils/indicationsUtils';
 
 const STATUS_COLORS: Record<string, string> = {
   success: '#4caf50',

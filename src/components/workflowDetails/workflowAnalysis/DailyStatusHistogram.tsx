@@ -1,8 +1,8 @@
 import React from 'react';
 import './DailyStatusHistogram.css';
-import type { WorkflowStatus } from '../../api/Repositories';
-import { shortCommit } from '../indicationsUtils';
-import { getNormalizedStatus, getDailyStatus, getStatusIndicator } from '../StatusUtils';
+import type { WorkflowStatus } from '../../../api/Repositories';
+import { shortCommit } from '../../utils/indicationsUtils';
+import { getNormalizedStatus, getDailyStatus, getStatusIndicator } from '../../utils/StatusUtils';
 
 const STATUS_COLORS: Record<string, string> = {
   success: '#4caf50',

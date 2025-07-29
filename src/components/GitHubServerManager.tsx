@@ -30,7 +30,7 @@ export default function GitHubServerManager({
 
   useEffect(() => {
     if (user && loadGitHubServers) {
-      loadGitHubServers();
+      loadGitHubServers(false);
     }
   }, [user, loadGitHubServers]);
 
