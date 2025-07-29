@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.js';
 import repositoryRoutes from './routes/repositories.js';
 import workflowsRoutes from './routes/workflows.js';
 import userRoutes from './routes/users.js';
+import serversRoutes from './routes/servers.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,6 +35,7 @@ initializeDatabase();
 // Routes
 app.use('/api', generalRouter);
 app.use('/api/auth', authRoutes);
+app.use('/api/servers', serversRoutes);
 app.use('/api/repositories', repositoryRoutes);
 app.use('/api/workflows', workflowsRoutes);
 app.use('/api/users', userRoutes);

@@ -1,4 +1,4 @@
-import type { WorkflowStatus } from '../api/Repositories';
+import type { WorkflowStatus } from '../../api/Repositories';
 
 export type NormalizedStatus = 'success' | 'failure' | 'cancelled' | 'running' | 'pending' | 'error' | 'unknown' | 'no_runs';
 

@@ -98,12 +98,12 @@ export class WorkflowRun {
   }
 }
 
-export async function FetchWorkflowRuns(serverUrl, apiToken, repository, branch, workflowId) {
+export async function FetchWorkflowRuns(serverUrl, apiToken, repository, branch, workflowId, maxResults = 200) {
   const [owner, repoName] = repository.split('/');
   if (!owner || !repoName) {
     throw new Error('Invalid repository format. Expected format: owner/repo');
   }
-  const runs = await FetchRepositoryRuns(serverUrl, apiToken, owner, repoName, branch, workflowId, 100);
+  const runs = await FetchRepositoryRuns(serverUrl, apiToken, owner, repoName, branch, workflowId, maxResults);
   return runs.workflow_runs.map(run => new WorkflowRun(
     run.id,
     run.run_number,
@@ -140,34 +140,41 @@ export async function FetchRepositoryWorkflows(serverUrl, apiToken, repository) 
   return workflowsResponse.data.workflows;
 }
 
-export async function FetchWorkflowsLatestRuns(serverUrl, apiToken, repository, branch, workflowId) {
-  const [owner, repoName] = repository.split('/');
-  if (!owner || !repoName) {
-    throw new Error('Invalid repository format. Expected format: owner/repo');
-  }
-  const response = await FetchRepositoryRuns(serverUrl, apiToken, owner, repoName, branch, workflowId, 1);
-  return response.workflow_runs;
-}
-
-export async function FetchRepositoryRuns(serverUrl, apiToken, owner, repo, branch, workflowId, maxResults = 50) {
+export async function FetchRepositoryRuns(serverUrl, apiToken, owner, repo, branch, workflowId, maxResults) {
   const baseUrl = serverUrl.replace(/\/$/, '');
   const apiUrl = baseUrl.includes('github.com') 
     ? 'https://api.github.com' 
     : `${baseUrl}/api/v3`;
 
   let url = `${apiUrl}/repos/${owner}/${repo}/actions/runs`;
-  const params = { per_page: maxResults };
-
-  if (branch) params.branch = branch;
   if (workflowId) url = `${apiUrl}/repos/${owner}/${repo}/actions/workflows/${workflowId}/runs`;
 
-  const response = await axios.get(url, {
-    params: params,
-    headers: {
-      'Authorization': `token ${apiToken}`,
-      'Accept': 'application/vnd.github.v3+json'
-    }
-  });
+  const perPage = maxResults < 100 ? maxResults : 100; // GitHub API max per_page is 100
+  let page = 1;
+  let allRuns = [];
+  let totalFetched = 0;
+  let keepFetching = true;
 
-  return response.data;
+  while (keepFetching && totalFetched < maxResults) {
+    const params = { per_page: perPage, page };
+    if (branch) params.branch = branch;
+    const response = await axios.get(url, {
+      params: params,
+      headers: {
+        'Authorization': `token ${apiToken}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    const runs = response.data.workflow_runs || [];
+    allRuns = allRuns.concat(runs);
+    totalFetched += runs.length;
+    if (runs.length < perPage || totalFetched >= maxResults) {
+      keepFetching = false;
+    } else {
+      page++;
+    }
+  }
+  return {
+    ...((allRuns.length > 0 && allRuns[0].id) ? { workflow_runs: allRuns.slice(0, maxResults) } : { workflow_runs: [] })
+  };
 }

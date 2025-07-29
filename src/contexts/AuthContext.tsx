@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!force && lastLoadedUserIdRef.current === userId) return;
     lastLoadedUserIdRef.current = userId;
     try {
-      const response = await fetch(`/api/auth/github-servers/${userId}`);
+      const response = await fetch(`/api/servers/github-servers/${userId}`);
       if (response.ok) {
         const servers = await response.json();
         setGithubServers(servers);
@@ -130,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user?.id) return false;
 
     try {
-      const response = await fetch('/api/auth/github-servers', {
+      const response = await fetch('/api/servers/github-servers', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -162,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user?.id) return false;
 
     try {
-      const response = await fetch(`/api/auth/github-servers/${serverId}`, {
+      const response = await fetch(`/api/servers/github-servers/${serverId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -194,7 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user?.id) return false;
 
     try {
-      const response = await fetch(`/api/auth/github-servers/${serverId}`, {
+      const response = await fetch(`/api/servers/github-servers/${serverId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

@@ -1,45 +1,54 @@
 import express from 'express';
-import { GetUserSettings, UpdateUserSettings } from '../utils/database.js';
+import { GetUserById, UpdateUserSettings } from '../utils/database.js';
 
 const router = express.Router();
 
-// Get user settings
-router.get('/settings/:userId', async (req, res) => {
+// Get user info
+router.get('/user/:userId', async (req, res) => {
   const { userId } = req.params;
-  console.log(`⚙️ [${req.requestId}] Getting settings for user: ${userId}`);
+  console.log(`👤 [${req.requestId}] Fetching user info for: ${userId}`);
+  if (!userId) {
+    console.warn(`⚠️ [${req.requestId}] User ID is required to fetch user info`);
+    return res.status(400).json({ error: 'User ID is required' });
+  }
   try {
-    if (!userId) {
-      console.warn(`⚠️ [${req.requestId}] User ID is required`);
-      return res.status(400).json({ error: 'userId is required' });
+    const user = await GetUserById(userId);
+    if (!user) {
+      console.warn(`⚠️ [${req.requestId}] User not found`);
+      return res.status(404).json({ error: 'User not found' });
     }
-    const userSettings = await GetUserSettings(userId);
-    if (!userSettings) {
-      console.warn(`⚠️ [${req.requestId}] User settings not found for user: ${userId}`);
-      return res.status(404).json({ error: 'User settings not found' });
-    }
-    console.log(`✅ [${req.requestId}] User settings retrieved successfully`, userSettings);
-    res.status(200).json(userSettings);
+    console.log(`✅ [${req.requestId}] User info fetched successfully`, user);
+    res.json(user);
   } catch (error) {
-    console.error(`❌ [${req.requestId}] Error fetching user settings:`, error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error(`❌ [${req.requestId}] Error fetching user info:`, error);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-// Update user settings
-router.put('/settings/:userId', async (req, res) => {
+// Update user settings (currently only run_retention)
+router.put('/user/:userId/settings', async (req, res) => {
   const { userId } = req.params;
-  console.log(`🛠️ [${req.requestId}] Updating settings for user: ${userId}`, req.body);
+  const { runRetention } = req.body;
+  console.log(`🛠️ [${req.requestId}] Updating settings for user: ${userId}`, { runRetention });
+  if (!userId) {
+    console.warn(`⚠️ [${req.requestId}] User ID is required to update settings`);
+    return res.status(400).json({ error: 'User ID is required' });
+  }
+  if (runRetention !== undefined && (isNaN(runRetention) || runRetention < 1)) {
+    console.warn(`⚠️ [${req.requestId}] Invalid runRetention value: ${runRetention}`);
+    return res.status(400).json({ error: 'runRetention must be a positive integer' });
+  }
   try {
-    const changed = await UpdateUserSettings(userId);
-    if (!changed) {
-      console.warn(`⚠️ [${req.requestId}] No changes made to user settings`);
-      return res.status(400).json({ error: 'No changes made' });
+    const updated = await UpdateUserSettings(userId, runRetention);
+    if (!updated) {
+      console.warn(`⚠️ [${req.requestId}] User not found`);
+      return res.status(404).json({ error: 'User not found' });
     }
     console.log(`✅ [${req.requestId}] User settings updated successfully`);
-    res.status(200).json({ success: true, message: 'Settings updated successfully' });
+    res.json({ success: true });
   } catch (error) {
     console.error(`❌ [${req.requestId}] Error updating user settings:`, error);
-    return res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 

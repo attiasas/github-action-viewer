@@ -10,19 +10,7 @@ GitHub Actions Viewer is the easiest way to track, visualize, and manage your CI
 
 ---
 
-## 🚀 Try It Now!
-
-**No build required!** Download the latest release for your platform and get started in seconds:
-
-- [Download for macOS (Apple Silicon)](https://github.com/attiasas/github-action-viewer/releases/latest)  
-- [Download for Linux (x64)](https://github.com/attiasas/github-action-viewer/releases/latest)  
-- [Download for Windows (x64)](https://github.com/attiasas/github-action-viewer/releases/latest)
-
-Or [browse all releases and platforms](https://github.com/attiasas/github-action-viewer/releases).
-
----
-
-## Why You'll Love It
+## 💖 Why You'll Love It
 
 - **One Dashboard, All Your Repos**: See the status of all your GitHub Actions at a glance.
 - **Multi-Server Support**: Connect to GitHub.com and GitHub Enterprise.
@@ -33,22 +21,29 @@ Or [browse all releases and platforms](https://github.com/attiasas/github-action
 
 ---
 
-## Screenshots
+## 📸 Screenshots
 
 ![Dashboard Example](public/dashboard.png)
 
 ---
 
-## Quick Start
+## 🚀 Try It Now!
 
-1. **Download** the latest release for your OS from [GitHub Releases](https://github.com/attiasas/github-action-viewer/releases/latest).
-2. **Extract** the windows archive (if needed) and run:
-   - On macOS/Linux: `./start.sh` or the portable executable
-   - On Windows: `start.bat`
-3. Open your browser to [http://localhost:3000](http://localhost:3000) (opens automatically by default)
-4. **Create your account** and start adding GitHub servers and repositories!
+**No build required!** Download the latest release for your platform and get started in seconds:
 
-See [BUILD.md](BUILD.md) for advanced build instructions.
+- [Download for macOS (Apple Silicon)](https://github.com/attiasas/github-action-viewer/releases/latest)  
+- [Download for Linux (x64)](https://github.com/attiasas/github-action-viewer/releases/latest)  
+- [Download for Windows (x64)](https://github.com/attiasas/github-action-viewer/releases/latest)
+
+Or [browse all releases and platforms](https://github.com/attiasas/github-action-viewer/releases).
+
+**Extract** the windows archive (if needed) and run:
+  - On macOS/Linux: `./start.sh` or the portable executable
+  - On Windows: `start.bat`
+
+**Create your local account** and start adding GitHub servers and repositories!
+
+> See [BUILD.md](BUILD.md) for advanced build instructions.
 
 ---
 

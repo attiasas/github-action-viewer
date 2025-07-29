@@ -1,7 +1,7 @@
 import express from 'express';
 
-import runsCache from '../cache/workflows.js';
-import { GetUserTrackedRepositoryData } from '../utils/database.js';
+import { getUserWorkflowRunsCache } from '../cache/workflows.js';
+import { GetUserById, GetUserTrackedRepositoryData } from '../utils/database.js';
 import {FetchRepositoryWorkflows, FetchWorkflowRuns } from '../utils/github.js';
 
 // userId_serverId_repoId
@@ -119,10 +119,12 @@ router.use('*/:userId/:repoId', async (req, res, next) => {
 });
 
 router.post('/refresh/:userId/:repoId', async (req, res) => {
-    const { userId, repoId } = req.params;
-    console.log(`🔄 [${req.requestId}] Refreshing workflows for ${userId}/${repoId}`);
+    const userIdRefresh = req.params.userId;
+    const repoIdRefresh = req.params.repoId;
+    const forceFull = req.query.force === 'true';
+    console.log(`🔄 [${req.requestId}] Refreshing workflows for ${userIdRefresh}/${repoIdRefresh} (forceFull=${forceFull})`);
     // Check if repository is already being refreshed
-    const cacheKey = `${userId}_${req.tracked.serverId}_${repoId}`;
+    const cacheKey = `${userIdRefresh}_${req.tracked.serverId}_${repoIdRefresh}`;
     try {
         if (refreshingRepositories.has(cacheKey)) {
             console.info(`ℹ️ [${req.requestId}] Repository is already being refreshed: ${cacheKey}`);
@@ -130,6 +132,19 @@ router.post('/refresh/:userId/:repoId', async (req, res) => {
         }
         // Add to refreshing set
         refreshingRepositories.add(cacheKey);
+        // Get the user's workflow runs cache
+        const userInfo = await GetUserById(userIdRefresh);
+        if (!userInfo) {
+            console.warn(`⚠️ [${req.requestId}] User not found: ${userIdRefresh}`);
+            return res.status(404).json({ error: 'User not found' });
+        }
+        console.log(`[${req.requestId}] User info found:`, userInfo);
+        const runsCacheRefresh = getUserWorkflowRunsCache(userIdRefresh, userInfo.runRetention);
+        // Check cache for existing runs
+        let fetchCount = 10;
+        if (forceFull || runsCacheRefresh.size() === 0) {
+            fetchCount = userInfo.runRetention;
+        }
         // Fetch workflows runs from GitHub
         for (const branch of req.tracked.repository.trackedBranches) {
             for (const workflow of req.tracked.repository.trackedWorkflows) {
@@ -139,10 +154,12 @@ router.post('/refresh/:userId/:repoId', async (req, res) => {
                         req.tracked.apiToken,
                         req.tracked.repository.name,
                         branch,
-                        workflow
+                        workflow,
+                        fetchCount
                     );
+                    console.log(`[${req.requestId}] Fetched ${runs.length} (fetchCount=${fetchCount}) runs for ${req.tracked.repository.name}/${branch}/${workflow}`);
                     // Update cache with fetched runs
-                    runsCache.updateRuns({
+                    runsCacheRefresh.updateRuns({
                         gitServer: req.tracked.serverUrl,
                         repository: req.tracked.repository.name,
                         branch,
@@ -152,7 +169,7 @@ router.post('/refresh/:userId/:repoId', async (req, res) => {
                 } catch (error) {
                     console.error(`❌ [${req.requestId}] Error fetching runs for ${req.tracked.repository.name}/${branch}/${workflow}:`, error);
                     // Update cache with error status
-                    runsCache.updateError({
+                    runsCacheRefresh.updateError({
                         gitServer: req.tracked.serverUrl,
                         repository: req.tracked.repository.name,
                         branch,
@@ -163,7 +180,7 @@ router.post('/refresh/:userId/:repoId', async (req, res) => {
             }
         }
         console.log(`✅ [${req.requestId}] Workflows refreshed`);
-        res.status(200).json(getRepositoryStatusFromCache(req.tracked));
+        res.status(200).json(getRepositoryStatusFromCache(req.tracked, runsCacheRefresh));
     } catch (error) {
         console.error(`❌ [${req.requestId}] Error refreshing workflows:`, error);
         res.status(500).json({ error: 'Failed to refresh workflows' });
@@ -173,29 +190,32 @@ router.post('/refresh/:userId/:repoId', async (req, res) => {
 });
 
 router.get('/status/:userId/:repoId', async (req, res) => {
-    const { userId, repoId } = req.params;
+    const userIdStatus = req.params.userId;
+    const repoIdStatus = req.params.repoId;
     const { allowCache } = req.query;
-    console.log(`🚦 [${req.requestId}] Fetching repository status for ${userId}/${repoId} (ignore refresh = ${allowCache})`);
+    console.log(`🚦 [${req.requestId}] Fetching repository status for ${userIdStatus}/${repoIdStatus} (ignore refresh = ${allowCache})`);
+    // Get the user's workflow runs cache
+    const runsCacheStatus = getUserWorkflowRunsCache(userIdStatus);
     try {
         // Check if repository is being refreshed
-        const cacheKey = `${userId}_${req.tracked.repository.serverId}_${repoId}`;
+        const cacheKey = `${userIdStatus}_${req.tracked.repository.serverId}_${repoIdStatus}`;
         if (refreshingRepositories.has(cacheKey)) {
             if (allowCache === 'true') {
                 console.log(`ℹ️ [${req.requestId}] Returning cached status while refreshing`);
-                return res.status(200).json(getRepositoryStatusFromCache(req.tracked));
+                return res.status(200).json(getRepositoryStatusFromCache(req.tracked, runsCacheStatus));
             }
             console.warn(`⚠️ [${req.requestId}] Repository is currently being refreshed: ${cacheKey}`);
             return res.status(202).json({ error: 'Repository is currently being refreshed' });
         }
         console.log(`✅ [${req.requestId}] Fetched repository data`);
-        res.status(200).json(getRepositoryStatusFromCache(req.tracked));
+        res.status(200).json(getRepositoryStatusFromCache(req.tracked, runsCacheStatus));
     } catch (error) {
         console.error(`❌ [${req.requestId}] Error fetching repository status:`, error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-function getRepositoryStatusFromCache(tracked) {
+function getRepositoryStatusFromCache(tracked, runsCache) {
     const repositoryStatus = new RepositoryStatus(tracked.repository.id, tracked.repository.name, tracked.repository.url);
     // Build a map of workflowId -> { name, path }
     let workflowMetaMap = {};

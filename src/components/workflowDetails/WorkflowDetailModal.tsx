@@ -1,11 +1,11 @@
 import WorkflowIndications from './WorkflowIndications';
-import { getIndications } from './indicationsUtils';
+import { getIndications } from '../utils/indicationsUtils';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import WorkflowAnalysis from './WorkflowAnalysis';
-import { useAuth } from '../contexts/AuthContext';
-import { getNormalizedStatus } from './StatusUtils';
+import { useAuth } from '../../contexts/AuthContext';
+import { getNormalizedStatus } from '../utils/StatusUtils';
 
-import type { TrackedRepository, RepositoryStatus, WorkflowStatus } from '../api/Repositories';
+import type { TrackedRepository, RepositoryStatus, WorkflowStatus } from '../../api/Repositories';
 import './WorkflowDetailModal.css';
 
 
@@ -511,7 +511,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
         onClick={(e) => e.stopPropagation()}
         style={{
           width: 'auto',
-          minWidth: 540,
+          minWidth: '90vw',
           maxWidth: '90vw',
           maxHeight: '95vh',
           height: 'auto',
@@ -544,7 +544,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                     setIsLoading(true);
                     setError(null);
                     try {
-                      const response = await fetch(`/api/workflows/refresh/${encodeURIComponent(user.id)}/${repo.repository.id}`, { method: 'POST' });
+                      const response = await fetch(`/api/workflows/refresh/${encodeURIComponent(user.id)}/${repo.repository.id}?force=true`, { method: 'POST' });
                       if (response.ok) {
                         const data = await response.json();
                         setRepositoryData(data);

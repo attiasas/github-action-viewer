@@ -1,4 +1,4 @@
-import type { WorkflowStatus } from '../api/Repositories';
+import type { WorkflowStatus } from '../../api/Repositories';
 import { getNormalizedStatus, getDailyStatus } from './StatusUtils';
 
 export type IndicationType = 'info' | 'warning' | 'success' | 'error';
