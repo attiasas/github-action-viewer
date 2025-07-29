@@ -138,7 +138,7 @@ router.post('/refresh/:userId/:repoId', async (req, res) => {
             console.warn(`⚠️ [${req.requestId}] User not found: ${userIdRefresh}`);
             return res.status(404).json({ error: 'User not found' });
         }
-        console.log(`[${req.requestId}] User info found:`, userInfo);
+        console.log(`[${req.requestId}] User info found:`);
         const runsCacheRefresh = getUserWorkflowRunsCache(userIdRefresh, userInfo.runRetention);
         // Check cache for existing runs
         let fetchCount = 10;
