@@ -91,7 +91,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
 
   // Prevent overlapping/infinite refreshes
   const refreshInProgressRef = useRef(false);
-  const getRepositoryStats = useCallback(async () => {
+  const getRepositoryStats = useCallback(async (forceRefresh = false) => {
     if (!user || refreshInProgressRef.current) return null;
     refreshInProgressRef.current = true;
     setIsRefreshing(true);
@@ -101,7 +101,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
     try {
       let statsData = null;
       // For all refreshes (initial, timer, manual, force): always POST to refresh and wait for completion
-      const postResp = await fetch(`${baseUrl}/refresh/${encodedUserId}/${repo.repository.id}`, { method: 'POST' });
+      const postResp = await fetch(`${baseUrl}/refresh/${encodedUserId}/${repo.repository.id}${forceRefresh ? '?force=true' : ''}`, { method: 'POST' });
       if (postResp.status === 202) {
         // If already refreshing, poll GET until not 202
         const pollStatus = async () => {
@@ -178,7 +178,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
     if (forceRefresh && !forceRefreshHandledRef.current) {
       forceRefreshHandledRef.current = true;
       setTimeLeft(repo.repository.autoRefreshInterval); // Reset timer
-      getRepositoryStats().finally(() => {
+      getRepositoryStats(true).finally(() => {
         if (onForceRefreshComplete) {
           onForceRefreshComplete();
         }

@@ -544,7 +544,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                     setIsLoading(true);
                     setError(null);
                     try {
-                      const response = await fetch(`/api/workflows/refresh/${encodeURIComponent(user.id)}/${repo.repository.id}`, { method: 'POST' });
+                      const response = await fetch(`/api/workflows/refresh/${encodeURIComponent(user.id)}/${repo.repository.id}?force=true`, { method: 'POST' });
                       if (response.ok) {
                         const data = await response.json();
                         setRepositoryData(data);

@@ -174,8 +174,6 @@ export async function FetchRepositoryRuns(serverUrl, apiToken, owner, repo, bran
       page++;
     }
   }
-
-  // Return the same structure as before, but with truncated runs if needed
   return {
     ...((allRuns.length > 0 && allRuns[0].id) ? { workflow_runs: allRuns.slice(0, maxResults) } : { workflow_runs: [] })
   };

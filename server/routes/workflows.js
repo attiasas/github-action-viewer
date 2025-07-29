@@ -121,7 +121,8 @@ router.use('*/:userId/:repoId', async (req, res, next) => {
 router.post('/refresh/:userId/:repoId', async (req, res) => {
     const userIdRefresh = req.params.userId;
     const repoIdRefresh = req.params.repoId;
-    console.log(`🔄 [${req.requestId}] Refreshing workflows for ${userIdRefresh}/${repoIdRefresh}`);
+    const forceFull = req.query.force === 'true';
+    console.log(`🔄 [${req.requestId}] Refreshing workflows for ${userIdRefresh}/${repoIdRefresh} (forceFull=${forceFull})`);
     // Check if repository is already being refreshed
     const cacheKey = `${userIdRefresh}_${req.tracked.serverId}_${repoIdRefresh}`;
     try {
@@ -139,6 +140,11 @@ router.post('/refresh/:userId/:repoId', async (req, res) => {
         }
         console.log(`[${req.requestId}] User info found:`, userInfo);
         const runsCacheRefresh = getUserWorkflowRunsCache(userIdRefresh, userInfo.runRetention);
+        // Check cache for existing runs
+        let fetchCount = 10;
+        if (forceFull || runsCacheRefresh.size() === 0) {
+            fetchCount = userInfo.runRetention;
+        }
         // Fetch workflows runs from GitHub
         for (const branch of req.tracked.repository.trackedBranches) {
             for (const workflow of req.tracked.repository.trackedWorkflows) {
@@ -149,9 +155,9 @@ router.post('/refresh/:userId/:repoId', async (req, res) => {
                         req.tracked.repository.name,
                         branch,
                         workflow,
-                        userInfo.runRetention
+                        fetchCount
                     );
-                    console.log(`[${req.requestId}] Fetched ${runs.length} runs for ${req.tracked.repository.name}/${branch}/${workflow}`);
+                    console.log(`[${req.requestId}] Fetched ${runs.length} (fetchCount=${fetchCount}) runs for ${req.tracked.repository.name}/${branch}/${workflow}`);
                     // Update cache with fetched runs
                     runsCacheRefresh.updateRuns({
                         gitServer: req.tracked.serverUrl,
