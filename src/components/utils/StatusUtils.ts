@@ -39,11 +39,12 @@ export function calculateStabilityScore(
       let weightedTotal = 0;
       for (let i = 0; i < workflow.length; i++) {
         const run = workflow[i];
-        const status = run.status || run.conclusion;
-        if (status !== 'no_runs') {
+        const status = getNormalizedStatus(run.status, run.conclusion);
+        // Only consider runs that are not no_runs or cancelled
+        if (status !== 'no_runs' && status !== 'cancelled') {
           const weight = Math.pow(decay, i);
           weightedTotal += weight;
-          if (status === 'success' || run.conclusion === 'success') {
+          if (status === 'success') {
             weightedSuccess += weight;
           }
         }

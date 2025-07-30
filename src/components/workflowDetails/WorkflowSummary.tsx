@@ -124,7 +124,7 @@ const WorkflowSummary: React.FC<WorkflowSummaryProps> = ({ runs }) => {
     scoreClass += ' repo-score-success';
   }
 
-  const successRateNum = stats.totalRuns > 0 ? (stats.success / stats.totalRuns * 100) : 0;
+  const successRateNum = stats.totalRuns > 0 ? (stats.success / (stats.success + stats.failure + stats.pending + stats.running + stats.unknown) * 100) : 0;
   const successRate = successRateNum.toFixed(1);
   let successRateColor = 'var(--accent-success, #28a745)';
   if (stats.totalRuns === 0) successRateColor = 'var(--accent-unknown, #888)';
