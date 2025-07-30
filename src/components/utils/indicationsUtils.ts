@@ -160,7 +160,7 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
         : `${count} workflows have not run in the last ${maxNotRunDays} days`,
       relevantWorkflowCount: count,
       url: "https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows",
-      severityScore: count * (maxNotRunDays / 10)
+      severityScore: count * (maxNotRunDays / 5)
     });
   }
   // Only show the most significant (longest) failure and success streaks (run-based)

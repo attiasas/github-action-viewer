@@ -42,6 +42,46 @@
   gap: 0.5em;
 }
 
+.repo-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.2em 0;
+  border-radius: 8px;
+  transition: background 0.2s;
+  width: 100%;
+}
+
+.repo-stats-row:hover {
+  background: var(--bg-tertiary, #f8f9fa);
+}
+.theme-dark .repo-stats-row:hover {
+  background: rgba(255,255,255,0.04);
+}
+.repo-stats-icon {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+  margin-right: 0.2em;
+}
+.repo-stats-label {
+  min-width: 120px;
+  font-weight: 500;
+  color: var(--text-primary, #222);
+  margin-right: 0.2em;
+}
+.repo-stats-value {
+  font-weight: 600;
+  color: var(--text-primary, #222);
+  font-size: 1.08em;
+  margin-left: auto;
+  min-width: 70px;
+  text-align: right;
+}
+
 .summary-center {
   flex: 1 1 220px;
   display: flex;

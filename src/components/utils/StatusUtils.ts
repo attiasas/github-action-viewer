@@ -50,7 +50,7 @@ export function calculateStabilityScore(
       }
       successRate = weightedTotal > 0 ? (weightedSuccess / weightedTotal) * 100 : 100;
     }
-    const finalScore = 0.6 * indicationScore + 0.4 * successRate;
+    const finalScore = 0.5 * indicationScore + 0.5 * successRate;
     workflowScores.push(finalScore);
   });
   const avgScore = workflowScores.reduce((a, b) => a + b, 0) / workflowScores.length;
