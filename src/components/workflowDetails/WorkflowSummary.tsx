@@ -170,7 +170,7 @@ const WorkflowSummary: React.FC<WorkflowSummaryProps> = ({ runs }) => {
             <span className="repo-stats-icon" style={{ color: 'var(--accent-primary, #333)' }}>
               <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path d="M5 6h10v2H5zM5 10h10v2H5zM5 14h10v2H5z"/></svg>
             </span>
-            <span className="repo-stats-label">Tracked Workflows</span>
+            <span className="repo-stats-label">Tracked Jobs</span>
             <span className="repo-stats-value">{stats.trackedWorkflows}</span>
           </div>
           <div className="repo-stats-row" title="Time of the most recent workflow run (across all tracked workflows)">
