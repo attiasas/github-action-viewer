@@ -2,6 +2,12 @@
   <img src="public/github-actions-viewer-banner.svg" alt="GitHub Actions Viewer" width="600" />
 </p>
 
+<div align="center">
+
+[![Test](https://github.com/attiasas/github-action-viewer/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/attiasas/github-action-viewer/actions/workflows/ci.yml?query=branch%main)
+
+</div>
+
 # GitHub Actions Viewer
 
 **Monitor all your GitHub Actions in one beautiful dashboard.**
