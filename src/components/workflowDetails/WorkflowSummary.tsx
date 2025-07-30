@@ -4,6 +4,7 @@ import { getNormalizedStatus } from '../utils/StatusUtils';
 import { getIndications } from '../utils/indicationsUtils';
 import type { Indication } from '../utils/indicationsUtils';
 import './WorkflowSummary.css';
+import { formatRelativeTime } from '../utils/indicationsUtils';
 
 export interface WorkflowSummaryProps {
   runs: Array<{ branch: string; workflowKey: string; workflow: WorkflowStatus[] }>;
@@ -24,7 +25,6 @@ function aggregateRuns(runs: WorkflowSummaryProps['runs']) {
   runs.forEach(({ workflow }) => {
     trackedWorkflows++;
     workflow.forEach(run => {
-      totalRuns++;
       const status = getNormalizedStatus(run.status, run.conclusion);
       if (status === 'success') success++;
       else if (status === 'failure') failure++;
@@ -34,6 +34,8 @@ function aggregateRuns(runs: WorkflowSummaryProps['runs']) {
       else if (status === 'error') error++;
       else if (status === 'unknown') unknown++;
       else if (status === 'no_runs') noRuns++;
+
+      if (status !== 'no_runs') totalRuns++;
     });
   });
   return { totalRuns, success, failure, cancelled, running, pending, error, unknown, noRuns, trackedWorkflows };
@@ -78,12 +80,12 @@ function StatusPieChart({ stats }: { stats: ReturnType<typeof aggregateRuns> }) 
   ].filter(d => d.value > 0);
   const total = data.reduce((sum, d) => sum + d.value, 0);
   let cumulative = 0;
-  const radius = 60;
-  const center = 70;
-  const strokeWidth = 30;
+  const radius = 80;
+  const center = 95;
+  const strokeWidth = 36;
   return (
     <div className="status-pie-chart-wrapper status-pie-chart-row">
-      <svg width={140} height={140} viewBox="0 0 140 140" className="status-pie-chart">
+      <svg width={190} height={190} viewBox="0 0 190 190" className="status-pie-chart">
         {data.length === 1 ? (
           // Only one status: draw a full circle in the color
           <circle cx={center} cy={center} r={radius} fill={data[0].color} />
@@ -129,6 +131,19 @@ const WorkflowSummary: React.FC<WorkflowSummaryProps> = ({ runs }) => {
   // Success rate
   const successRate = stats.totalRuns > 0 ? (stats.success / stats.totalRuns * 100).toFixed(1) : '0.0';
 
+  // Find latest run date
+  let latestRunAt: string | null = null;
+  runs.forEach(({ workflow }) => {
+    workflow.forEach(run => {
+      if (run.updatedAt) {
+        if (!latestRunAt || new Date(run.updatedAt) > new Date(latestRunAt)) {
+          latestRunAt = run.updatedAt;
+        }
+      }
+    });
+  });
+  const latestRunDisplay = latestRunAt ? formatRelativeTime(latestRunAt) : 'N/A';
+
   return (
     <div className="workflow-summary-container">
       <div className="summary-left">
@@ -140,6 +155,7 @@ const WorkflowSummary: React.FC<WorkflowSummaryProps> = ({ runs }) => {
           <div><strong>Success Rate:</strong> <span style={{ color: 'var(--accent-success, #28a745)' }}>{successRate}%</span></div>
           <div><strong>Total Runs:</strong> {stats.totalRuns}</div>
           <div><strong>Tracked:</strong> {stats.trackedWorkflows}</div>
+          <div><strong>Latest Run At:</strong> {latestRunDisplay}</div>
         </div>
       </div>
       <div className="summary-right">

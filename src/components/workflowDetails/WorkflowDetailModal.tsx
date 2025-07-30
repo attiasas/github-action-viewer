@@ -1,5 +1,5 @@
 import WorkflowIndications from './WorkflowIndications';
-import { getIndications } from '../utils/indicationsUtils';
+import { getIndications, formatRelativeTime } from '../utils/indicationsUtils';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import WorkflowAnalysis from './WorkflowAnalysis';
 import { useAuth } from '../../contexts/AuthContext';
@@ -464,25 +464,6 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
   };
 
   if (!isOpen) return null;
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  const formatRelativeTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMinutes < 1) return 'just now';
-    if (diffMinutes < 60) return `${diffMinutes}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return formatDate(dateString);
-  };
 
   const getStatusIcon = (status: string, conclusion: string | null) => {
     if (conclusion === 'success') return '✓';
