@@ -152,12 +152,12 @@ const WorkflowSummary: React.FC<WorkflowSummaryProps> = ({ runs }) => {
           <span style={{ fontSize: '1em', fontWeight: 500, marginLeft: 8 }}>Stability Score</span>
         </div>
         <div className="repo-stats">
-          <div className="repo-stats-row" title="Percentage of successful runs out of all runs (weighted by recency)">
-            <span className="repo-stats-icon" style={{ color: 'var(--accent-success, #28a745)' }}>
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="10" r="8" /><path d="M7 10.5l2 2 4-4" stroke="#fff" strokeWidth="2" fill="none"/></svg>
+          <div className="repo-stats-row" title="Number of tracked jobs in this repository">
+            <span className="repo-stats-icon" style={{ color: 'var(--accent-primary, #333)' }}>
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path d="M5 6h10v2H5zM5 10h10v2H5zM5 14h10v2H5z"/></svg>
             </span>
-            <span className="repo-stats-label">Success Rate</span>
-            <span className="repo-stats-value" style={{ color: successRateColor }}>{successRate}%</span>
+            <span className="repo-stats-label">Tracked Jobs</span>
+            <span className="repo-stats-value">{stats.trackedWorkflows}</span>
           </div>
           <div className="repo-stats-row" title="Total number of workflow runs (excluding no_runs)">
             <span className="repo-stats-icon" style={{ color: 'var(--accent-info, #2196f3)' }}>
@@ -166,12 +166,12 @@ const WorkflowSummary: React.FC<WorkflowSummaryProps> = ({ runs }) => {
             <span className="repo-stats-label">Total Runs</span>
             <span className="repo-stats-value">{stats.totalRuns}</span>
           </div>
-          <div className="repo-stats-row" title="Number of tracked workflows in this repository">
-            <span className="repo-stats-icon" style={{ color: 'var(--accent-primary, #333)' }}>
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path d="M5 6h10v2H5zM5 10h10v2H5zM5 14h10v2H5z"/></svg>
+          <div className="repo-stats-row" title="Percentage of successful runs out of all runs (weighted by recency)">
+            <span className="repo-stats-icon" style={{ color: 'var(--accent-success, #28a745)' }}>
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="10" r="8" /><path d="M7 10.5l2 2 4-4" stroke="#fff" strokeWidth="2" fill="none"/></svg>
             </span>
-            <span className="repo-stats-label">Tracked Jobs</span>
-            <span className="repo-stats-value">{stats.trackedWorkflows}</span>
+            <span className="repo-stats-label">Success Rate</span>
+            <span className="repo-stats-value" style={{ color: successRateColor }}>{successRate}%</span>
           </div>
           <div className="repo-stats-row" title="Time of the most recent workflow run (across all tracked workflows)">
             <span className="repo-stats-icon" style={{ color: 'var(--accent-warning, #ffc107)' }}>
