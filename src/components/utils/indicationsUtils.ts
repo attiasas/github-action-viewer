@@ -191,7 +191,6 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
         ? `A workflow has succeeded ${maxSuccessStreak} or more times in a row`
         : `${count} workflows have succeeded ${maxSuccessStreak} or more times in a row`,
       relevantWorkflowCount: count,
-      severityScore: count * maxSuccessStreak
     });
   }
   // Show most significant daily streaks (day-based)
@@ -222,7 +221,6 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
         ? `A workflow has succeeded for ${maxDailySuccessStreak} or more consecutive days`
         : `${count} workflows have succeeded for ${maxDailySuccessStreak} or more consecutive days`,
       relevantWorkflowCount: count,
-      severityScore: count * maxDailySuccessStreak
     });
   }
   if (anyRecentFailure) {

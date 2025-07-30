@@ -1,3 +1,61 @@
+// Calculate stability score for a set of runs, normalized 0-100
+import { getIndications } from './indicationsUtils';
+
+export function calculateStabilityScore(
+  entries: Array<{ branch: string; workflowKey: string; workflow: WorkflowStatus[] }>
+): number | null {
+  if (!entries || entries.length === 0) return null;
+  // If all workflows are no_run, return null (unknown)
+  const allNoRun = entries.every(({ workflow }) =>
+    workflow.length === 0 || workflow.every(run => {
+      const status = run.status || run.conclusion;
+      return status === 'no_runs';
+    })
+  );
+  if (allNoRun) return null;
+
+  const workflowScores: number[] = [];
+  entries.forEach(({ branch, workflowKey, workflow }) => {
+    const indications = getIndications([
+      { branch, workflowKey, workflow }
+    ]);
+    const relevant = indications.filter(ind => ind.type !== 'success');
+    let penalty = 0;
+    relevant.forEach(ind => {
+      let factor = 1;
+      if (ind.type === 'error') factor = 2;
+      else if (ind.type === 'warning') factor = 1;
+      else if (ind.type === 'info') factor = 0.5;
+      penalty += (ind.severityScore || 1) * factor;
+    });
+    const indicationScore = Math.max(0, 100 - Math.min(Math.log10(1 + penalty) * 25, 100));
+
+    // Weighted success rate: recent runs count more
+    let successRate = 100;
+    if (workflow.length > 0) {
+      // Exponential decay weights: w_i = decay^i, latest run is i=0
+      const decay = 0.5; // tune decay factor (0.7-0.9 reasonable)
+      let weightedSuccess = 0;
+      let weightedTotal = 0;
+      for (let i = 0; i < workflow.length; i++) {
+        const run = workflow[i];
+        const status = run.status || run.conclusion;
+        if (status !== 'no_runs') {
+          const weight = Math.pow(decay, i);
+          weightedTotal += weight;
+          if (status === 'success' || run.conclusion === 'success') {
+            weightedSuccess += weight;
+          }
+        }
+      }
+      successRate = weightedTotal > 0 ? (weightedSuccess / weightedTotal) * 100 : 100;
+    }
+    const finalScore = 0.6 * indicationScore + 0.4 * successRate;
+    workflowScores.push(finalScore);
+  });
+  const avgScore = workflowScores.reduce((a, b) => a + b, 0) / workflowScores.length;
+  return Math.max(0, Math.min(100, Math.round(avgScore)));
+}
 import type { WorkflowStatus } from '../../api/Repositories';
 
 export type NormalizedStatus = 'success' | 'failure' | 'cancelled' | 'running' | 'pending' | 'error' | 'unknown' | 'no_runs';

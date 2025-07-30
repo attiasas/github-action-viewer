@@ -1,8 +1,6 @@
 import React from 'react';
 import type { WorkflowStatus } from '../../api/Repositories';
-import { getNormalizedStatus } from '../utils/StatusUtils';
-import { getIndications } from '../utils/indicationsUtils';
-import type { Indication } from '../utils/indicationsUtils';
+import { getNormalizedStatus, calculateStabilityScore } from '../utils/StatusUtils';
 import './WorkflowSummary.css';
 import { formatRelativeTime } from '../utils/indicationsUtils';
 
@@ -41,18 +39,6 @@ function aggregateRuns(runs: WorkflowSummaryProps['runs']) {
   return { totalRuns, success, failure, cancelled, running, pending, error, unknown, noRuns, trackedWorkflows };
 }
 
-// Calculate repository score (simple: success rate minus penalty for bad indications)
-function calculateRepoScore(stats: ReturnType<typeof aggregateRuns>, indications: Indication[]) {
-  const { success, totalRuns } = stats;
-  const badIndications = indications.filter(i => i.type === 'error' || i.type === 'warning').length;
-  const infoIndications = indications.filter(i => i.type === 'info').length;
-  const successRate = totalRuns > 0 ? success / totalRuns : 0;
-  // Score: successRate * 100 - 5*badIndications - 2*infoIndications
-  let score = Math.round(successRate * 100 - 5 * badIndications - 2 * infoIndications);
-  if (score < 0) score = 0;
-  if (score > 100) score = 100;
-  return score;
-}
 
 // Pie chart colors for statuses (match WorkflowAnalysis)
 const statusColors: Record<string, string> = {
@@ -120,18 +106,25 @@ function StatusPieChart({ stats }: { stats: ReturnType<typeof aggregateRuns> }) 
 
 const WorkflowSummary: React.FC<WorkflowSummaryProps> = ({ runs }) => {
   // Get indications
-  const indications = getIndications(runs);
   const stats = aggregateRuns(runs);
-  const score = calculateRepoScore(stats, indications);
-  // Score color
+
+  const score = calculateStabilityScore(runs);
   let scoreColor = 'var(--accent-success, #28a745)';
-  if (score < 60) scoreColor = 'var(--accent-danger, #dc3545)';
-  else if (score < 80) scoreColor = 'var(--accent-warning, #ffc107)';
+  let scoreClass = 'repo-score-label';
+  if (score === null) {
+    scoreColor = 'var(--accent-unknown, #888)';
+    scoreClass += ' repo-score-unknown';
+  } else if (score < 60) {
+    scoreColor = 'var(--accent-danger, #dc3545)';
+    scoreClass += ' repo-score-danger';
+  } else if (score < 80) {
+    scoreColor = 'var(--accent-warning, #ffc107)';
+    scoreClass += ' repo-score-warning';
+  } else {
+    scoreClass += ' repo-score-success';
+  }
 
-  // Success rate
   const successRate = stats.totalRuns > 0 ? (stats.success / stats.totalRuns * 100).toFixed(1) : '0.0';
-
-  // Find latest run date
   let latestRunAt: string | null = null;
   runs.forEach(({ workflow }) => {
     workflow.forEach(run => {
@@ -147,8 +140,10 @@ const WorkflowSummary: React.FC<WorkflowSummaryProps> = ({ runs }) => {
   return (
     <div className="workflow-summary-container">
       <div className="summary-left">
-        <div className="repo-score-label" style={{ color: scoreColor }}>
-          <span style={{ fontSize: '2.2em', fontWeight: 700 }}>{score}</span>
+        <div className={scoreClass} style={{ color: scoreColor }}>
+          <span style={{ fontSize: '2.2em', fontWeight: 700 }}>
+            {score === null ? <span className="repo-score-unknown-text">Unknown</span> : score}
+          </span>
           <span style={{ fontSize: '1em', fontWeight: 500, marginLeft: 8 }}>Stability Score</span>
         </div>
         <div className="repo-stats">
