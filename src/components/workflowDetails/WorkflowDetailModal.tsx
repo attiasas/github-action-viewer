@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import WorkflowAnalysis from './WorkflowAnalysis';
 import { useAuth } from '../../contexts/AuthContext';
 import { getNormalizedStatus } from '../utils/StatusUtils';
+import WorkflowSummary from './WorkflowSummary';
 
 import type { TrackedRepository, RepositoryStatus, WorkflowStatus } from '../../api/Repositories';
 import './WorkflowDetailModal.css';
@@ -831,12 +832,18 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                 // --- End collect all runs for analytics ---
                 // --- Compute indications for analytics ---
                 const indications = getIndications(allRunsForAnalytics);
-                return ( 
+                return (
                   <div className="latest-runs-list" style={{ width: '100%', marginTop: '1rem' }}>
-                    {/* --- Indications Section --- */}
-                    {indications && indications.length > 0 && (
-                      <WorkflowIndications indications={indications} />
-                    )}
+                    <div className="latest-runs-summary-section">
+                      <div className="latest-runs-summary-left">
+                        <WorkflowSummary runs={allRunsForAnalytics} />
+                      </div>
+                      {indications && indications.length > 0 && (
+                        <div className="latest-runs-summary-right">
+                          <WorkflowIndications indications={indications} />
+                        </div>
+                      )}
+                    </div>
                     <div className="latest-runs-header" style={{ display: 'flex', alignItems: 'center', gap: '0.5em', userSelect: 'none' }}>
                       <button
                         type="button"
