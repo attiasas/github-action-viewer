@@ -18,8 +18,6 @@ export interface NotificationDisplayProps {
   repositoriesStatus: RepositoryStatus[];
 }
 
-// ...existing code...
-
 export default function NotificationDisplay({ repositoriesStatus }: NotificationDisplayProps) {
   const [queue, setQueue] = useState<Notification[]>([]);
   const [current, setCurrent] = useState<Notification | null>(null);
@@ -97,14 +95,18 @@ export default function NotificationDisplay({ repositoriesStatus }: Notification
         {current ? (
           <span className={`notification-msg notification-${current.type || 'default'} ${getAnimationClass(current)}`}>{current.message}</span>
         ) : (
-          <span className="notification-default" style={{ display: 'flex', alignItems: 'center' }}>
-            Stability Score: <strong>{stabilityScore !== null ? stabilityScore : 'N/A'}</strong>
+          <div className="notification-default-layout">
+            <div className="notification-default-main">
+              Stability Score: <strong>{stabilityScore !== null ? stabilityScore : 'N/A'}</strong>
+            </div>
             {unreadCount > 0 && (
-              <span className="notification-unread-indicator" aria-label={`${unreadCount} new notifications`}>
-                {unreadCount}
-              </span>
+              <div className="notification-default-indicator">
+                <span className="notification-unread-indicator" aria-label={`${unreadCount} new notifications`}>
+                  {unreadCount}
+                </span>
+              </div>
             )}
-          </span>
+          </div>
         )}
       </div>
       {showHistory && (
