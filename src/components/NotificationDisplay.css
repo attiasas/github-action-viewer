@@ -159,7 +159,6 @@
   margin-bottom: 10px;
 }
 
-/* Improved Notification History and Default Display Styles */
 .close-history {
   background: none;
   border: none;
@@ -201,7 +200,6 @@
 }
 .notification-history-message {
   flex: 1;
-  color: var(--text-primary);
   font-weight: 500;
   white-space: pre-line;
   word-break: break-word;

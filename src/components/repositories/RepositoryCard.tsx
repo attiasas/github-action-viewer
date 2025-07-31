@@ -243,7 +243,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
   // Manual refresh handler
   const handleManualRefresh = useCallback(() => {
     setTimeLeft(repo.repository.autoRefreshInterval); // Reset timer
-    getRepositoryStats().finally(() => {;
+    getRepositoryStats().finally(() => {
       RefreshSuccessNotification(repo.repository.displayName || repo.repository.name);
     });
   }, [getRepositoryStats, repo.repository.autoRefreshInterval]);

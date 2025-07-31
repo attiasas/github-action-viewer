@@ -116,7 +116,7 @@ export default function NotificationDisplay({ repositoriesStatus }: Notification
                 </li>
               ) : (
                 history.map(n => (
-                  <li key={n.id} className={`notification-history-item notification-${n.type || 'default'}`}>
+                  <li key={n.id} className={`notification-history-item notification-${n.type || 'info'}`}>
                     <span className="notification-history-message">{n.message}</span>
                     <span className="notification-history-time">{typeof n.timestamp === 'number' ? formatRelativeTime(new Date(n.timestamp).toISOString()) : ''}</span>
                   </li>
