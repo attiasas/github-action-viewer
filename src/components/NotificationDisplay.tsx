@@ -45,6 +45,7 @@ export default function NotificationDisplay({ repositoriesStatus }: Notification
   const [history, setHistory] = useState<Notification[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastHistoryOpenRef = useRef<number>(Date.now());
 
   // Listen for global notifications
   useEffect(() => {
@@ -98,8 +99,12 @@ export default function NotificationDisplay({ repositoriesStatus }: Notification
   };
 
   // Click to show history
+  // Count unread notifications since last history open
+  const unreadCount = history.filter(n => n.timestamp && n.timestamp > lastHistoryOpenRef.current).length;
+
   const handleClick = () => {
     setShowHistory(true);
+    lastHistoryOpenRef.current = Date.now();
   };
   const handleCloseHistory = () => {
     setShowHistory(false);
@@ -111,8 +116,13 @@ export default function NotificationDisplay({ repositoriesStatus }: Notification
         {current ? (
           <span className={`notification-msg notification-${current.type || 'default'} ${getAnimationClass(current)}`}>{current.message}</span>
         ) : (
-          <span className="notification-default">
+          <span className="notification-default" style={{ display: 'flex', alignItems: 'center' }}>
             Stability Score: <strong>{stabilityScore !== null ? stabilityScore : 'N/A'}</strong>
+            {unreadCount > 0 && (
+              <span className="notification-unread-indicator" aria-label={`${unreadCount} new notifications`}>
+                {unreadCount}
+              </span>
+            )}
           </span>
         )}
       </div>
