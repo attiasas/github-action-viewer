@@ -18,8 +18,20 @@ export const DEFAULT_ANIMATION = 'fade';
 export type NotificationEvent = (notification: Notification) => void;
 export const notificationListeners: NotificationEvent[] = [];
 
-export function RefreshSuccessNotification(repoName: string) {
-  pushNotification(`${repoName} refreshed successfully`, 'info');
+export function InfoNotification(message: string) {
+  pushNotification(message, 'info');
+}
+
+export function ImprovementNotification(message: string) {
+  pushNotification(message, 'success');
+}
+
+export function FailureNotification(message: string) {
+  pushNotification(message, 'error');
+}
+
+export function WarningNotification(message: string) {
+  pushNotification(message, 'warning');
 }
 
 export function pushNotification(

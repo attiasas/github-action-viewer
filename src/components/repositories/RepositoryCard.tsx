@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { RefreshSuccessNotification } from '../utils/notificationUtils';
+import { InfoNotification } from '../utils/notificationUtils';
 import type { TrackedRepository, RepositoryStatus } from '../../api/Repositories';
 import './RepositoryCard.css';
 
@@ -139,7 +139,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
         onStatsUpdateRef.current(statsData);
       }
       if (refreshNotification) {
-        RefreshSuccessNotification(repo.repository.displayName || repo.repository.name);
+        InfoNotification(`${repo.repository.displayName || repo.repository.name} refreshed successfully`);
       }
       return statsData;
     } catch (error) {
