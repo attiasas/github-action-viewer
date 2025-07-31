@@ -6,6 +6,7 @@ import RepositorySearch from '../components/repositories/RepositorySearch';
 
 import RepositoryListSimple from '../components/repositories/RepositoryListSimple';
 import NotificationDisplay from '../components/NotificationDisplay';
+import WorkflowDetailModal from '../components/workflowDetails/WorkflowDetailModal';
 import './DashboardPage.css';
 
 
@@ -18,6 +19,7 @@ export default function DashboardPage() {
   const [showAddRepoModal, setShowAddRepoModal] = useState(false);
   const [triggerForceRefresh, setTriggerForceRefresh] = useState(false);
   const [triggerNonForceRefresh, setTriggerNonForceRefresh] = useState(false);
+  const [selectedRepoForModal, setSelectedRepoForModal] = useState<TrackedRepository | null>(null);
   const hasInitiallyLoaded = useRef(false);
 
   // Load repositories from database
@@ -219,6 +221,7 @@ export default function DashboardPage() {
             gridView={true}
             triggerForceRefresh={triggerForceRefresh}
             triggerNonForceRefresh={triggerNonForceRefresh}
+            onShowWorkflowDetail={setSelectedRepoForModal}
           />
         </div>
       </main>
@@ -244,6 +247,15 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Workflow Detail Modal at dashboard level */}
+      {selectedRepoForModal && (
+        <WorkflowDetailModal
+          repo={selectedRepoForModal}
+          isOpen={!!selectedRepoForModal}
+          onClose={() => setSelectedRepoForModal(null)}
+        />
       )}
     </div>
   );

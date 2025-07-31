@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import WorkflowDetailModal from './../workflowDetails/WorkflowDetailModal';
+// import removed, modal now handled by DashboardPage
 import { pushNotification } from '../utils/notificationUtils';
 import type { TrackedRepository, RepositoryStatus } from '../../api/Repositories';
 import './RepositoryCard.css';
@@ -15,6 +15,7 @@ interface RepositoryCardProps {
   onForceRefreshComplete?: () => void;
   nonForceRefresh?: boolean; // Trigger non-forced refresh from parent
   onNonForceRefreshComplete?: () => void;
+  onShowWorkflowDetail?: (repo: TrackedRepository) => void;
 }
 
 export default function RepositoryCard(props: RepositoryCardProps) {
@@ -33,7 +34,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(repo.repository.autoRefreshInterval);
-  const [showDetailModal, setShowDetailModal] = useState(false);
+  // Remove modal state from card
   // Histogram settings from localStorage
   const showHistogram = (() => {
     const stored = localStorage.getItem('gav_showHistogram');
@@ -226,14 +227,17 @@ export default function RepositoryCard(props: RepositoryCardProps) {
   }, [getRepositoryStats]);
 
   // Handle card click to open modal
+  const { onShowWorkflowDetail } = props;
   const handleCardClick = useCallback((event: React.MouseEvent) => {
     // Don't open modal if clicking on buttons or links
     const target = event.target as HTMLElement;
     if (target.closest('button') || target.closest('a')) {
       return;
     }
-    setShowDetailModal(true);
-  }, []);
+    if (onShowWorkflowDetail) {
+      onShowWorkflowDetail(repo);
+    }
+  }, [onShowWorkflowDetail, repo]);
 
   // Manual refresh handler
   const handleManualRefresh = useCallback(() => {
@@ -430,12 +434,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
         </div>
       </div>
 
-      {/* Workflow Detail Modal */}
-      <WorkflowDetailModal
-        repo={repo}
-        isOpen={showDetailModal}
-        onClose={() => setShowDetailModal(false)}
-      />
+      {/* Modal removed; now handled by DashboardPage */}
     </>
   );
 }
