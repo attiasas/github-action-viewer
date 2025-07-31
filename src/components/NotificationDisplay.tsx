@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import './NotificationDisplay.css';
 import { calculateStabilityScore } from '../components/utils/StatusUtils';
 import type { RepositoryStatus, WorkflowStatus } from '../api/Repositories';
+import { notificationListeners } from './utils/notificationUtils';
+import type { NotificationEvent } from './utils/notificationUtils';
 
 export type Notification = {
   id: string;
@@ -16,28 +18,7 @@ export interface NotificationDisplayProps {
   repositoriesStatus: RepositoryStatus[];
 }
 
-const DEFAULT_ANIMATION = 'fade';
-
-// Simple global event system for notifications
-type NotificationEvent = (notification: Notification) => void;
-const notificationListeners: NotificationEvent[] = [];
-
-export function pushNotification(
-  message: string,
-  type: string = 'default',
-  animation: string = DEFAULT_ANIMATION,
-  duration: number = 5000
-) {
-  const notification: Notification = {
-    id: `${Date.now()}-${Math.random()}`,
-    message,
-    type,
-    duration,
-    animation,
-    timestamp: Date.now(),
-  };
-  notificationListeners.forEach(listener => listener(notification));
-}
+// ...existing code...
 
 export default function NotificationDisplay({ repositoriesStatus }: NotificationDisplayProps) {
   const [queue, setQueue] = useState<Notification[]>([]);
