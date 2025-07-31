@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import WorkflowDetailModal from './../workflowDetails/WorkflowDetailModal';
+import { pushNotification } from '../utils/notificationUtils';
 import type { TrackedRepository, RepositoryStatus } from '../../api/Repositories';
 import './RepositoryCard.css';
 
@@ -186,6 +187,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
         setTimeout(() => {
           forceRefreshHandledRef.current = false;
         }, 1000);
+        pushNotification(`Repository ${repo.repository.displayName || repo.repository.name} refreshed successfully`, 'info', 'slide');
       });
     }
   }, [forceRefresh, getRepositoryStats, onForceRefreshComplete, repo.repository.autoRefreshInterval]);
