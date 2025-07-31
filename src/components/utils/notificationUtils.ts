@@ -1,5 +1,5 @@
 // Notification system utilities
-import type { Notification } from '../NotificationDisplay';
+import type { Notification, NotificationType, NotificationAnimation } from '../NotificationDisplay';
 
 export const DEFAULT_ANIMATION = 'fade';
 
@@ -9,8 +9,8 @@ export const notificationListeners: NotificationEvent[] = [];
 
 export function pushNotification(
   message: string,
-  type: string = 'default',
-  animation: string = DEFAULT_ANIMATION,
+  type: NotificationType = 'default',
+  animation: NotificationAnimation = DEFAULT_ANIMATION,
   duration: number = 5000
 ) {
   const notification: Notification = {

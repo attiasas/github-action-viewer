@@ -6,11 +6,12 @@ import { notificationListeners } from './utils/notificationUtils';
 import type { NotificationEvent } from './utils/notificationUtils';
 
 export type NotificationAnimation = 'fade' | 'slide';
+export type NotificationType = 'default' | 'info' | 'success' | 'warning' | 'error';
 
 export type Notification = {
   id: string;
   message: string;
-  type?: string;
+  type?: NotificationType;
   duration?: number; // ms
   animation?: NotificationAnimation;
   timestamp?: number;
