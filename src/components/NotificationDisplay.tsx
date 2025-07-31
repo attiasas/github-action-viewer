@@ -1,21 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import './NotificationDisplay.css';
 import { calculateStabilityScore } from '../components/utils/StatusUtils';
+import { formatRelativeTime } from '../components/utils/indicationsUtils';
 import type { RepositoryStatus, WorkflowStatus } from '../api/Repositories';
 import { notificationListeners } from './utils/notificationUtils';
-import type { NotificationEvent } from './utils/notificationUtils';
-
-export type NotificationAnimation = 'fade' | 'slide';
-export type NotificationType = 'default' | 'info' | 'success' | 'warning' | 'error';
-
-export type Notification = {
-  id: string;
-  message: string;
-  type?: NotificationType;
-  duration?: number; // ms
-  animation?: NotificationAnimation;
-  timestamp?: number;
-};
+import type { Notification, NotificationEvent } from './utils/notificationUtils';
+import './NotificationDisplay.css';
 
 export interface NotificationDisplayProps {
   repositoriesStatus: RepositoryStatus[];
@@ -82,7 +71,7 @@ export default function NotificationDisplay({ repositoriesStatus }: Notification
 
   // Click to show history
   // Count unread notifications since last history open
-  const unreadCount = history.filter(n => n.timestamp && n.timestamp > lastHistoryOpenRef.current).length;
+  const unreadCount = history.filter(n => n.timestamp && n.timestamp > lastHistoryOpenRef.current && !n.ignoreUnread).length;
 
   const handleClick = () => {
     setShowHistory(true);
@@ -96,7 +85,7 @@ export default function NotificationDisplay({ repositoriesStatus }: Notification
     <div className="notification-display-container" onClick={handleClick}>
       <div className="notification-display" style={{ cursor: 'pointer' }}>
         {current ? (
-          <span className={`notification-msg notification-${current.type || 'default'} ${getAnimationClass(current)}`}>{current.message}</span>
+          <span className={`notification-msg notification-${current.type || 'info'} ${getAnimationClass(current)}`}>{current.message}</span>
         ) : (
           <div className="notification-default-layout">
             <div className="notification-default-main">
@@ -123,8 +112,8 @@ export default function NotificationDisplay({ repositoriesStatus }: Notification
             <ul>
               {history.map(n => (
                 <li key={n.id} className={`notification-history-item notification-${n.type || 'default'}`}>
-                  <span>{n.message}</span>
-                  <span className="notification-history-time">{n.timestamp ? new Date(n.timestamp).toLocaleTimeString() : ''}</span>
+                    <span>{n.message}</span>
+                    <span className="notification-history-time">{typeof n.timestamp === 'number' ? formatRelativeTime(new Date(n.timestamp).toISOString()) : ''}</span>
                 </li>
               ))}
             </ul>

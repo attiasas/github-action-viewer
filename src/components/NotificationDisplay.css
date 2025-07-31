@@ -246,9 +246,6 @@
 }
 
 /* Notification types */
-.notification-default {
-  color: var(--accent-info);
-}
 .notification-success {
   color: var(--accent-success);
 }

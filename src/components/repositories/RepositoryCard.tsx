@@ -187,7 +187,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
         setTimeout(() => {
           forceRefreshHandledRef.current = false;
         }, 1000);
-        pushNotification(`Repository ${repo.repository.displayName || repo.repository.name} refreshed successfully 🎉`, 'success', 'slide', 2000);
+        pushNotification(`${repo.repository.displayName || repo.repository.name} refreshed successfully`, 'info');
       });
     }
   }, [forceRefresh, getRepositoryStats, onForceRefreshComplete, repo.repository.autoRefreshInterval]);
@@ -242,7 +242,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
   const handleManualRefresh = useCallback(() => {
     setTimeLeft(repo.repository.autoRefreshInterval); // Reset timer
     getRepositoryStats().finally(() => {
-      pushNotification(`Repository ${repo.repository.displayName || repo.repository.name} refreshed successfully`, 'error', 'slide', 2000);
+      pushNotification(`${repo.repository.displayName || repo.repository.name} refreshed successfully`, 'info');
     });
   }, [getRepositoryStats, repo.repository.autoRefreshInterval]);
 
