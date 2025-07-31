@@ -11,6 +11,10 @@ export interface Indication {
   severityScore?: number;
 }
 
+export function isSameIndication(a: Indication, b: Indication): boolean {
+  return a.type === b.type && a.message === b.message;
+}
+
 export function getIndications(runs: Array<{ branch: string; workflowKey: string; workflow: WorkflowStatus[] }>): Indication[] {
   const indications: Indication[] = [];
   let totalFailures = 0;

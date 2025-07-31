@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { getIndications } from '../utils/indicationsUtils';
 import { useAuth } from '../../contexts/AuthContext';
-import { InfoNotification } from '../utils/notificationUtils';
+import { RepositoryStatusToFlatArray } from '../utils/StatusUtils';
+import { InfoNotification, ImprovementNotification, FailureNotification, WarningNotification } from '../utils/notificationUtils';
+import { isSameIndication } from '../utils/indicationsUtils';
 import type { TrackedRepository, RepositoryStatus } from '../../api/Repositories';
 import './RepositoryCard.css';
 
@@ -30,6 +33,8 @@ export default function RepositoryCard(props: RepositoryCardProps) {
   } = props;
   const { user } = useAuth();
   const [stats, setStats] = useState<RepositoryStatus | null>(initialStats || null);
+  // Store previous indications for each workflow
+  const previousIndicationsMap = useRef<Record<string, import('../utils/indicationsUtils').Indication[]>>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(repo.repository.autoRefreshInterval);
@@ -92,6 +97,38 @@ export default function RepositoryCard(props: RepositoryCardProps) {
 
   // Prevent overlapping/infinite refreshes
   const refreshInProgressRef = useRef(false);
+
+  // Notify user of new workflow indications or refresh success
+  const handleNotificationsForWorkflows = useCallback((statsData: RepositoryStatus, refreshNotification: boolean) => {
+    if (!statsData || !statsData.branches) return;
+    const currIndications = getIndications(RepositoryStatusToFlatArray(statsData));
+    const prevIndications = previousIndicationsMap.current[statsData.id] || [];
+    const newIndications = currIndications.filter(
+      curr => !prevIndications.some(prev => isSameIndication(curr, prev))
+    );
+    if (newIndications.length == 0 && refreshNotification) {
+      InfoNotification(`${repo.repository.displayName || repo.repository.name} refreshed successfully`);
+    }
+    newIndications.forEach(indication => {
+      const notificationMessage = `${repo.repository.displayName || repo.repository.name} - ${indication.message}`;
+      switch (indication.type) {
+        case 'success':
+          ImprovementNotification(notificationMessage);
+          break;
+        case 'error':
+          FailureNotification(notificationMessage);
+          break;
+        case 'warning':
+          WarningNotification(notificationMessage);
+          break;
+        case 'info':
+          InfoNotification(notificationMessage);
+          break;
+      }
+    });
+    previousIndicationsMap.current[statsData.id] = currIndications;
+  }, [repo.repository.displayName, repo.repository.name]);
+
   const getRepositoryStats = useCallback(async (forceRefresh = false, refreshNotification = false) => {
     if (!user || refreshInProgressRef.current) return null;
     refreshInProgressRef.current = true;
@@ -138,9 +175,8 @@ export default function RepositoryCard(props: RepositoryCardProps) {
       if (onStatsUpdateRef.current) {
         onStatsUpdateRef.current(statsData);
       }
-      if (refreshNotification) {
-        InfoNotification(`${repo.repository.displayName || repo.repository.name} refreshed successfully`);
-      }
+      // After getting stats, check for new indications and notify
+      handleNotificationsForWorkflows(statsData, refreshNotification);
       return statsData;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Network error';
@@ -151,7 +187,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
       setIsRefreshing(false);
       refreshInProgressRef.current = false;
     }
-  }, [user, repo, MAX_HISTORY]);
+  }, [user, repo, MAX_HISTORY, handleNotificationsForWorkflows]);
 
   // Auto-refresh timer
   useEffect(() => {
