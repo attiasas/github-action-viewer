@@ -121,6 +121,32 @@
   to { opacity: 1; transform: translateX(0); }
 }
 
+.notification-improvement {
+  animation: notificationImprovement 5s;
+}
+/* Keyframes for improvement animation - for a subtle bounce effect */
+@keyframes notificationImprovement {
+  0% { opacity: 0; transform: translateY(20px); }
+  20% { opacity: 1; transform: translateY(-10px); }
+  40% { transform: translateY(5px); }
+  60% { transform: translateY(-2px); }
+  80% { transform: translateY(1px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.notification-failure {
+  animation: notificationFailure 5s;
+}
+/* Keyframes for failure animation - scale and shake effect */
+@keyframes notificationFailure {
+  0% { opacity: 0; transform: scale(0.8) rotate(0deg); }
+  20% { opacity: 1; transform: scale(1.03) rotate(2deg); }
+  40% { transform: scale(0.97) rotate(-2deg); }
+  60% { transform: scale(1.01) rotate(1deg); }
+  80% { transform: scale(0.99) rotate(-1deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
 /* Notification history */
 .notification-history-backdrop {
   position: fixed;

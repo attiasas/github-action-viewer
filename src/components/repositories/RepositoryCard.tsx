@@ -92,7 +92,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
 
   // Prevent overlapping/infinite refreshes
   const refreshInProgressRef = useRef(false);
-  const getRepositoryStats = useCallback(async (forceRefresh = false) => {
+  const getRepositoryStats = useCallback(async (forceRefresh = false, refreshNotification = false) => {
     if (!user || refreshInProgressRef.current) return null;
     refreshInProgressRef.current = true;
     setIsRefreshing(true);
@@ -138,7 +138,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
       if (onStatsUpdateRef.current) {
         onStatsUpdateRef.current(statsData);
       }
-      if (forceRefresh) {
+      if (refreshNotification) {
         RefreshSuccessNotification(repo.repository.displayName || repo.repository.name);
       }
       return statsData;
@@ -182,7 +182,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
     if (forceRefresh && !forceRefreshHandledRef.current) {
       forceRefreshHandledRef.current = true;
       setTimeLeft(repo.repository.autoRefreshInterval); // Reset timer
-      getRepositoryStats(true).finally(() => {
+      getRepositoryStats(true, true).finally(() => {
         if (onForceRefreshComplete) {
           onForceRefreshComplete();
         }
@@ -243,9 +243,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
   // Manual refresh handler
   const handleManualRefresh = useCallback(() => {
     setTimeLeft(repo.repository.autoRefreshInterval); // Reset timer
-    getRepositoryStats().finally(() => {
-      RefreshSuccessNotification(repo.repository.displayName || repo.repository.name);
-    });
+    getRepositoryStats(false, true);
   }, [getRepositoryStats, repo.repository.autoRefreshInterval]);
 
   // Remove repository handler

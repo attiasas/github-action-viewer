@@ -1,7 +1,7 @@
 
-export type NotificationAnimation = 'fade' | 'slide';
+export type NotificationAnimation = 'fade' | 'slide' | 'improvement' | 'failure';
 export type NotificationType = 'info' | 'success' | 'warning' | 'error';
-
+ 
 export type Notification = {
   id: string;
   message: string;
@@ -19,7 +19,7 @@ export type NotificationEvent = (notification: Notification) => void;
 export const notificationListeners: NotificationEvent[] = [];
 
 export function RefreshSuccessNotification(repoName: string) {
-  pushNotification(`${repoName} refreshed successfully`, 'info');
+  pushNotification(`${repoName} refreshed successfully`, 'error');
 }
 
 export function pushNotification(
@@ -32,13 +32,13 @@ export function pushNotification(
   if (!animation) {
     switch (type) {
       case 'success':
-        animation = 'slide';
+        animation = 'improvement';
         break;
       case 'error':
-        animation = 'fade';
+        animation = 'failure';
         break;
       case 'warning':
-        animation = 'fade';
+        animation = 'failure';
         break;
       case 'info':
         animation = 'slide';
@@ -50,12 +50,10 @@ export function pushNotification(
   }
   if (duration === undefined || duration < 1000) {
     switch (type) {
-      case 'success':
-        duration = 3000;
-        break;
       case 'warning':
         duration = 4000;
         break;
+      case 'success':
       case 'error':
         duration = 5000;
         break;
