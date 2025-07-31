@@ -105,7 +105,7 @@ export default function NotificationDisplay({ repositoriesStatus }: Notification
             {unreadCount > 0 && (
               <div className="notification-default-indicator">
                 <span className="notification-unread-indicator" aria-label={`${unreadCount} new notifications`}>
-                  {unreadCount}
+                  {unreadCount > 99 ? '99' : unreadCount}
                 </span>
               </div>
             )}

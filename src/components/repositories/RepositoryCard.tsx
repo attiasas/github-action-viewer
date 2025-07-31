@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-// import removed, modal now handled by DashboardPage
 import { pushNotification } from '../utils/notificationUtils';
 import type { TrackedRepository, RepositoryStatus } from '../../api/Repositories';
 import './RepositoryCard.css';
@@ -188,7 +187,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
         setTimeout(() => {
           forceRefreshHandledRef.current = false;
         }, 1000);
-        pushNotification(`Repository ${repo.repository.displayName || repo.repository.name} refreshed successfully`, 'info', 'slide', 2000);
+        pushNotification(`Repository ${repo.repository.displayName || repo.repository.name} refreshed successfully 🎉`, 'success', 'slide', 2000);
       });
     }
   }, [forceRefresh, getRepositoryStats, onForceRefreshComplete, repo.repository.autoRefreshInterval]);
@@ -243,7 +242,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
   const handleManualRefresh = useCallback(() => {
     setTimeLeft(repo.repository.autoRefreshInterval); // Reset timer
     getRepositoryStats().finally(() => {
-      pushNotification(`Repository ${repo.repository.displayName || repo.repository.name} refreshed successfully`, 'info', 'slide', 2000);
+      pushNotification(`Repository ${repo.repository.displayName || repo.repository.name} refreshed successfully`, 'error', 'slide', 2000);
     });
   }, [getRepositoryStats, repo.repository.autoRefreshInterval]);
 
