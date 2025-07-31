@@ -19,7 +19,7 @@ export type NotificationEvent = (notification: Notification) => void;
 export const notificationListeners: NotificationEvent[] = [];
 
 export function RefreshSuccessNotification(repoName: string) {
-  pushNotification(`${repoName} refreshed successfully`, 'error');
+  pushNotification(`${repoName} refreshed successfully`, 'info');
 }
 
 export function pushNotification(
