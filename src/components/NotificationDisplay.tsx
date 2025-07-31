@@ -109,13 +109,19 @@ export default function NotificationDisplay({ repositoriesStatus }: Notification
               <span>Notification History</span>
               <button className="close-history" onClick={handleCloseHistory}>×</button>
             </div>
-            <ul>
-              {history.map(n => (
-                <li key={n.id} className={`notification-history-item notification-${n.type || 'default'}`}>
-                    <span>{n.message}</span>
-                    <span className="notification-history-time">{typeof n.timestamp === 'number' ? formatRelativeTime(new Date(n.timestamp).toISOString()) : ''}</span>
+            <ul className="notification-history-list">
+              {history.length === 0 ? (
+                <li className="notification-empty">
+                  <span>No notifications yet.<br />You will see workflow updates and alerts here.</span>
                 </li>
-              ))}
+              ) : (
+                history.map(n => (
+                  <li key={n.id} className={`notification-history-item notification-${n.type || 'default'}`}>
+                    <span className="notification-history-message">{n.message}</span>
+                    <span className="notification-history-time">{typeof n.timestamp === 'number' ? formatRelativeTime(new Date(n.timestamp).toISOString()) : ''}</span>
+                  </li>
+                ))
+              )}
             </ul>
           </div>
         </>
