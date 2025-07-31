@@ -5,12 +5,14 @@ import type { RepositoryStatus, WorkflowStatus } from '../api/Repositories';
 import { notificationListeners } from './utils/notificationUtils';
 import type { NotificationEvent } from './utils/notificationUtils';
 
+export type NotificationAnimation = 'fade' | 'slide';
+
 export type Notification = {
   id: string;
   message: string;
   type?: string;
   duration?: number; // ms
-  animation?: string; // animation key
+  animation?: NotificationAnimation;
   timestamp?: number;
 };
 
@@ -97,7 +99,7 @@ export default function NotificationDisplay({ repositoriesStatus }: Notification
         ) : (
           <div className="notification-default-layout">
             <div className="notification-default-main">
-              Stability Score: <strong>{stabilityScore !== null ? stabilityScore : 'N/A'}</strong>
+              Stability Score:&nbsp;<strong>{stabilityScore !== null ? stabilityScore : 'N/A'}</strong>
             </div>
             {unreadCount > 0 && (
               <div className="notification-default-indicator">
