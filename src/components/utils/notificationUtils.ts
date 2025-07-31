@@ -18,6 +18,10 @@ export const DEFAULT_ANIMATION = 'fade';
 export type NotificationEvent = (notification: Notification) => void;
 export const notificationListeners: NotificationEvent[] = [];
 
+export function RefreshSuccessNotification(repoName: string) {
+  pushNotification(`${repoName} refreshed successfully`, 'info');
+}
+
 export function pushNotification(
   message: string,
   type: NotificationType = 'info',

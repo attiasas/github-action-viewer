@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { pushNotification } from '../utils/notificationUtils';
+import { RefreshSuccessNotification } from '../utils/notificationUtils';
 import type { TrackedRepository, RepositoryStatus } from '../../api/Repositories';
 import './RepositoryCard.css';
 
@@ -106,7 +106,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
       if (postResp.status === 202) {
         // If already refreshing, poll GET until not 202
         const pollStatus = async () => {
-          const maxWait = 10000; // 10s max
+          const maxWait = 30000; // 30s max
           const pollInterval = 500;
           let waited = 0;
           while (waited < maxWait) {
@@ -137,6 +137,9 @@ export default function RepositoryCard(props: RepositoryCardProps) {
       });
       if (onStatsUpdateRef.current) {
         onStatsUpdateRef.current(statsData);
+      }
+      if (forceRefresh) {
+        RefreshSuccessNotification(repo.repository.displayName || repo.repository.name);
       }
       return statsData;
     } catch (error) {
@@ -187,7 +190,6 @@ export default function RepositoryCard(props: RepositoryCardProps) {
         setTimeout(() => {
           forceRefreshHandledRef.current = false;
         }, 1000);
-        pushNotification(`${repo.repository.displayName || repo.repository.name} refreshed successfully`, 'info');
       });
     }
   }, [forceRefresh, getRepositoryStats, onForceRefreshComplete, repo.repository.autoRefreshInterval]);
@@ -241,8 +243,8 @@ export default function RepositoryCard(props: RepositoryCardProps) {
   // Manual refresh handler
   const handleManualRefresh = useCallback(() => {
     setTimeLeft(repo.repository.autoRefreshInterval); // Reset timer
-    getRepositoryStats().finally(() => {
-      pushNotification(`${repo.repository.displayName || repo.repository.name} refreshed successfully`, 'info');
+    getRepositoryStats().finally(() => {;
+      RefreshSuccessNotification(repo.repository.displayName || repo.repository.name);
     });
   }, [getRepositoryStats, repo.repository.autoRefreshInterval]);
 
@@ -434,8 +436,6 @@ export default function RepositoryCard(props: RepositoryCardProps) {
           <span className="click-hint-text">Click for detailed workflow information</span>
         </div>
       </div>
-
-      {/* Modal removed; now handled by DashboardPage */}
     </>
   );
 }
