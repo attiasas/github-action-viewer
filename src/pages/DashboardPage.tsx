@@ -3,7 +3,9 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import type { TrackedRepository, RepositoryStatus } from '../api/Repositories';
 import RepositorySearch from '../components/repositories/RepositorySearch';
+
 import RepositoryListSimple from '../components/repositories/RepositoryListSimple';
+import NotificationDisplay, { pushNotification } from '../components/NotificationDisplay';
 import './DashboardPage.css';
 
 
@@ -56,6 +58,7 @@ export default function DashboardPage() {
   // Force refresh all repositories
   const handleForceRefreshAll = useCallback(() => {
     setTriggerForceRefresh(true);
+    pushNotification('Refreshing all repositories...', 'info', 'slide');
     // Reset the trigger after a short delay
     setTimeout(() => setTriggerForceRefresh(false), 100);
   }, []);
@@ -118,6 +121,8 @@ export default function DashboardPage() {
             />
             <h1>GitHub Actions Viewer</h1>
           </div>
+          {/* NotificationDisplay centered between left and right */}
+          <NotificationDisplay repositoriesStatus={actionStats} />
           <div className="header-right">
             <button 
               className="add-repo-button"
