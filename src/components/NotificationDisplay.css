@@ -169,14 +169,14 @@
 .notification-failure {
   animation: notificationFailure 5s;
 }
-/* Keyframes for failure animation - scale and shake effect */
+/* Keyframes for failure animation - scale effect */
 @keyframes notificationFailure {
-  0% { opacity: 0; transform: scale(0.8) rotate(0deg); }
-  20% { opacity: 1; transform: scale(1.03) rotate(2deg); }
-  40% { transform: scale(0.97) rotate(-2deg); }
-  60% { transform: scale(1.01) rotate(1deg); }
-  80% { transform: scale(0.99) rotate(-1deg); }
-  100% { transform: scale(1) rotate(0deg); }
+  0% { opacity: 0; transform: scale(0.8); }
+  20% { opacity: 1; transform: scale(1.03); }
+  40% { transform: scale(0.97); }
+  60% { transform: scale(1.01); }
+  80% { transform: scale(0.99); }
+  100% { transform: scale(1); }
 }
 
 /* Notification history */
