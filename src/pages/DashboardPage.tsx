@@ -135,7 +135,7 @@ export default function DashboardPage() {
               className="add-repo-button"
               onClick={() => setShowAddRepoModal(true)}
             >
-              Add Repository
+              Track
             </button>
             <button 
               className="refresh-all-button icon-only"
