@@ -8,6 +8,7 @@ import './NotificationDisplay.css';
 
 export interface NotificationDisplayProps {
   repositoriesStatus: RepositoryStatus[];
+  onNotificationHistoryItemClick?: (repositoryId: number) => void;
 }
 
 // Firework explosion logic
@@ -36,7 +37,7 @@ function getRandomFirework(id: number, side: 'left' | 'right'): Firework {
   };
 }
 
-export default function NotificationDisplay({ repositoriesStatus }: NotificationDisplayProps) {
+export default function NotificationDisplay({ repositoriesStatus, onNotificationHistoryItemClick }: NotificationDisplayProps) {
   const [queue, setQueue] = useState<Notification[]>([]);
   const [current, setCurrent] = useState<Notification | null>(null);
   const [history, setHistory] = useState<Notification[]>([]);
@@ -132,6 +133,14 @@ export default function NotificationDisplay({ repositoriesStatus }: Notification
     setShowHistory(false);
   };
 
+  // Handler for notification history item click
+  const handleHistoryItemClick = (notification: Notification) => {
+    if (notification.repositoryId && onNotificationHistoryItemClick) {
+      onNotificationHistoryItemClick(notification.repositoryId);
+      setShowHistory(false);
+    }
+  };
+
   return (
     <div className="notification-display-container" onClick={handleClick}>
       <div className="notification-display" style={{ cursor: 'pointer', position: 'relative' }}>
@@ -213,7 +222,12 @@ export default function NotificationDisplay({ repositoriesStatus }: Notification
                 </li>
               ) : (
                 history.map(n => (
-                  <li key={n.id} className={`notification-history-item notification-${n.type || 'info'}`}>
+                  <li
+                    key={n.id}
+                    className={`notification-history-item notification-${n.type || 'info'}`}
+                    onClick={() => handleHistoryItemClick(n)}
+                    style={n.repositoryId ? { cursor: 'pointer', fontWeight: 500 } : {}}
+                  >
                     <span className="notification-history-message">{n.message}</span>
                     <span className="notification-history-time">{typeof n.timestamp === 'number' ? formatRelativeTime(new Date(n.timestamp).toISOString()) : ''}</span>
                   </li>

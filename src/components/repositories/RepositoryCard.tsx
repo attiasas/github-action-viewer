@@ -107,22 +107,22 @@ export default function RepositoryCard(props: RepositoryCardProps) {
       curr => !prevIndications.some(prev => isSameIndication(curr, prev))
     );
     if (newIndications.length == 0 && refreshNotification) {
-      InfoNotification(`${repo.repository.displayName || repo.repository.name} refreshed successfully`);
+      InfoNotification(`${repo.repository.displayName || repo.repository.name} refreshed successfully`, repo.repository.id);
     }
     newIndications.forEach(indication => {
       const notificationMessage = `${repo.repository.displayName || repo.repository.name} - ${indication.message}`;
       switch (indication.type) {
         case 'success':
-          ImprovementNotification(notificationMessage);
+          ImprovementNotification(notificationMessage, repo.repository.id);
           break;
         case 'error':
-          FailureNotification(notificationMessage);
+          FailureNotification(notificationMessage, repo.repository.id);
           break;
         case 'warning':
-          WarningNotification(notificationMessage);
+          WarningNotification(notificationMessage, repo.repository.id);
           break;
         case 'info':
-          InfoNotification(notificationMessage);
+          InfoNotification(notificationMessage, repo.repository.id);
           break;
       }
     });

@@ -10,6 +10,7 @@ export type Notification = {
   duration?: number; // ms
   animation?: NotificationAnimation;
   timestamp?: number;
+  repositoryId?: number; // Optional repository ID for context
 };
 
 export const DEFAULT_ANIMATION = 'fade';
@@ -18,27 +19,28 @@ export const DEFAULT_ANIMATION = 'fade';
 export type NotificationEvent = (notification: Notification) => void;
 export const notificationListeners: NotificationEvent[] = [];
 
-export function InfoNotification(message: string) {
-  pushNotification(message, 'info');
+export function InfoNotification(message: string, repositoryId?: number) {
+  pushNotification(message, 'info', undefined, undefined, repositoryId);
 }
 
-export function ImprovementNotification(message: string) {
-  pushNotification(message, 'success');
+export function ImprovementNotification(message: string, repositoryId?: number) {
+  pushNotification(message, 'success', undefined, undefined, repositoryId);
 }
 
-export function FailureNotification(message: string) {
-  pushNotification(message, 'error');
+export function FailureNotification(message: string, repositoryId?: number) {
+  pushNotification(message, 'error', undefined, undefined, repositoryId);
 }
 
-export function WarningNotification(message: string) {
-  pushNotification(message, 'warning');
+export function WarningNotification(message: string, repositoryId?: number) {
+  pushNotification(message, 'warning', undefined, undefined, repositoryId);
 }
 
 export function pushNotification(
   message: string,
   type: NotificationType = 'info',
   animation?: NotificationAnimation,
-  duration?: number
+  duration?: number,
+  repositoryId?: number
 ) {
   if (!message) return; // Ignore empty messages
   if (!animation) {
@@ -82,6 +84,7 @@ export function pushNotification(
     duration: duration,
     animation: animation,
     timestamp: Date.now(),
+    repositoryId: repositoryId,
   };
   notificationListeners.forEach(listener => listener(notification));
 }

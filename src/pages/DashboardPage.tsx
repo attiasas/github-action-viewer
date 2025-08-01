@@ -123,7 +123,13 @@ export default function DashboardPage() {
             <h1>GitHub Actions Viewer</h1>
           </div>
           {/* NotificationDisplay centered between left and right */}
-          <NotificationDisplay repositoriesStatus={actionStats} />
+          <NotificationDisplay
+            repositoriesStatus={actionStats}
+            onNotificationHistoryItemClick={(repositoryId) => {
+              const repo = repositories.find(r => r.repository.id === repositoryId);
+              if (repo) setSelectedRepoForModal(repo);
+            }}
+          />
           <div className="header-right">
             <button 
               className="add-repo-button"
