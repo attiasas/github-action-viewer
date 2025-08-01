@@ -11,6 +11,7 @@ interface RepositoryListProps {
   gridView?: boolean;
   triggerForceRefresh?: boolean; // Signal from parent to force refresh all
   triggerNonForceRefresh?: boolean; // Signal from parent to trigger non-forced refresh all
+  onShowWorkflowDetail?: (repo: TrackedRepository) => void;
 }
 
 export default function RepositoryListSimple(props: RepositoryListProps) {
@@ -149,6 +150,7 @@ export default function RepositoryListSimple(props: RepositoryListProps) {
             onForceRefreshComplete={() => handleForceRefreshComplete(repoId)}
             nonForceRefresh={pendingNonForceRefresh.has(repoId)}
             onNonForceRefreshComplete={() => handleNonForceRefreshComplete(repoId)}
+            onShowWorkflowDetail={props.onShowWorkflowDetail}
           />
         );
       })}

@@ -3,7 +3,10 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import type { TrackedRepository, RepositoryStatus } from '../api/Repositories';
 import RepositorySearch from '../components/repositories/RepositorySearch';
+
 import RepositoryListSimple from '../components/repositories/RepositoryListSimple';
+import NotificationDisplay from '../components/NotificationDisplay';
+import WorkflowDetailModal from '../components/workflowDetails/WorkflowDetailModal';
 import './DashboardPage.css';
 
 
@@ -16,6 +19,7 @@ export default function DashboardPage() {
   const [showAddRepoModal, setShowAddRepoModal] = useState(false);
   const [triggerForceRefresh, setTriggerForceRefresh] = useState(false);
   const [triggerNonForceRefresh, setTriggerNonForceRefresh] = useState(false);
+  const [selectedRepoForModal, setSelectedRepoForModal] = useState<TrackedRepository | null>(null);
   const hasInitiallyLoaded = useRef(false);
 
   // Load repositories from database
@@ -118,6 +122,14 @@ export default function DashboardPage() {
             />
             <h1>GitHub Actions Viewer</h1>
           </div>
+          {/* NotificationDisplay centered between left and right */}
+          <NotificationDisplay
+            repositoriesStatus={actionStats}
+            onNotificationHistoryItemClick={(repositoryId) => {
+              const repo = repositories.find(r => r.repository.id === repositoryId);
+              if (repo) setSelectedRepoForModal(repo);
+            }}
+          />
           <div className="header-right">
             <button 
               className="add-repo-button"
@@ -215,6 +227,7 @@ export default function DashboardPage() {
             gridView={true}
             triggerForceRefresh={triggerForceRefresh}
             triggerNonForceRefresh={triggerNonForceRefresh}
+            onShowWorkflowDetail={setSelectedRepoForModal}
           />
         </div>
       </main>
@@ -240,6 +253,15 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Workflow Detail Modal at dashboard level */}
+      {selectedRepoForModal && (
+        <WorkflowDetailModal
+          repo={selectedRepoForModal}
+          isOpen={!!selectedRepoForModal}
+          onClose={() => setSelectedRepoForModal(null)}
+        />
       )}
     </div>
   );

@@ -1,4 +1,6 @@
-import type { WorkflowStatus } from '../../api/Repositories';
+// Calculate stability score for a set of runs, normalized 0-100
+import { getIndications } from './indicationsUtils';
+import type { RepositoryStatus, WorkflowStatus } from '../../api/Repositories';
 
 export type NormalizedStatus = 'success' | 'failure' | 'cancelled' | 'running' | 'pending' | 'error' | 'unknown' | 'no_runs';
 
@@ -90,4 +92,81 @@ export function getStatusChangeIndicators(workflow: WorkflowStatus[]): Record<nu
     }
   }
   return indicators;
+}
+
+export function RepositoryStatusToFlatArray(repositoryData: RepositoryStatus, filterBranch?: string, filterWorkflow?: string): Array<{ branch: string, workflowKey: string, workflow: WorkflowStatus[] }> {
+  const allRunsForAnalytics: Array<{ branch: string, workflowKey: string, workflow: WorkflowStatus[] }> = [];
+  Object.entries(repositoryData.branches).filter(([branchName]) => !filterBranch || branchName === filterBranch)
+    .forEach(([branchName, branchData]) => {
+      Object.entries(branchData.workflows).filter(([workflowKey, workflowRuns]) => {
+        if (!filterWorkflow) return true;
+        const runs = workflowRuns as WorkflowStatus[];
+        const wf = runs[0] as WorkflowStatus;
+        return (
+          workflowKey === filterWorkflow ||
+          (wf && (wf.name === filterWorkflow || wf.workflow_path === filterWorkflow))
+        );
+      })
+    .forEach(([workflowKey, workflowRuns]) => {
+      allRunsForAnalytics.push({ branch: branchName, workflowKey, workflow: workflowRuns as WorkflowStatus[] });
+    });
+  });
+  return allRunsForAnalytics;
+}
+
+export function calculateStabilityScore(
+  entries: Array<{ branch: string; workflowKey: string; workflow: WorkflowStatus[] }>
+): number | null {
+  if (!entries || entries.length === 0) return null;
+  // If all workflows are no_run, return null (unknown)
+  const allNoRun = entries.every(({ workflow }) =>
+    workflow.length === 0 || workflow.every(run => {
+      const status = run.status || run.conclusion;
+      return status === 'no_runs';
+    })
+  );
+  if (allNoRun) return null;
+
+  const workflowScores: number[] = [];
+  entries.forEach(({ branch, workflowKey, workflow }) => {
+    const indications = getIndications([
+      { branch, workflowKey, workflow }
+    ]);
+    const relevant = indications.filter(ind => ind.type !== 'success');
+    let penalty = 0;
+    relevant.forEach(ind => {
+      let factor = 1;
+      if (ind.type === 'error') factor = 2;
+      else if (ind.type === 'warning') factor = 1;
+      else if (ind.type === 'info') factor = 0.5;
+      penalty += (ind.severityScore || 1) * factor;
+    });
+    const indicationScore = Math.max(0, 100 - Math.min(Math.log10(1 + penalty) * 25, 100));
+
+    // Weighted success rate: recent runs count more
+    let successRate = 100;
+    if (workflow.length > 0) {
+      // Exponential decay weights: w_i = decay^i, latest run is i=0
+      const decay = 0.5; // tune decay factor (0.7-0.9 reasonable)
+      let weightedSuccess = 0;
+      let weightedTotal = 0;
+      for (let i = 0; i < workflow.length; i++) {
+        const run = workflow[i];
+        const status = getNormalizedStatus(run.status, run.conclusion);
+        // Only consider runs that are not no_runs or cancelled
+        if (status !== 'no_runs' && status !== 'cancelled') {
+          const weight = Math.pow(decay, i);
+          weightedTotal += weight;
+          if (status === 'success') {
+            weightedSuccess += weight;
+          }
+        }
+      }
+      successRate = weightedTotal > 0 ? (weightedSuccess / weightedTotal) * 100 : 100;
+    }
+    const finalScore = 0.5 * indicationScore + 0.5 * successRate;
+    workflowScores.push(finalScore);
+  });
+  const avgScore = workflowScores.reduce((a, b) => a + b, 0) / workflowScores.length;
+  return Math.max(0, Math.min(100, Math.round(avgScore)));
 }

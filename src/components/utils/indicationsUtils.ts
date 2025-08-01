@@ -7,6 +7,12 @@ export interface Indication {
   message: string;
   url?: string;
   timestamp?: string;
+  relevantWorkflowCount?: number;
+  severityScore?: number;
+}
+
+export function isSameIndication(a: Indication, b: Indication): boolean {
+  return a.type === b.type && a.message === b.message;
 }
 
 export function getIndications(runs: Array<{ branch: string; workflowKey: string; workflow: WorkflowStatus[] }>): Indication[] {
@@ -131,7 +137,10 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
       type: 'info',
       message: workflowsWithNoRuns === 1
         ? '1 workflow has no runs yet'
-        : `${workflowsWithNoRuns} workflows have no runs yet`
+        : `${workflowsWithNoRuns} workflows have no runs yet`,
+      relevantWorkflowCount: workflowsWithNoRuns,
+      url: "https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow",
+      severityScore: workflowsWithNoRuns * 1
     });
   }
   if (workflowsWithOnlyFailures > 0) {
@@ -139,7 +148,9 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
       type: 'warning',
       message: workflowsWithOnlyFailures === 1
         ? '1 workflow has only failures'
-        : `${workflowsWithOnlyFailures} workflows have only failures`
+        : `${workflowsWithOnlyFailures} workflows have only failures`,
+      relevantWorkflowCount: workflowsWithOnlyFailures,
+      severityScore: workflowsWithOnlyFailures * 3
     });
   }
   // Only display the largest threshold indication for not run recently
@@ -150,7 +161,10 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
       type: 'warning',
       message: count === 1
         ? `1 workflow has not run in the last ${maxNotRunDays} days`
-        : `${count} workflows have not run in the last ${maxNotRunDays} days`
+        : `${count} workflows have not run in the last ${maxNotRunDays} days`,
+      relevantWorkflowCount: count,
+      url: "https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows",
+      severityScore: count * (maxNotRunDays / 8)
     });
   }
   // Only show the most significant (longest) failure and success streaks (run-based)
@@ -164,7 +178,9 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
       type: 'error',
       message: count === 1
         ? `A workflow has failed ${maxFailureStreak} or more times in a row`
-        : `${count} workflows have failed ${maxFailureStreak} or more times in a row`
+        : `${count} workflows have failed ${maxFailureStreak} or more times in a row`,
+      relevantWorkflowCount: count,
+      severityScore: count * maxFailureStreak * 5
     });
   }
   const maxSuccessStreak = Object.keys(successStreaks)
@@ -177,7 +193,8 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
       type: 'success',
       message: count === 1
         ? `A workflow has succeeded ${maxSuccessStreak} or more times in a row`
-        : `${count} workflows have succeeded ${maxSuccessStreak} or more times in a row`
+        : `${count} workflows have succeeded ${maxSuccessStreak} or more times in a row`,
+      relevantWorkflowCount: count,
     });
   }
   // Show most significant daily streaks (day-based)
@@ -191,7 +208,9 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
       type: 'error',
       message: count === 1
         ? `A workflow has failed for ${maxDailyFailureStreak} or more consecutive days`
-        : `${count} workflows have failed for ${maxDailyFailureStreak} or more consecutive days`
+        : `${count} workflows have failed for ${maxDailyFailureStreak} or more consecutive days`,
+      relevantWorkflowCount: count,
+      severityScore: count * maxDailyFailureStreak
     });
   }
   const maxDailySuccessStreak = Object.keys(dailySuccessStreaks)
@@ -204,17 +223,18 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
       type: 'success',
       message: count === 1
         ? `A workflow has succeeded for ${maxDailySuccessStreak} or more consecutive days`
-        : `${count} workflows have succeeded for ${maxDailySuccessStreak} or more consecutive days`
+        : `${count} workflows have succeeded for ${maxDailySuccessStreak} or more consecutive days`,
+      relevantWorkflowCount: count,
     });
   }
   if (anyRecentFailure) {
-    indications.push({ type: 'warning', message: 'At least one workflow failed in the most recent run' });
+    indications.push({ type: 'warning', message: 'At least one workflow failed in the most recent run', relevantWorkflowCount: 1, severityScore: 5 });
   }
   if (totalFailures === 0 && totalSuccess > 0) {
-    indications.push({ type: 'success', message: 'All runs succeeded' });
+    indications.push({ type: 'success', message: 'All runs succeeded', relevantWorkflowCount: totalSuccess, severityScore: 0 });
   }
   if (totalFailures > 0 && totalSuccess === 0) {
-    indications.push({ type: 'error', message: 'All runs failed' });
+    indications.push({ type: 'error', message: 'All runs failed', relevantWorkflowCount: totalFailures, severityScore: totalFailures * 10 });
   }
   return indications;
 }
@@ -225,6 +245,21 @@ export function calculateRunTime(start: number, end: number): number | null {
   // Skip not valid run times: if run time is 0 negative, Infinity or more than 7 days (This is only estimated, as GitHub does not provide actual run times)
   return (isNaN(runTime) || runTime <= 0 || runTime === Infinity || runTime > 7 * 24 * 60 * 60 * 1000) ? null : runTime;
 }
+
+export function formatRelativeTime(dateString: string): string {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMinutes < 1) return 'just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return new Date(dateString).toLocaleDateString();
+  };
 
 export function formatRunTime(totalSeconds: number): string {
   if (isNaN(totalSeconds) || totalSeconds <= 0) return '';

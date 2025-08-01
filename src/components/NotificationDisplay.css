@@ -1,0 +1,331 @@
+/* NotificationDisplay styles */
+.notification-display-container {
+  flex: 1;
+  margin: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+
+.notification-display {
+  width: 100%;
+  min-width: 300px;
+  max-width: 700px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-card);
+  padding: 10px 24px;
+  font-size: 1.1em;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: box-shadow 0.3s, background 0.3s, color 0.3s;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.notification-msg {
+  display: inline-block;
+}
+
+/* Unread notification indicator */
+.notification-unread-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-info);
+  color: var(--text-inverse);
+  font-size: 0.95em;
+  font-weight: 600;
+  border-radius: 50%;
+  min-width: 36px;
+  height: 36px;
+  margin-left: 16px;
+  box-shadow: 0 2px 8px rgba(23, 162, 184, 0.15);
+  border: 2px solid var(--bg-card);
+  transition: background 0.3s, color 0.3s;
+}
+
+@media (max-width: 768px) {
+  .notification-unread-indicator {
+    min-width: 28px;
+    height: 28px;
+    font-size: 0.85em;
+    margin-left: 8px;
+  }
+}
+
+/* Animations only affect .notification-msg */
+.notification-fade {
+  animation: notificationFadeIn 0.5s;
+}
+@keyframes notificationFadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.notification-slide {
+  animation: notificationSlideIn 0.5s;
+}
+@keyframes notificationSlideIn {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+
+/* Layout for default notification display */
+.notification-default-layout {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.notification-default-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-info);
+  font-size: 1.1em;
+  font-weight: 500;
+}
+.notification-default-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  margin-left: 16px;
+}
+.notification-unread-indicator {
+  background: var(--accent-info);
+  color: var(--text-inverse);
+  font-weight: 600;
+  border-radius: 50%;
+  margin-left: 16px;
+  box-shadow: 0 2px 8px rgba(23, 162, 184, 0.15);
+  border: 2px solid var(--bg-card);
+  transition: background 0.3s, color 0.3s;
+  line-height: 1.1;
+}
+
+.notification-improvement {
+  animation: notificationImprovement 5s;
+}
+/* Firework explosion styles */
+/* SVG firework styling */
+.notification-firework-svg {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 2;
+  animation: notificationFireworkExplosion 1.2s cubic-bezier(0.5,1.5,0.5,1) forwards;
+}
+@keyframes notificationFireworkExplosion {
+  0% {
+    opacity: 0;
+    transform: scale(0.2) translateY(0);
+    filter: blur(2px);
+  }
+  10% {
+    opacity: 1;
+    transform: scale(1.2) translateY(-10px);
+    filter: blur(0.5px);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.5) translateY(-18px);
+    filter: blur(0px);
+  }
+  70% {
+    opacity: 0.8;
+    transform: scale(1.1) translateY(-8px);
+    filter: blur(1px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.3) translateY(0);
+    filter: blur(2px);
+  }
+}
+/* Keyframes for improvement animation - for a subtle bounce effect */
+@keyframes notificationImprovement {
+  0% { opacity: 0; transform: translateY(20px); }
+  20% { opacity: 1; transform: translateY(-10px); }
+  40% { transform: translateY(5px); }
+  60% { transform: translateY(-2px); }
+  80% { transform: translateY(1px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.notification-failure {
+  animation: notificationFailure 5s;
+}
+/* Keyframes for failure animation - scale effect */
+@keyframes notificationFailure {
+  0% { opacity: 0; transform: scale(0.8); }
+  20% { opacity: 1; transform: scale(1.03); }
+  40% { transform: scale(0.97); }
+  60% { transform: scale(1.01); }
+  80% { transform: scale(0.99); }
+  100% { transform: scale(1); }
+}
+
+/* Notification history */
+.notification-history-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.25);
+  z-index: 1001;
+}
+
+.notification-history-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg-modal-content);
+  color: var(--text-primary);
+  border-radius: 12px;
+  box-shadow: var(--shadow-modal);
+  border: 1px solid var(--border-card);
+  padding: 24px 24px;
+  min-width: 700px;
+  max-width: 90vw;
+  max-height: 70vh;
+  overflow-y: auto;
+  z-index: 1002;
+  display: flex;
+  flex-direction: column;
+}
+.notification-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.close-history {
+  background: none;
+  border: none;
+  font-size: 26px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+}
+.close-history:hover {
+  background: var(--bg-tertiary);
+  color: var(--primary-color);
+  transform: scale(1.1);
+}
+.notification-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.notification-history-item {
+  padding: 10px 10px;
+  border-bottom: 1px solid var(--border-secondary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.05em;
+  transition: background 0.2s;
+}
+.notification-history-item:last-child {
+  border-bottom: none;
+}
+.notification-history-item:hover {
+  background: var(--bg-tertiary);
+}
+.notification-history-message {
+  flex: 1;
+  font-weight: 500;
+  white-space: pre-line;
+  word-break: break-word;
+}
+.notification-history-time {
+  font-size: 0.92em;
+  color: var(--text-tertiary);
+  margin-left: 18px;
+  font-weight: 400;
+}
+.notification-empty {
+  color: var(--text-tertiary);
+  text-align: center;
+  font-style: italic;
+  padding: 18px 0;
+}
+.notification-default-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-info);
+  font-size: 1.13em;
+  font-weight: 600;
+  gap: 0.5em;
+  letter-spacing: 0.02em;
+}
+.notification-score-label {
+  opacity: 0.85;
+  font-weight: 500;
+  margin-right: 0.2em;
+}
+.notification-score-value {
+  font-weight: 700;
+  color: var(--primary-color);
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  padding: 2px 10px;
+  font-size: 1.08em;
+  letter-spacing: 0.04em;
+}
+
+/* Notification types */
+.notification-success {
+  color: var(--accent-success);
+}
+.notification-error {
+  color: var(--accent-danger);
+}
+.notification-warning {
+  color: var(--accent-warning);
+}
+.notification-info {
+  color: var(--accent-info);
+}
+
+@media (max-width: 768px) {
+  .notification-display-container {
+    margin: 0 8px;
+  }
+  .notification-display {
+    min-width: 180px;
+    padding: 8px 10px;
+    font-size: 1em;
+  }
+  .notification-history {
+    min-width: 180px;
+    padding: 10px 10px;
+    max-height: 220px;
+  }
+}
