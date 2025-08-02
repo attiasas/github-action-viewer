@@ -170,7 +170,7 @@ export default function NotificationDisplay({ repositoriesStatus, onNotification
           </svg>
         ))}
         {current ? (
-          <span className={`notification-msg notification-${current.type || 'info'} ${getAnimationClass(current)}`}>{current.message}</span>
+          <span className={`notification-msg notification-${current.severity || 'info'} ${getAnimationClass(current)}`}>{current.message}</span>
         ) : (
           <div className="notification-default-layout">
             <div className="notification-default-main">
@@ -224,7 +224,7 @@ export default function NotificationDisplay({ repositoriesStatus, onNotification
                 history.map(n => (
                   <li
                     key={n.id}
-                    className={`notification-history-item notification-${n.type || 'info'}`}
+                    className={`notification-history-item notification-${n.severity || 'info'}`}
                     onClick={() => handleHistoryItemClick(n)}
                     style={n.repositoryId ? { cursor: 'pointer', fontWeight: 500 } : {}}
                   >

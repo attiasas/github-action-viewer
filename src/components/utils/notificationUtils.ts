@@ -1,12 +1,12 @@
 
 export type NotificationAnimation = 'fade' | 'slide' | 'improvement' | 'failure';
-export type NotificationType = 'info' | 'success' | 'warning' | 'error';
+export type NotificationSeverity = 'info' | 'success' | 'warning' | 'error';
  
 export type Notification = {
   id: string;
   message: string;
   ignoreUnread: boolean; // If true, this notification won't count towards unread count
-  type?: NotificationType;
+  severity?: NotificationSeverity;
   duration?: number; // ms
   animation?: NotificationAnimation;
   timestamp?: number;
@@ -37,7 +37,7 @@ export function WarningNotification(message: string, repositoryId?: number) {
 
 export function pushNotification(
   message: string,
-  type: NotificationType = 'info',
+  type: NotificationSeverity = 'info',
   animation?: NotificationAnimation,
   duration?: number,
   repositoryId?: number
@@ -80,7 +80,7 @@ export function pushNotification(
     id: `${Date.now()}-${Math.random()}`,
     message: message,
     ignoreUnread: type === 'info',
-    type: type,
+    severity: type,
     duration: duration,
     animation: animation,
     timestamp: Date.now(),
