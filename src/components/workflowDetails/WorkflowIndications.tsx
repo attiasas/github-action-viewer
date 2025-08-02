@@ -24,7 +24,7 @@ const typeOrder: Record<string, number> = {
 };
 
 const WorkflowIndications: React.FC<WorkflowIndicationsProps> = ({ indications }) => {
-  const sorted = [...indications].sort((a, b) => (typeOrder[a.type] ?? 99) - (typeOrder[b.type] ?? 99));
+  const sorted = [...indications].sort((a, b) => (typeOrder[a.severity] ?? 99) - (typeOrder[b.severity] ?? 99));
 
   // Icon for each indication type
   const typeIcon: Record<string, React.ReactNode> = {
@@ -42,13 +42,13 @@ const WorkflowIndications: React.FC<WorkflowIndicationsProps> = ({ indications }
           {sorted.map((ind, idx) => (
             <li
               key={idx}
-              className={typeToClass[ind.type] || 'indication-info'}
+              className={typeToClass[ind.severity] || 'indication-info'}
               tabIndex={ind.url ? 0 : -1}
               title={ind.message}
               onClick={() => { if (ind.url) window.open(ind.url, '_blank', 'noopener'); }}
               onKeyDown={e => { if (ind.url && (e.key === 'Enter' || e.key === ' ')) window.open(ind.url, '_blank', 'noopener'); }}
             >
-              {typeIcon[ind.type]}
+              {typeIcon[ind.severity]}
               <span style={{ flex: 1 }}>{ind.message}</span>
               {ind.timestamp && (
                 <span className="indication-timestamp">{new Date(ind.timestamp).toLocaleString()}</span>

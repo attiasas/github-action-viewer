@@ -181,7 +181,7 @@ export default function NotificationDisplay({ repositoriesStatus, onNotification
                 {(() => {
                   const displayCount = unreadCount > 99 ? '99' : unreadCount.toString();
                   const digitCount = displayCount.length;
-                  // Smaller base and scaling for all circles
+                  // base and scaling for indicator size based on digit count
                   const base = 28;
                   const size = base + (digitCount - 1) * 9;
                   return (

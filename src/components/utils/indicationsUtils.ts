@@ -1,9 +1,9 @@
 import type { WorkflowStatus } from '../../api/Repositories';
 import { getNormalizedStatus, getDailyStatus } from './StatusUtils';
 
-export type IndicationType = 'info' | 'warning' | 'success' | 'error';
+export type IndicationSeverity = 'info' | 'warning' | 'success' | 'error';
 export interface Indication {
-  type: IndicationType;
+  severity: IndicationSeverity;
   message: string;
   url?: string;
   timestamp?: string;
@@ -12,7 +12,7 @@ export interface Indication {
 }
 
 export function isSameIndication(a: Indication, b: Indication): boolean {
-  return a.type === b.type && a.message === b.message;
+  return a.severity === b.severity && a.message === b.message;
 }
 
 export function getIndications(runs: Array<{ branch: string; workflowKey: string; workflow: WorkflowStatus[] }>): Indication[] {
@@ -134,7 +134,7 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
 
   if (workflowsWithNoRuns > 0) {
     indications.push({
-      type: 'info',
+      severity: 'info',
       message: workflowsWithNoRuns === 1
         ? '1 workflow has no runs yet'
         : `${workflowsWithNoRuns} workflows have no runs yet`,
@@ -145,12 +145,12 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
   }
   if (workflowsWithOnlyFailures > 0) {
     indications.push({
-      type: 'warning',
+      severity: 'warning',
       message: workflowsWithOnlyFailures === 1
         ? '1 workflow has only failures'
         : `${workflowsWithOnlyFailures} workflows have only failures`,
       relevantWorkflowCount: workflowsWithOnlyFailures,
-      severityScore: workflowsWithOnlyFailures * 3
+      severityScore: workflowsWithOnlyFailures * 10
     });
   }
   // Only display the largest threshold indication for not run recently
@@ -158,7 +158,7 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
   if (maxNotRunDays) {
     const count = workflowsNotRunRecently[maxNotRunDays];
     indications.push({
-      type: 'warning',
+      severity: 'warning',
       message: count === 1
         ? `1 workflow has not run in the last ${maxNotRunDays} days`
         : `${count} workflows have not run in the last ${maxNotRunDays} days`,
@@ -175,7 +175,7 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
   if (maxFailureStreak) {
     const count = failureStreaks[maxFailureStreak];
     indications.push({
-      type: 'error',
+      severity: 'error',
       message: count === 1
         ? `A workflow has failed ${maxFailureStreak} or more times in a row`
         : `${count} workflows have failed ${maxFailureStreak} or more times in a row`,
@@ -190,7 +190,7 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
   if (maxSuccessStreak) {
     const count = successStreaks[maxSuccessStreak];
     indications.push({
-      type: 'success',
+      severity: 'success',
       message: count === 1
         ? `A workflow has succeeded ${maxSuccessStreak} or more times in a row`
         : `${count} workflows have succeeded ${maxSuccessStreak} or more times in a row`,
@@ -205,7 +205,7 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
   if (maxDailyFailureStreak) {
     const count = dailyFailureStreaks[maxDailyFailureStreak];
     indications.push({
-      type: 'error',
+      severity: 'error',
       message: count === 1
         ? `A workflow has failed for ${maxDailyFailureStreak} or more consecutive days`
         : `${count} workflows have failed for ${maxDailyFailureStreak} or more consecutive days`,
@@ -220,7 +220,7 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
   if (maxDailySuccessStreak) {
     const count = dailySuccessStreaks[maxDailySuccessStreak];
     indications.push({
-      type: 'success',
+      severity: 'success',
       message: count === 1
         ? `A workflow has succeeded for ${maxDailySuccessStreak} or more consecutive days`
         : `${count} workflows have succeeded for ${maxDailySuccessStreak} or more consecutive days`,
@@ -228,13 +228,13 @@ export function getIndications(runs: Array<{ branch: string; workflowKey: string
     });
   }
   if (anyRecentFailure) {
-    indications.push({ type: 'warning', message: 'At least one workflow failed in the most recent run', relevantWorkflowCount: 1, severityScore: 5 });
+    indications.push({ severity: 'warning', message: 'At least one workflow failed in the most recent run', relevantWorkflowCount: 1, severityScore: 5 });
   }
   if (totalFailures === 0 && totalSuccess > 0) {
-    indications.push({ type: 'success', message: 'All runs succeeded', relevantWorkflowCount: totalSuccess, severityScore: 0 });
+    indications.push({ severity: 'success', message: 'All runs succeeded', relevantWorkflowCount: totalSuccess, severityScore: 0 });
   }
   if (totalFailures > 0 && totalSuccess === 0) {
-    indications.push({ type: 'error', message: 'All runs failed', relevantWorkflowCount: totalFailures, severityScore: totalFailures * 10 });
+    indications.push({ severity: 'error', message: 'All runs failed', relevantWorkflowCount: totalFailures, severityScore: totalFailures * 10 });
   }
   return indications;
 }
@@ -309,4 +309,13 @@ export function getWorkflowAggregatedInfo(workflow: WorkflowStatus[]): {
   const avgRunTime = runTimeCount > 0 ? totalRunTime / runTimeCount : null;
   const successRate = totalRuns > 0 ? successCount / totalRuns : null;
   return { totalRuns: workflow.length, avgRunTime, successRate };
+}
+
+export function getNewIndications(
+  previousIndications: Indication[],
+  currentIndications: Indication[]
+): Indication[] {
+  return currentIndications.filter(
+    curr => !previousIndications.some(prev => isSameIndication(curr, prev))
+  );
 }

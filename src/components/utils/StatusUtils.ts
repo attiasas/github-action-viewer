@@ -132,13 +132,13 @@ export function calculateStabilityScore(
     const indications = getIndications([
       { branch, workflowKey, workflow }
     ]);
-    const relevant = indications.filter(ind => ind.type !== 'success');
+    const relevant = indications.filter(ind => ind.severity !== 'success');
     let penalty = 0;
     relevant.forEach(ind => {
       let factor = 1;
-      if (ind.type === 'error') factor = 2;
-      else if (ind.type === 'warning') factor = 1;
-      else if (ind.type === 'info') factor = 0.5;
+      if (ind.severity === 'error') factor = 2;
+      else if (ind.severity === 'warning') factor = 1;
+      else if (ind.severity === 'info') factor = 0.5;
       penalty += (ind.severityScore || 1) * factor;
     });
     const indicationScore = Math.max(0, 100 - Math.min(Math.log10(1 + penalty) * 25, 100));

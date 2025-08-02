@@ -4,9 +4,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { RepositoryStatusToFlatArray } from '../utils/StatusUtils';
 import { InfoNotification, ImprovementNotification, FailureNotification, WarningNotification } from '../utils/notificationUtils';
 import { isSameIndication } from '../utils/indicationsUtils';
+import type { Indication } from '../utils/indicationsUtils';
 import type { TrackedRepository, RepositoryStatus } from '../../api/Repositories';
 import './RepositoryCard.css';
-
 
 interface RepositoryCardProps {
   repo: TrackedRepository;
@@ -34,7 +34,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
   const { user } = useAuth();
   const [stats, setStats] = useState<RepositoryStatus | null>(initialStats || null);
   // Store previous indications for each workflow
-  const previousIndicationsMap = useRef<Record<string, import('../utils/indicationsUtils').Indication[]>>({});
+  const previousIndicationsMap = useRef<Record<string, Indication[]>>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(repo.repository.autoRefreshInterval);
@@ -48,7 +48,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
   const histogramType = (() => {
     return localStorage.getItem('gav_histogramType') || 'refresh';
   })();
-
+  const initialLoadRef = useRef(true);
   // Store last N refreshes' overall status counts (N depends on available width)
   const BAR_WIDTH = 4;
   const BAR_GAP = 1;
@@ -99,10 +99,14 @@ export default function RepositoryCard(props: RepositoryCardProps) {
   const refreshInProgressRef = useRef(false);
 
   // Notify user of new workflow indications or refresh success
-  const handleNotificationsForWorkflows = useCallback((statsData: RepositoryStatus, refreshNotification: boolean) => {
+  const handleNotificationsForWorkflows = useCallback((statsData: RepositoryStatus, refreshNotification: boolean, onlySaveCurrent: boolean) => {
     if (!statsData || !statsData.branches) return;
-    const currIndications = getIndications(RepositoryStatusToFlatArray(statsData));
     const prevIndications = previousIndicationsMap.current[statsData.id] || [];
+    const currIndications = getIndications(RepositoryStatusToFlatArray(statsData));
+    if (onlySaveCurrent) {
+      previousIndicationsMap.current[statsData.id] = currIndications;
+      return;
+    }
     const newIndications = currIndications.filter(
       curr => !prevIndications.some(prev => isSameIndication(curr, prev))
     );
@@ -111,7 +115,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
     }
     newIndications.forEach(indication => {
       const notificationMessage = `${repo.repository.displayName || repo.repository.name} - ${indication.message}`;
-      switch (indication.type) {
+      switch (indication.severity) {
         case 'success':
           ImprovementNotification(notificationMessage, repo.repository.id);
           break;
@@ -129,7 +133,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
     previousIndicationsMap.current[statsData.id] = currIndications;
   }, [repo.repository.displayName, repo.repository.name]);
 
-  const getRepositoryStats = useCallback(async (forceRefresh = false, refreshNotification = false) => {
+  const getRepositoryStats = useCallback(async (forceRefresh = false, refreshNotification = false, initialLoad = false) => {
     if (!user || refreshInProgressRef.current) return null;
     refreshInProgressRef.current = true;
     setIsRefreshing(true);
@@ -166,6 +170,8 @@ export default function RepositoryCard(props: RepositoryCardProps) {
       } else {
         statsData = await postResp.json();
       }
+      // After getting stats, check for new indications and notify
+      handleNotificationsForWorkflows(statsData, refreshNotification, initialLoad);
       setStats(statsData);
       lastRefreshRef.current = Date.now();
       setRefreshHistory(prev => {
@@ -175,8 +181,6 @@ export default function RepositoryCard(props: RepositoryCardProps) {
       if (onStatsUpdateRef.current) {
         onStatsUpdateRef.current(statsData);
       }
-      // After getting stats, check for new indications and notify
-      handleNotificationsForWorkflows(statsData, refreshNotification);
       return statsData;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Network error';
@@ -248,11 +252,10 @@ export default function RepositoryCard(props: RepositoryCardProps) {
   }, [nonForceRefresh, getRepositoryStats, onNonForceRefreshComplete, repo.repository.autoRefreshInterval]);
 
   // Initial load: only trigger once
-  const initialLoadRef = useRef(false);
   useEffect(() => {
-    if (!initialLoadRef.current) {
-      initialLoadRef.current = true;
-      getRepositoryStats();
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+      getRepositoryStats(false, false, true); // Initial load, no notifications
     } else if (statsRef.current) {
       setRefreshHistory(prev => {
         if (prev.length === 0) {
