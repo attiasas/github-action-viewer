@@ -115,12 +115,12 @@ export function RepositoryStatusToFlatArray(repositoryData: RepositoryStatus, fi
 }
 
 export function calculateStabilityScore(
-  entries: Array<{ branch: string; workflowKey: string; workflow: WorkflowStatus[] }>
+  entries: Array<{ branch: string; workflowKey: string; jobRuns: WorkflowStatus[] }>
 ): number | null {
   if (!entries || entries.length === 0) return null;
   // If all workflows are no_run, return null (unknown)
-  const allNoRun = entries.every(({ workflow }) =>
-    workflow.length === 0 || workflow.every(run => {
+  const allNoRun = entries.every(({ jobRuns }) =>
+    jobRuns.length === 0 || jobRuns.every(run => {
       const status = run.status || run.conclusion;
       return status === 'no_runs';
     })
@@ -128,9 +128,9 @@ export function calculateStabilityScore(
   if (allNoRun) return null;
 
   const workflowScores: number[] = [];
-  entries.forEach(({ branch, workflowKey, workflow }) => {
+  entries.forEach(({ branch, workflowKey, jobRuns }) => {
     const indications = getIndications([
-      { branch, workflowKey, workflow }
+      { branch, workflowKey, jobRuns }
     ]);
     const relevant = indications.filter(ind => ind.severity !== 'success');
     let penalty = 0;
@@ -145,13 +145,13 @@ export function calculateStabilityScore(
 
     // Weighted success rate: recent runs count more
     let successRate = 100;
-    if (workflow.length > 0) {
+    if (jobRuns.length > 0) {
       // Exponential decay weights: w_i = decay^i, latest run is i=0
       const decay = 0.5; // tune decay factor (0.7-0.9 reasonable)
       let weightedSuccess = 0;
       let weightedTotal = 0;
-      for (let i = 0; i < workflow.length; i++) {
-        const run = workflow[i];
+      for (let i = 0; i < jobRuns.length; i++) {
+        const run = jobRuns[i];
         const status = getNormalizedStatus(run.status, run.conclusion);
         // Only consider runs that are not no_runs or cancelled
         if (status !== 'no_runs' && status !== 'cancelled') {

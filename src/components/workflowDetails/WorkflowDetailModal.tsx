@@ -792,7 +792,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                 // Color map for status
                 // (statusColors and statusBorderColors removed; now using CSS classes)
                 // --- Collect all runs for analytics ---
-                const allRunsForAnalytics: Array<{ branch: string, workflowKey: string, workflow: WorkflowStatus[] }> = [];
+                const allRunsForAnalytics: Array<{ branch: string, workflowKey: string, jobRuns: WorkflowStatus[] }> = [];
                 Object.entries(repositoryData.branches)
                   .filter(([branchName]) => !selectedBranch || branchName === selectedBranch)
                   .forEach(([branchName, branchData]) => {
@@ -807,7 +807,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                         );
                       })
                       .forEach(([workflowKey, workflowRuns]) => {
-                        allRunsForAnalytics.push({ branch: branchName, workflowKey, workflow: workflowRuns as WorkflowStatus[] });
+                        allRunsForAnalytics.push({ branch: branchName, workflowKey, jobRuns: workflowRuns as WorkflowStatus[] });
                       });
                   });
                 // --- End collect all runs for analytics ---
@@ -817,7 +817,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                   <div className="latest-runs-list" style={{ width: '100%', marginTop: '1rem' }}>
                     <div className="latest-runs-summary-section">
                       <div className="latest-runs-summary-left">
-                        <WorkflowSummary runs={allRunsForAnalytics} />
+                        <WorkflowSummary jobs={allRunsForAnalytics} />
                       </div>
                       {indications && indications.length > 0 && (
                         <div className="latest-runs-summary-right">
@@ -990,7 +990,7 @@ export default function WorkflowDetailModal({ repo, isOpen, onClose }: WorkflowD
                       )
                     )}
                     {/* --- Analytics Section --- */}
-                    <WorkflowAnalysis runs={allRunsForAnalytics} />
+                    <WorkflowAnalysis jobs={allRunsForAnalytics} />
                   </div>
                 );
               })()}

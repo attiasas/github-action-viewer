@@ -83,12 +83,12 @@ export default function NotificationDisplay({ repositoriesStatus, onNotification
   }, [current]);
 
   // Default display: stability score
-  const allRunsForAnalytics: Array<{ branch: string, workflowKey: string, workflow: WorkflowStatus[] }> = [];
+  const allRunsForAnalytics: Array<{ branch: string, workflowKey: string, jobRuns: WorkflowStatus[] }> = [];
   repositoriesStatus.forEach(repo => {
     Object.entries(repo.branches).forEach(([branchName, branchData]) => {
         Object.entries(branchData.workflows).forEach(([workflowKey, workflowRuns]) => {
-                allRunsForAnalytics.push({ branch: branchName, workflowKey, workflow: workflowRuns as WorkflowStatus[] });
-            }); 
+                allRunsForAnalytics.push({ branch: branchName, workflowKey, jobRuns: workflowRuns as WorkflowStatus[] });
+            });
         });
     });
   const stabilityScore = calculateStabilityScore(allRunsForAnalytics);

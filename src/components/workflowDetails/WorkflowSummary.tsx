@@ -5,11 +5,11 @@ import './WorkflowSummary.css';
 import { formatRelativeTime } from '../utils/indicationsUtils';
 
 export interface WorkflowSummaryProps {
-  runs: Array<{ branch: string; workflowKey: string; workflow: WorkflowStatus[] }>;
+  jobs: Array<{ branch: string; workflowKey: string; jobRuns: WorkflowStatus[] }>;
 }
 
 // Helper to aggregate all runs
-function aggregateRuns(runs: WorkflowSummaryProps['runs']) {
+function aggregateRuns(runs: WorkflowSummaryProps['jobs']) {
   let totalRuns = 0;
   let success = 0;
   let failure = 0;
@@ -20,9 +20,9 @@ function aggregateRuns(runs: WorkflowSummaryProps['runs']) {
   let unknown = 0;
   let noRuns = 0;
   let trackedWorkflows = 0;
-  runs.forEach(({ workflow }) => {
+  runs.forEach(({ jobRuns }) => {
     trackedWorkflows++;
-    workflow.forEach(run => {
+    jobRuns.forEach(run => {
       const status = getNormalizedStatus(run.status, run.conclusion);
       if (status === 'success') success++;
       else if (status === 'failure') failure++;
@@ -104,11 +104,11 @@ function StatusPieChart({ stats }: { stats: ReturnType<typeof aggregateRuns> }) 
   );
 }
 
-const WorkflowSummary: React.FC<WorkflowSummaryProps> = ({ runs }) => {
+const WorkflowSummary: React.FC<WorkflowSummaryProps> = ({ jobs }) => {
   // Get indications
-  const stats = aggregateRuns(runs);
+  const stats = aggregateRuns(jobs);
 
-  const score = calculateStabilityScore(runs);
+  const score = calculateStabilityScore(jobs);
   let scoreColor = 'var(--accent-success, #28a745)';
   let scoreClass = 'repo-score-label';
   if (score === null) {
@@ -131,8 +131,8 @@ const WorkflowSummary: React.FC<WorkflowSummaryProps> = ({ runs }) => {
   else if (successRateNum < 60) successRateColor = 'var(--accent-danger, #dc3545)';
   else if (successRateNum < 80) successRateColor = 'var(--accent-warning, #ffc107)';
   let latestRunAt: string | null = null;
-  runs.forEach(({ workflow }) => {
-    workflow.forEach(run => {
+  jobs.forEach(({ jobRuns }) => {
+    jobRuns.forEach(run => {
       if (run.updatedAt) {
         if (!latestRunAt || new Date(run.updatedAt) > new Date(latestRunAt)) {
           latestRunAt = run.updatedAt;
