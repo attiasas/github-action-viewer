@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { calculateStabilityScore } from '../components/utils/StatusUtils';
 import { formatRelativeTime } from '../components/utils/indicationsUtils';
 import type { RepositoryStatus, WorkflowStatus } from '../api/Repositories';
-import { notificationListeners } from './utils/notificationUtils';
+import { addNotificationListener, removeNotificationListener } from './utils/notificationUtils';
 import type { Notification, NotificationEvent } from './utils/notificationUtils';
 import './NotificationDisplay.css';
 
@@ -53,10 +53,9 @@ export default function NotificationDisplay({ repositoriesStatus, onNotification
     const listener: NotificationEvent = (notification) => {
       setQueue(prev => [...prev, notification]);
     };
-    notificationListeners.push(listener);
+    addNotificationListener(listener);
     return () => {
-      const idx = notificationListeners.indexOf(listener);
-      if (idx !== -1) notificationListeners.splice(idx, 1);
+      removeNotificationListener(listener);
     };
   }, []);
 

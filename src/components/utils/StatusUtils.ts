@@ -3,6 +3,8 @@ import { getIndications } from './indicationsUtils';
 import type { RepositoryStatus, WorkflowStatus } from '../../api/Repositories';
 
 export type NormalizedStatus = 'success' | 'failure' | 'cancelled' | 'running' | 'pending' | 'error' | 'unknown' | 'no_runs';
+export type Severity = 'info' | 'success' | 'error' | 'warning';
+export type ChangeType = 'bad' | 'good' | 'info' | undefined;
 
 export function getNormalizedStatus(status: string, conclusion: string | null): string {
   const actual: string = conclusion || status;
@@ -18,6 +20,18 @@ export function getNormalizedStatus(status: string, conclusion: string | null): 
   if (actual === 'pending' || actual === 'action_required') return 'pending';
 
   return 'unknown';
+}
+
+export function getReversedSeverity(severity: Severity): Severity {
+  switch (severity) {
+    case 'success':
+      return 'error';
+    case 'error':
+    case 'warning':
+      return 'success';
+    default:
+      return 'info';
+  }
 }
 
 export function getDailyStatus(workflow: WorkflowStatus[]): Array<{ date: string; run: WorkflowStatus | null }> {
@@ -55,7 +69,7 @@ export function getDailyStatus(workflow: WorkflowStatus[]): Array<{ date: string
 }
 
 // Helper to determine type of status change
-export function getStatusChangeType(currentStatus: string, prev: WorkflowStatus[]): 'bad' | 'good' | 'info' | undefined {
+export function getStatusChangeType(currentStatus: string, prev: WorkflowStatus[]): ChangeType {
   if (!prev || !Array.isArray(prev) || prev.length === 0) return undefined;
   let prevStatus = 'no_runs'
   for (let i = 0; i < prev.length; i++) {
@@ -69,7 +83,7 @@ export function getStatusChangeType(currentStatus: string, prev: WorkflowStatus[
 }
 
 // Helper to get status indicator for a single workflow run
-export function getStatusIndicator(curr: WorkflowStatus, prev: WorkflowStatus[]): 'bad' | 'good' | 'info' | undefined {
+export function getStatusIndicator(curr: WorkflowStatus, prev: WorkflowStatus[]): ChangeType {
   if (!curr) return undefined;
   // calculate status indicator based on current status
   const currentStatus = getNormalizedStatus(curr.status, curr.conclusion);
@@ -79,8 +93,8 @@ export function getStatusIndicator(curr: WorkflowStatus, prev: WorkflowStatus[])
 }
 
 // Helper to find status change indices and types in workflow runs (latest first)
-export function getStatusChangeIndicators(workflow: WorkflowStatus[]): Record<number, 'bad' | 'good' | 'info'> {
-  const indicators: Record<number, 'bad' | 'good' | 'info'> = {};
+export function getStatusChangeIndicators(workflow: WorkflowStatus[]): Record<number, ChangeType> {
+  const indicators: Record<number, ChangeType> = {};
   for (let i = 0; i < workflow.length; i++) {
     let prev: WorkflowStatus[] = [];
     if (i < workflow.length - 1) {
@@ -94,8 +108,8 @@ export function getStatusChangeIndicators(workflow: WorkflowStatus[]): Record<nu
   return indicators;
 }
 
-export function RepositoryStatusToFlatArray(repositoryData: RepositoryStatus, filterBranch?: string, filterWorkflow?: string): Array<{ branch: string, workflowKey: string, workflow: WorkflowStatus[] }> {
-  const allRunsForAnalytics: Array<{ branch: string, workflowKey: string, workflow: WorkflowStatus[] }> = [];
+export function RepositoryStatusToFlatArray(repositoryData: RepositoryStatus, filterBranch?: string, filterWorkflow?: string): Array<{ branch: string, workflowKey: string, jobRuns: WorkflowStatus[] }> {
+  const allRunsForAnalytics: Array<{ branch: string, workflowKey: string, jobRuns: WorkflowStatus[] }> = [];
   Object.entries(repositoryData.branches).filter(([branchName]) => !filterBranch || branchName === filterBranch)
     .forEach(([branchName, branchData]) => {
       Object.entries(branchData.workflows).filter(([workflowKey, workflowRuns]) => {
@@ -108,7 +122,7 @@ export function RepositoryStatusToFlatArray(repositoryData: RepositoryStatus, fi
         );
       })
     .forEach(([workflowKey, workflowRuns]) => {
-      allRunsForAnalytics.push({ branch: branchName, workflowKey, workflow: workflowRuns as WorkflowStatus[] });
+      allRunsForAnalytics.push({ branch: branchName, workflowKey, jobRuns: workflowRuns as WorkflowStatus[] });
     });
   });
   return allRunsForAnalytics;
