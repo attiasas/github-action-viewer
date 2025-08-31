@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { getIndications } from '../utils/indicationsUtils';
 import { useAuth } from '../../contexts/AuthContext';
-import WorkflowDetailModal from './../workflowDetails/WorkflowDetailModal';
+import { RepositoryStatusToFlatArray } from '../utils/StatusUtils';
+import { InfoNotification, ImprovementNotification, FailureNotification, WarningNotification } from '../utils/notificationUtils';
+import { isSameIndication } from '../utils/indicationsUtils';
+import type { Indication } from '../utils/indicationsUtils';
 import type { TrackedRepository, RepositoryStatus } from '../../api/Repositories';
 import './RepositoryCard.css';
-
 
 interface RepositoryCardProps {
   repo: TrackedRepository;
@@ -14,6 +17,7 @@ interface RepositoryCardProps {
   onForceRefreshComplete?: () => void;
   nonForceRefresh?: boolean; // Trigger non-forced refresh from parent
   onNonForceRefreshComplete?: () => void;
+  onShowWorkflowDetail?: (repo: TrackedRepository) => void;
 }
 
 export default function RepositoryCard(props: RepositoryCardProps) {
@@ -29,10 +33,12 @@ export default function RepositoryCard(props: RepositoryCardProps) {
   } = props;
   const { user } = useAuth();
   const [stats, setStats] = useState<RepositoryStatus | null>(initialStats || null);
+  // Store previous indications for each workflow
+  const previousIndicationsMap = useRef<Record<string, Indication[]>>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(repo.repository.autoRefreshInterval);
-  const [showDetailModal, setShowDetailModal] = useState(false);
+  // Remove modal state from card
   // Histogram settings from localStorage
   const showHistogram = (() => {
     const stored = localStorage.getItem('gav_showHistogram');
@@ -42,7 +48,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
   const histogramType = (() => {
     return localStorage.getItem('gav_histogramType') || 'refresh';
   })();
-
+  const initialLoadRef = useRef(true);
   // Store last N refreshes' overall status counts (N depends on available width)
   const BAR_WIDTH = 4;
   const BAR_GAP = 1;
@@ -91,7 +97,43 @@ export default function RepositoryCard(props: RepositoryCardProps) {
 
   // Prevent overlapping/infinite refreshes
   const refreshInProgressRef = useRef(false);
-  const getRepositoryStats = useCallback(async (forceRefresh = false) => {
+
+  // Notify user of new workflow indications or refresh success
+  const handleNotificationsForWorkflows = useCallback((statsData: RepositoryStatus, refreshNotification: boolean, onlySaveCurrent: boolean) => {
+    if (!statsData || !statsData.branches) return;
+    const prevIndications = previousIndicationsMap.current[statsData.id] || [];
+    const currIndications = getIndications(RepositoryStatusToFlatArray(statsData));
+    if (onlySaveCurrent) {
+      previousIndicationsMap.current[statsData.id] = currIndications;
+      return;
+    }
+    const newIndications = currIndications.filter(
+      curr => !prevIndications.some(prev => isSameIndication(curr, prev))
+    );
+    if (newIndications.length == 0 && refreshNotification) {
+      InfoNotification(`${repo.repository.displayName || repo.repository.name} refreshed successfully`, repo.repository.id);
+    }
+    newIndications.forEach(indication => {
+      const notificationMessage = `${repo.repository.displayName || repo.repository.name} - ${indication.message}`;
+      switch (indication.severity) {
+        case 'success':
+          ImprovementNotification(notificationMessage, repo.repository.id);
+          break;
+        case 'error':
+          FailureNotification(notificationMessage, repo.repository.id);
+          break;
+        case 'warning':
+          WarningNotification(notificationMessage, repo.repository.id);
+          break;
+        case 'info':
+          InfoNotification(notificationMessage, repo.repository.id);
+          break;
+      }
+    });
+    previousIndicationsMap.current[statsData.id] = currIndications;
+  }, [repo.repository.displayName, repo.repository.name]);
+
+  const getRepositoryStats = useCallback(async (forceRefresh = false, refreshNotification = false, initialLoad = false) => {
     if (!user || refreshInProgressRef.current) return null;
     refreshInProgressRef.current = true;
     setIsRefreshing(true);
@@ -105,7 +147,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
       if (postResp.status === 202) {
         // If already refreshing, poll GET until not 202
         const pollStatus = async () => {
-          const maxWait = 10000; // 10s max
+          const maxWait = 30000; // 30s max
           const pollInterval = 500;
           let waited = 0;
           while (waited < maxWait) {
@@ -128,6 +170,8 @@ export default function RepositoryCard(props: RepositoryCardProps) {
       } else {
         statsData = await postResp.json();
       }
+      // After getting stats, check for new indications and notify
+      handleNotificationsForWorkflows(statsData, refreshNotification, initialLoad);
       setStats(statsData);
       lastRefreshRef.current = Date.now();
       setRefreshHistory(prev => {
@@ -147,7 +191,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
       setIsRefreshing(false);
       refreshInProgressRef.current = false;
     }
-  }, [user, repo, MAX_HISTORY]);
+  }, [user, repo, MAX_HISTORY, handleNotificationsForWorkflows]);
 
   // Auto-refresh timer
   useEffect(() => {
@@ -178,7 +222,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
     if (forceRefresh && !forceRefreshHandledRef.current) {
       forceRefreshHandledRef.current = true;
       setTimeLeft(repo.repository.autoRefreshInterval); // Reset timer
-      getRepositoryStats(true).finally(() => {
+      getRepositoryStats(true, true).finally(() => {
         if (onForceRefreshComplete) {
           onForceRefreshComplete();
         }
@@ -208,11 +252,10 @@ export default function RepositoryCard(props: RepositoryCardProps) {
   }, [nonForceRefresh, getRepositoryStats, onNonForceRefreshComplete, repo.repository.autoRefreshInterval]);
 
   // Initial load: only trigger once
-  const initialLoadRef = useRef(false);
   useEffect(() => {
-    if (!initialLoadRef.current) {
-      initialLoadRef.current = true;
-      getRepositoryStats();
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+      getRepositoryStats(true, false, true); // Initial load, no notifications
     } else if (statsRef.current) {
       setRefreshHistory(prev => {
         if (prev.length === 0) {
@@ -224,19 +267,22 @@ export default function RepositoryCard(props: RepositoryCardProps) {
   }, [getRepositoryStats]);
 
   // Handle card click to open modal
+  const { onShowWorkflowDetail } = props;
   const handleCardClick = useCallback((event: React.MouseEvent) => {
     // Don't open modal if clicking on buttons or links
     const target = event.target as HTMLElement;
     if (target.closest('button') || target.closest('a')) {
       return;
     }
-    setShowDetailModal(true);
-  }, []);
+    if (onShowWorkflowDetail) {
+      onShowWorkflowDetail(repo);
+    }
+  }, [onShowWorkflowDetail, repo]);
 
   // Manual refresh handler
   const handleManualRefresh = useCallback(() => {
     setTimeLeft(repo.repository.autoRefreshInterval); // Reset timer
-    getRepositoryStats();
+    getRepositoryStats(false, true);
   }, [getRepositoryStats, repo.repository.autoRefreshInterval]);
 
   // Remove repository handler
@@ -427,13 +473,6 @@ export default function RepositoryCard(props: RepositoryCardProps) {
           <span className="click-hint-text">Click for detailed workflow information</span>
         </div>
       </div>
-
-      {/* Workflow Detail Modal */}
-      <WorkflowDetailModal
-        repo={repo}
-        isOpen={showDetailModal}
-        onClose={() => setShowDetailModal(false)}
-      />
     </>
   );
 }

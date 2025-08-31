@@ -1,6 +1,10 @@
-import type { WorkflowStatus } from '../../api/Repositories';
+// Calculate stability score for a set of runs, normalized 0-100
+import { getIndications } from './indicationsUtils';
+import type { RepositoryStatus, WorkflowStatus } from '../../api/Repositories';
 
 export type NormalizedStatus = 'success' | 'failure' | 'cancelled' | 'running' | 'pending' | 'error' | 'unknown' | 'no_runs';
+export type Severity = 'info' | 'success' | 'error' | 'warning';
+export type ChangeType = 'bad' | 'good' | 'info' | undefined;
 
 export function getNormalizedStatus(status: string, conclusion: string | null): string {
   const actual: string = conclusion || status;
@@ -16,6 +20,18 @@ export function getNormalizedStatus(status: string, conclusion: string | null): 
   if (actual === 'pending' || actual === 'action_required') return 'pending';
 
   return 'unknown';
+}
+
+export function getReversedSeverity(severity: Severity): Severity {
+  switch (severity) {
+    case 'success':
+      return 'error';
+    case 'error':
+    case 'warning':
+      return 'success';
+    default:
+      return 'info';
+  }
 }
 
 export function getDailyStatus(workflow: WorkflowStatus[]): Array<{ date: string; run: WorkflowStatus | null }> {
@@ -53,7 +69,7 @@ export function getDailyStatus(workflow: WorkflowStatus[]): Array<{ date: string
 }
 
 // Helper to determine type of status change
-export function getStatusChangeType(currentStatus: string, prev: WorkflowStatus[]): 'bad' | 'good' | 'info' | undefined {
+export function getStatusChangeType(currentStatus: string, prev: WorkflowStatus[]): ChangeType {
   if (!prev || !Array.isArray(prev) || prev.length === 0) return undefined;
   let prevStatus = 'no_runs'
   for (let i = 0; i < prev.length; i++) {
@@ -67,7 +83,7 @@ export function getStatusChangeType(currentStatus: string, prev: WorkflowStatus[
 }
 
 // Helper to get status indicator for a single workflow run
-export function getStatusIndicator(curr: WorkflowStatus, prev: WorkflowStatus[]): 'bad' | 'good' | 'info' | undefined {
+export function getStatusIndicator(curr: WorkflowStatus, prev: WorkflowStatus[]): ChangeType {
   if (!curr) return undefined;
   // calculate status indicator based on current status
   const currentStatus = getNormalizedStatus(curr.status, curr.conclusion);
@@ -77,8 +93,8 @@ export function getStatusIndicator(curr: WorkflowStatus, prev: WorkflowStatus[])
 }
 
 // Helper to find status change indices and types in workflow runs (latest first)
-export function getStatusChangeIndicators(workflow: WorkflowStatus[]): Record<number, 'bad' | 'good' | 'info'> {
-  const indicators: Record<number, 'bad' | 'good' | 'info'> = {};
+export function getStatusChangeIndicators(workflow: WorkflowStatus[]): Record<number, ChangeType> {
+  const indicators: Record<number, ChangeType> = {};
   for (let i = 0; i < workflow.length; i++) {
     let prev: WorkflowStatus[] = [];
     if (i < workflow.length - 1) {
@@ -90,4 +106,81 @@ export function getStatusChangeIndicators(workflow: WorkflowStatus[]): Record<nu
     }
   }
   return indicators;
+}
+
+export function RepositoryStatusToFlatArray(repositoryData: RepositoryStatus, filterBranch?: string, filterWorkflow?: string): Array<{ branch: string, workflowKey: string, jobRuns: WorkflowStatus[] }> {
+  const allRunsForAnalytics: Array<{ branch: string, workflowKey: string, jobRuns: WorkflowStatus[] }> = [];
+  Object.entries(repositoryData.branches).filter(([branchName]) => !filterBranch || branchName === filterBranch)
+    .forEach(([branchName, branchData]) => {
+      Object.entries(branchData.workflows).filter(([workflowKey, workflowRuns]) => {
+        if (!filterWorkflow) return true;
+        const runs = workflowRuns as WorkflowStatus[];
+        const wf = runs[0] as WorkflowStatus;
+        return (
+          workflowKey === filterWorkflow ||
+          (wf && (wf.name === filterWorkflow || wf.workflow_path === filterWorkflow))
+        );
+      })
+    .forEach(([workflowKey, workflowRuns]) => {
+      allRunsForAnalytics.push({ branch: branchName, workflowKey, jobRuns: workflowRuns as WorkflowStatus[] });
+    });
+  });
+  return allRunsForAnalytics;
+}
+
+export function calculateStabilityScore(
+  entries: Array<{ branch: string; workflowKey: string; jobRuns: WorkflowStatus[] }>
+): number | null {
+  if (!entries || entries.length === 0) return null;
+  // If all workflows are no_run, return null (unknown)
+  const allNoRun = entries.every(({ jobRuns }) =>
+    jobRuns.length === 0 || jobRuns.every(run => {
+      const status = run.status || run.conclusion;
+      return status === 'no_runs';
+    })
+  );
+  if (allNoRun) return null;
+
+  const workflowScores: number[] = [];
+  entries.forEach(({ branch, workflowKey, jobRuns }) => {
+    const indications = getIndications([
+      { branch, workflowKey, jobRuns }
+    ]);
+    const relevant = indications.filter(ind => ind.severity !== 'success');
+    let penalty = 0;
+    relevant.forEach(ind => {
+      let factor = 1;
+      if (ind.severity === 'error') factor = 2;
+      else if (ind.severity === 'warning') factor = 1;
+      else if (ind.severity === 'info') factor = 0.5;
+      penalty += (ind.severityScore || 1) * factor;
+    });
+    const indicationScore = Math.max(0, 100 - Math.min(Math.log10(1 + penalty) * 25, 100));
+
+    // Weighted success rate: recent runs count more
+    let successRate = 100;
+    if (jobRuns.length > 0) {
+      // Exponential decay weights: w_i = decay^i, latest run is i=0
+      const decay = 0.5; // tune decay factor (0.7-0.9 reasonable)
+      let weightedSuccess = 0;
+      let weightedTotal = 0;
+      for (let i = 0; i < jobRuns.length; i++) {
+        const run = jobRuns[i];
+        const status = getNormalizedStatus(run.status, run.conclusion);
+        // Only consider runs that are not no_runs or cancelled
+        if (status !== 'no_runs' && status !== 'cancelled') {
+          const weight = Math.pow(decay, i);
+          weightedTotal += weight;
+          if (status === 'success') {
+            weightedSuccess += weight;
+          }
+        }
+      }
+      successRate = weightedTotal > 0 ? (weightedSuccess / weightedTotal) * 100 : 100;
+    }
+    const finalScore = 0.5 * indicationScore + 0.5 * successRate;
+    workflowScores.push(finalScore);
+  });
+  const avgScore = workflowScores.reduce((a, b) => a + b, 0) / workflowScores.length;
+  return Math.max(0, Math.min(100, Math.round(avgScore)));
 }

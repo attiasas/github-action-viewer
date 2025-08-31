@@ -1,221 +1,488 @@
 import type { WorkflowStatus } from '../../api/Repositories';
+import type { Severity } from './StatusUtils';
 import { getNormalizedStatus, getDailyStatus } from './StatusUtils';
 
-export type IndicationType = 'info' | 'warning' | 'success' | 'error';
+export type IndicationType = 'Job With No Runs' | 'Consecutive Failed Runs' | 'Consecutive Successful Runs' | 'Job Not Run Recently' | 'Daily Streaks Failure' | 'Daily Streaks Success' | 'Job Failed In Last Run' | 'All Jobs Failed' | 'All Jobs Succeeded';
+
 export interface Indication {
+  // Unique identifier for the indication
   type: IndicationType;
+  relevantJobs: string[];
+  // Severity information
+  severity: Severity;
+  severityScore: number;
+  // Display information
   message: string;
   url?: string;
   timestamp?: string;
+  // Additional metadata (specific to indication types)
+  jobCount?: number;
+  streak?: number;
+  days?: number;
+  daysSinceLastRun?: number;
+  totalRuns?: number;
+  lastRunDetails?: Array<{
+    jobId: string;
+    status: string;
+    timestamp?: string;
+  }>;
 }
 
-export function getIndications(runs: Array<{ branch: string; workflowKey: string; workflow: WorkflowStatus[] }>): Indication[] {
+// export type IndicationEventType = 'new' | 'more' | 'less' | 'removed';
+
+// export class IndicationEvent {
+//   event: IndicationEventType;
+//   indicationType: IndicationType;
+//   relevantJobs: string[];
+//   severity: Severity;
+//   message: string;
+
+//   constructor(event: IndicationEventType, indicationType: IndicationType, relevantJobs: string[], severity: Severity, message: string) {
+//     this.event = event;
+//     this.indicationType = indicationType;
+//     this.relevantJobs = relevantJobs;
+//     this.severity = severity;
+//     this.message = message;
+//   }
+
+//   Compare(other: IndicationEvent): boolean {
+//     return this.event === other.event &&
+//       this.indicationType === other.indicationType &&
+//       this.relevantJobs.length === other.relevantJobs.length &&
+//       this.relevantJobs.every(job => other.relevantJobs.includes(job));
+//   }
+// }
+
+// type IndicationMsgFn =
+//   | (() => string)
+//   | ((relevantJobCount: number) => (string))
+//   | ((relevantJobCount: number, streak: number) => string)
+//   | ((relevantJobCount: number, days: number) => string);
+
+// const indicationsData: Map<IndicationType, { severity: Severity; eventToMsg: Map<IndicationEventType, IndicationMsgFn> }> = new Map([
+//   ['Job With No Runs', {
+//     severity: 'info',
+//     eventToMsg: new Map([
+//       ['new', (relevantJobCount: number) => relevantJobCount === 1
+//         ? '1 job has no runs yet'
+//         : `${relevantJobCount} jobs have no runs yet`],
+//       ['less', (relevantJobCount: number) => relevantJobCount === 1
+//         ? '1 job has started running for the first time'
+//         : `${relevantJobCount} jobs have started running for the first time`],
+//       ['removed', () => `All jobs have runs now`],
+//       ['more', (relevantJobCount: number) => relevantJobCount === 1
+//         ? '1 additional job has no runs'
+//         : `${relevantJobCount} additional jobs have no runs`],
+//     ])
+//   }],
+//   ['Daily Streaks Failure', {
+//     severity: 'error',
+//     eventToMsg: new Map([
+//       ['new', (relevantJobCount: number, maxDailyFailureStreak: number) => relevantJobCount === 1
+//         ? `A workflow has failed for ${maxDailyFailureStreak} or more consecutive days`
+//         : `${relevantJobCount} workflows have failed for ${maxDailyFailureStreak} or more consecutive days`],
+//       ['improvement', (relevantJobCount: number, maxDailyFailureStreak: number) => relevantJobCount === 1
+//         ? `A workflow has reduced its failure streak to ${maxDailyFailureStreak} or more consecutive days`
+//         : `${relevantJobCount} workflows have reduced their failure streak to ${maxDailyFailureStreak} or more consecutive days`],
+//       ['fixed', () => `All workflows have no failure streaks`],
+//       ['worst', (relevantJobCount: number, maxDailyFailureStreak: number) => relevantJobCount === 1
+//         ? `A workflow has failed for ${maxDailyFailureStreak} or more consecutive days`
+//         : `${relevantJobCount} workflows have failed for ${maxDailyFailureStreak} or more consecutive days`],
+//     ])
+//   }],
+//   ['Daily Streaks Success', {
+//     severity: 'success',
+//     eventToMsg: new Map([
+//       ['new', (relevantJobCount: number, maxDailySuccessStreak: number) => relevantJobCount === 1
+//         ? `A workflow has succeeded for ${maxDailySuccessStreak} or more consecutive days`
+//         : `${relevantJobCount} workflows have succeeded for ${maxDailySuccessStreak} or more consecutive days`],
+//       ['improvement', (relevantJobCount: number, maxDailySuccessStreak: number) => relevantJobCount === 1
+//         ? `A workflow has increased its success streak to ${maxDailySuccessStreak} or more consecutive days`
+//         : `${relevantJobCount} workflows have increased their success streak to ${maxDailySuccessStreak} or more consecutive days`],
+//       ['fixed', () => `All workflows have no success streaks`],
+//       ['worst', (relevantJobCount: number, maxDailySuccessStreak: number) => relevantJobCount === 1
+//         ? `A workflow has failed for ${maxDailySuccessStreak} or more consecutive days`
+//         : `${relevantJobCount} workflows have failed for ${maxDailySuccessStreak} or more consecutive days`],
+//     ])
+//   }],
+//   ['Consecutive Failed Runs', {
+//     severity: 'error',
+//     eventToMsg: new Map([
+//       ['new', (relevantJobCount: number, maxFailureStreak: number) => relevantJobCount === 1
+//         ? `A workflow has failed ${maxFailureStreak} or more times in a row`
+//         : `${relevantJobCount} workflows have failed ${maxFailureStreak} or more times in a row`],
+//       ['improvement', (relevantJobCount: number, maxFailureStreak: number) => relevantJobCount === 1
+//         ? `A workflow has reduced its failure streak to ${maxFailureStreak} or more times in a row`
+//         : `${relevantJobCount} workflows have reduced their failure streak to ${maxFailureStreak} or more times in a row`],
+//       ['fixed', () => `All workflows have no failure streaks`],
+//       ['worst', (relevantJobCount: number, maxFailureStreak: number) => relevantJobCount === 1
+//         ? `A workflow has failed ${maxFailureStreak} or more times in a row`
+//         : `${relevantJobCount} workflows have failed ${maxFailureStreak} or more times in a row`],
+//     ])
+//   }],
+//   ['Consecutive Successful Runs', {
+//     severity: 'success',
+//     eventToMsg: new Map([
+//       ['new', (relevantJobCount: number, maxSuccessStreak: number) => relevantJobCount === 1
+//         ? `A workflow has succeeded ${maxSuccessStreak} or more times in a row`
+//         : `${relevantJobCount} workflows have succeeded ${maxSuccessStreak} or more times in a row`],
+//       ['improvement', (relevantJobCount: number, maxSuccessStreak: number) => relevantJobCount === 1
+//         ? `A workflow has increased its success streak to ${maxSuccessStreak} or more times in a row`
+//         : `${relevantJobCount} workflows have increased their success streak to ${maxSuccessStreak} or more times in a row`],
+//       ['fixed', () => `All workflows have no success streaks`],
+//       ['worst', (relevantJobCount: number, maxSuccessStreak: number) => relevantJobCount === 1
+//         ? `A workflow has succeeded ${maxSuccessStreak} or more times in a row`
+//         : `${relevantJobCount} workflows have succeeded ${maxSuccessStreak} or more times in a row`],
+//     ])
+//   }],
+//   ['Job Not Run Recently', {
+//     severity: 'warning',
+//     eventToMsg: new Map([
+//       ['new', (relevantJobCount: number, maxNotRunDays: number) => relevantJobCount === 1
+//         ? `A workflow has not run in the last ${maxNotRunDays} days`
+//         : `${relevantJobCount} workflows have not run in the last ${maxNotRunDays} days`],
+//       ['improvement', (relevantJobCount: number, maxNotRunDays: number) => relevantJobCount === 1
+//         ? `A workflow has started running again after ${maxNotRunDays} days`
+//         : `${relevantJobCount} workflows have started running again after ${maxNotRunDays} days`],
+//       ['fixed', () => `All workflows have run recently`],
+//       ['worst', (relevantJobCount: number, maxNotRunDays: number) => relevantJobCount === 1
+//         ? `A workflow has not run in the last ${maxNotRunDays} days`
+//         : `${relevantJobCount} workflows have not run in the last ${maxNotRunDays} days`],
+//     ])
+//   }],
+//   ['Job Failed In Last Run', {
+//     severity: 'warning',
+//     eventToMsg: new Map([
+//       ['new', (relevantJobCount: number) => relevantJobCount === 1
+//         ? `A workflow failed in the most recent run`
+//         : `${relevantJobCount} workflows failed in the most recent run`],
+//       ['improvement', (relevantJobCount: number) => relevantJobCount === 1
+//         ? `A workflow has not failed in the most recent run`
+//         : `${relevantJobCount} workflows have not failed in the most recent run`],
+//       ['fixed', () => `All workflows have succeeded in the most recent run`],
+//       ['worst', (relevantJobCount: number) => relevantJobCount === 1
+//         ? `A workflow has failed in the most recent run`
+//         : `${relevantJobCount} workflows have failed in the most recent run`],
+//     ])
+//   }],
+//   ['All Jobs Failed', {
+//     severity: 'error',
+//     eventToMsg: new Map([
+//       ['new', (relevantJobCount: number) => relevantJobCount === 1
+//         ? `A workflow has failed all runs`
+//         : `${relevantJobCount} workflows have failed all runs`],
+//       ['improvement', (relevantJobCount: number) => relevantJobCount === 1
+//         ? `A workflow has started succeeding after failing all runs`
+//         : `${relevantJobCount} workflows have started succeeding after failing all runs`],
+//       ['fixed', () => `All workflows have succeeded at least once`],
+//       ['worst', (relevantJobCount: number) => relevantJobCount === 1
+//         ? `A workflow has failed all runs`
+//         : `${relevantJobCount} workflows have failed all runs`],
+//     ])
+//   }],
+//   ['All Jobs Succeeded', {
+//     severity: 'success',
+//     eventToMsg: new Map([
+//       ['new', (relevantJobCount: number) => relevantJobCount === 1
+//         ? `A workflow has succeeded all runs`
+//         : `${relevantJobCount} workflows have succeeded all runs`],
+//       ['improvement', (relevantJobCount: number) => relevantJobCount === 1
+//         ? `A workflow has continued its success streak`
+//         : `${relevantJobCount} workflows have continued their success streak`],
+//       ['fixed', () => `All workflows have succeeded at least once`],
+//       ['worst', (relevantJobCount: number) => relevantJobCount === 1
+//         ? `A workflow has succeeded all runs`
+//         : `${relevantJobCount} workflows have succeeded all runs`],
+//     ])
+//   }],
+// ]);
+
+export function isSameIndication(a: Indication, b: Indication): boolean {
+  return a.severity === b.severity && a.message === b.message;
+}
+
+function jobHasNoRuns(job: { jobRuns: WorkflowStatus[] }): boolean {
+  return !job.jobRuns || job.jobRuns.length === 0 || job.jobRuns.every(run => run.status === 'no_runs');
+}
+
+function getJobId(job: { branch: string; workflowKey: string; }): string {
+  return `${job.branch}-${job.workflowKey}`;
+}
+
+export function getIndications(jobs: Array<{ branch: string; workflowKey: string; jobRuns: WorkflowStatus[] }>): Indication[] {
   const indications: Indication[] = [];
-  let totalFailures = 0;
-  let totalSuccess = 0;
-  let workflowsWithNoRuns = 0;
-  let workflowsWithOnlyFailures = 0;
-  // Track workflows not run in the last N days for multiple thresholds
-  const notRunThresholds = [30, 60, 90, 120, 150, 365];
-  // For each threshold, count workflows that have not run in that many days (but only the largest threshold per workflow)
-  const workflowsNotRunRecently: Record<number, number> = {};
-  notRunThresholds.forEach(days => { workflowsNotRunRecently[days] = 0; });
-  const consecutiveFailures: Record<string, number> = {};
-  const consecutiveSuccess: Record<string, number> = {};
-  let anyRecentFailure = false;
-  // For streaks: { streakLength: count }
-  const failureStreaks: Record<number, number> = {};
-  const successStreaks: Record<number, number> = {};
-  const now = Date.now();
 
-  // Aggregate daily streaks for all workflows
-  const indicatorThresholdsCounts: number[] = [5, 10, 15, 20, 25, 30, 60, 90, 180];
-  const dailySuccessStreaks: Record<number, number> = {};
-  const dailyFailureStreaks: Record<number, number> = {};
+  // --- Job With No Runs ---
+  const noRunJobs = jobs.filter(jobHasNoRuns);
+  if (noRunJobs.length > 0) {
+    indications.push({
+      type: 'Job With No Runs',
+      severity: 'info',
+      severityScore: noRunJobs.length,
+      relevantJobs: noRunJobs.map(job => getJobId(job)),
+      message: noRunJobs.length === 1 ? `A job has no runs` : `${noRunJobs.length} jobs have no runs`,
+    });
+  }
+  const jobsWithRuns = jobs.filter(j => !jobHasNoRuns(j));
 
-  runs.forEach(({ branch, workflowKey, workflow }) => {
-    // If workflow has a single run with status 'no_runs', treat as no runs
-    if (
-      workflow.length === 1 &&
-      getNormalizedStatus(workflow[0].status, workflow[0].conclusion) === 'no_runs'
-    ) {
-      workflowsWithNoRuns++;
-      return;
-    }
-    // For each workflow, only count the largest threshold it exceeds
-    if (workflow.length > 0 && workflow[0].updatedAt) {
-      const lastRun = new Date(workflow[0].updatedAt).getTime();
-      if (!isNaN(lastRun)) {
-        // Find the largest threshold exceeded
-        const exceeded = notRunThresholds.filter(days => (now - lastRun > days * 24 * 60 * 60 * 1000));
-        if (exceeded.length > 0) {
-          const maxDays = Math.max(...exceeded);
-          workflowsNotRunRecently[maxDays] = (workflowsNotRunRecently[maxDays] || 0) + 1;
-        }
+  // --- Job Not Run Recently ---
+  const daysWithoutRunsIntervalForIndications: number = 10;
+  const minDaysWithoutRunsInterval: number = 10;
+  const jobsWithNotRunDays: Record<number, string[]> = {};
+  let maxNotRunDays = 0;
+  jobsWithRuns.forEach((j) => {
+    const daily = getDailyStatus(j.jobRuns);
+    // Find the first day with a run (latest run)
+    let daysSinceLastRun = 0;
+    for (let i = 0; i < daily.length; i++) {
+      const run = daily[i].run;
+      const status = run ? getNormalizedStatus(run.status, run.conclusion) : 'no_runs';
+      if (status !== 'no_runs') {
+        // The index i is the number of days since last run (0 = today, 1 = yesterday, ...)
+        daysSinceLastRun = i;
+        break;
       }
     }
-
-    // --- Aggregate daily streaks (success/failure in days) only if streak starts from today (idx 0) ---
-    const dailyStatus = getDailyStatus(workflow);
-    if (dailyStatus.length > 0) {
-      const firstStatus = dailyStatus[0].run ? getNormalizedStatus(dailyStatus[0].run.status, dailyStatus[0].run.conclusion) : 'no_runs';
-      if (firstStatus === 'success' || firstStatus === 'failure') {
-        const streakType = firstStatus as 'success' | 'failure';
-        let streakLength = 1;
-        for (let i = 1; i < dailyStatus.length; i++) {
-          const ds = dailyStatus[i];
-          const status = ds.run ? getNormalizedStatus(ds.run.status, ds.run.conclusion) : 'no_runs';
-          if (status === streakType) {
-            streakLength++;
-          } else if (status === 'success' || status === 'failure') {
-            break; // Streak only counts from today, stop at first transition
-          }
-        }
-        if (streakType === 'success') {
-          indicatorThresholdsCounts.forEach((n) => {
-            if (streakLength >= n) dailySuccessStreaks[n] = (dailySuccessStreaks[n] || 0) + 1;
-          });
-        } else if (streakType === 'failure') {
-          indicatorThresholdsCounts.forEach((n) => {
-            if (streakLength >= n) dailyFailureStreaks[n] = (dailyFailureStreaks[n] || 0) + 1;
-          });
-        }
-      }
+    if (daysSinceLastRun >= minDaysWithoutRunsInterval) {
+      if (!jobsWithNotRunDays[daysSinceLastRun]) jobsWithNotRunDays[daysSinceLastRun] = [];
+      jobsWithNotRunDays[daysSinceLastRun].push(getJobId(j));
+      if (daysSinceLastRun > maxNotRunDays) maxNotRunDays = daysSinceLastRun;
     }
-
-    // --- Existing: Analyze run statuses for this workflow ---
-    let failStreak = 0;
-    let successStreak = 0;
-    let onlyFailures = true;
-    let hasFailure = false;
-    let hasSuccess = false;
-    for (let i = workflow.length - 1; i >= 0; i--) {
-      const run = workflow[i];
-      const status = getNormalizedStatus(run.status, run.conclusion);
-      if (status === 'failure') {
-        failStreak++;
-        totalFailures++;
-        if (i === 0) anyRecentFailure = true;
-        successStreak = 0;
-        hasFailure = true;
-      } else if (status === 'success') {
-        successStreak++;
-        totalSuccess++;
-        failStreak = 0;
-        onlyFailures = false;
-        hasSuccess = true;
-      } else if (status === 'pending' || status === 'running') {
-        failStreak = 0;
-        successStreak = 0;
-        onlyFailures = false;
-      } else {
-        failStreak = 0;
-        successStreak = 0;
-        onlyFailures = false;
-      }
+  });
+  // Group jobs by intervals
+  const notRecentlyIntervalGroups: Record<number, string[]> = {};
+  Object.keys(jobsWithNotRunDays).forEach(s => {
+    const days = parseInt(s);
+    if (days >= minDaysWithoutRunsInterval) {
+      const interval = Math.max(minDaysWithoutRunsInterval, Math.floor(days / daysWithoutRunsIntervalForIndications) * daysWithoutRunsIntervalForIndications);
+      if (!notRecentlyIntervalGroups[interval]) notRecentlyIntervalGroups[interval] = [];
+      notRecentlyIntervalGroups[interval].push(...jobsWithNotRunDays[days]);
     }
-    if (onlyFailures && workflow.length > 0) workflowsWithOnlyFailures++;
-    if (
-      hasFailure && hasSuccess && workflow.length > 1
-    )
-    consecutiveFailures[`${branch}:${workflowKey}`] = failStreak;
-    consecutiveSuccess[`${branch}:${workflowKey}`] = successStreak;
-    indicatorThresholdsCounts.forEach((n) => {
-      if (failStreak >= n) failureStreaks[n] = (failureStreaks[n] || 0) + 1;
-      if (successStreak >= n) successStreaks[n] = (successStreaks[n] || 0) + 1;
+  });
+  Object.entries(notRecentlyIntervalGroups).forEach(([intervalStr, jobIds]) => {
+    const interval = parseInt(intervalStr);
+    // indications.push(new JobNotRunRecentlyIndication(jobIds, interval));
+    // const { severity, eventToMsg } = indicationsData.get('Job Not Run Recently')!;
+    indications.push({
+      type: 'Job Not Run Recently',
+      severity: 'warning',
+      severityScore: 3 * interval * jobIds.length, // moderate penalty
+      relevantJobs: jobIds,
+      message: jobIds.length === 1 ? `A job has not run recently` : `${jobIds.length} jobs have not run recently`,
     });
   });
 
-  if (workflowsWithNoRuns > 0) {
+  // --- Consecutive Failed Runs (streaks from latest only) ---
+  const failureStreakIntervalForIndications: number = 10;
+  const minFailureStreakInterval: number = 5;
+  const jobsWithFailureStreak: Record<number, string[]> = {}; // streak -> [job id]
+  jobsWithRuns.forEach((j) => {
+    let streak = 0;
+    for (const run of j.jobRuns) {
+      const status = getNormalizedStatus(run.status, run.conclusion);
+      if (status !== 'success') streak++;
+      else break;
+    }
+    if (streak >= minFailureStreakInterval) {
+      if (!jobsWithFailureStreak[streak]) jobsWithFailureStreak[streak] = [];
+      jobsWithFailureStreak[streak].push(getJobId(j));
+    }
+  });
+  // Group jobs by intervals
+  const failureStreakIntervalGroups: Record<number, string[]> = {};
+  Object.keys(jobsWithFailureStreak).forEach(s => {
+    const streak = parseInt(s);
+    if (streak >= minFailureStreakInterval) {
+      const interval = Math.max(minFailureStreakInterval, Math.floor(streak / failureStreakIntervalForIndications) * failureStreakIntervalForIndications);
+      if (!failureStreakIntervalGroups[interval]) failureStreakIntervalGroups[interval] = [];
+      failureStreakIntervalGroups[interval].push(...jobsWithFailureStreak[streak]);
+    }
+  });
+  Object.entries(failureStreakIntervalGroups).forEach(([intervalStr, jobIds]) => {
+    const interval = parseInt(intervalStr);
+    // const { severity, eventToMsg } = indicationsData.get('Consecutive Failed Runs')!;
     indications.push({
-      type: 'info',
-      message: workflowsWithNoRuns === 1
-        ? '1 workflow has no runs yet'
-        : `${workflowsWithNoRuns} workflows have no runs yet`
+      type: 'Consecutive Failed Runs',
+      severity: 'error',
+      severityScore: 5 * interval * jobIds.length, // high penalty
+      relevantJobs: jobIds,
+      message: jobIds.length === 1 ? `A job has failed for ${interval} or more consecutive runs` : `${jobIds.length} jobs have failed for ${interval} or more consecutive runs`,
+    });
+  });
+
+  // --- Consecutive Successful Runs (streaks from latest only) ---
+  const successStreakIntervalForIndications: number = 10;
+  const minSuccessStreakInterval: number = 20;
+  const jobsWithSuccessStreak: Record<number, string[]> = {};
+  let maxSuccessStreak = 0;
+  jobsWithRuns.forEach((j) => {
+    let streak = 0;
+    for (const run of j.jobRuns) {
+      const status = getNormalizedStatus(run.status, run.conclusion);
+      if (status === 'success' || status === 'canceled' || status === 'running') streak++;
+      else break;
+    }
+    if (streak >= minSuccessStreakInterval) {
+      if (!jobsWithSuccessStreak[streak]) jobsWithSuccessStreak[streak] = [];
+      jobsWithSuccessStreak[streak].push(getJobId(j));
+      if (streak > maxSuccessStreak) maxSuccessStreak = streak;
+    }
+  });
+  // Group jobs by intervals
+  const successStreakIntervalGroups: Record<number, string[]> = {};
+  Object.keys(jobsWithSuccessStreak).forEach(s => {
+    const streak = parseInt(s);
+    if (streak >= minSuccessStreakInterval) {
+      const interval = Math.max(minSuccessStreakInterval, Math.floor(streak / successStreakIntervalForIndications) * successStreakIntervalForIndications);
+      if (!successStreakIntervalGroups[interval]) successStreakIntervalGroups[interval] = [];
+      successStreakIntervalGroups[interval].push(...jobsWithSuccessStreak[streak]);
+    }
+  });
+  // Only generate indication for the largest interval group (if any)
+  const successStreakIntervalKeys = Object.keys(successStreakIntervalGroups).map(Number).filter(k => k >= 5);
+  if (successStreakIntervalKeys.length > 0) {
+    const maxInterval = Math.max(...successStreakIntervalKeys);
+    const jobIds = successStreakIntervalGroups[maxInterval];
+    // const { severity, eventToMsg } = indicationsData.get('Consecutive Successful Runs')!;
+    indications.push({
+      type: 'Consecutive Successful Runs',
+      severity: 'success',
+      severityScore: 0, // no penalty for success
+      relevantJobs: jobIds,
+      message: jobIds.length === 1 ? `A job has succeeded for ${maxInterval} or more consecutive runs` : `${jobIds.length} jobs have succeeded for ${maxInterval} or more consecutive runs`,
     });
   }
-  if (workflowsWithOnlyFailures > 0) {
+
+  // --- Daily Streaks Failure (from latest only) ---
+  const dailyFailureIntervalForIndications: number = 10;
+  const minDailyFailureStreakInterval: number = 5;
+  const jobsWithDailyFailureStreak: Record<number, string[]> = {};
+  let maxDailyFailureStreak = 0;
+  jobsWithRuns.forEach((j) => {
+    const daily = getDailyStatus(j.jobRuns);
+    let streak = 0;
+    for (const d of daily) {
+      const status = d.run ? getNormalizedStatus(d.run.status, d.run.conclusion) : 'no_runs';
+      if (status !== 'success' && status !== 'no_runs') streak++;
+      else break;
+    }
+    if (streak >= minDailyFailureStreakInterval) {
+      if (!jobsWithDailyFailureStreak[streak]) jobsWithDailyFailureStreak[streak] = [];
+      jobsWithDailyFailureStreak[streak].push(getJobId(j));
+      if (streak > maxDailyFailureStreak) maxDailyFailureStreak = streak;
+    }
+  });
+  // Group jobs by intervals
+  const dailyFailureStreakIntervalGroups: Record<number, string[]> = {};
+  Object.keys(jobsWithDailyFailureStreak).forEach(s => {
+    const streak = parseInt(s);
+    if (streak >= minDailyFailureStreakInterval) {
+      const interval = Math.max(minDailyFailureStreakInterval, Math.floor(streak / dailyFailureIntervalForIndications) * dailyFailureIntervalForIndications);
+      if (!dailyFailureStreakIntervalGroups[interval]) dailyFailureStreakIntervalGroups[interval] = [];
+      dailyFailureStreakIntervalGroups[interval].push(...jobsWithDailyFailureStreak[streak]);
+    }
+  });
+  Object.entries(dailyFailureStreakIntervalGroups).forEach(([intervalStr, jobIds]) => {
+    const interval = parseInt(intervalStr);
+    // const { severity, eventToMsg } = indicationsData.get('Daily Streaks Failure')!;
     indications.push({
-      type: 'warning',
-      message: workflowsWithOnlyFailures === 1
-        ? '1 workflow has only failures'
-        : `${workflowsWithOnlyFailures} workflows have only failures`
+      type: 'Daily Streaks Failure',
+      severity: 'error',
+      severityScore: 4 * interval * jobIds.length, // high penalty
+      relevantJobs: jobIds,
+      message: jobIds.length === 1 ? `A job has failed for ${interval} or more consecutive days` : `${jobIds.length} jobs have failed for ${interval} or more consecutive days`,
+    });
+  });
+
+  // --- Daily Streaks Success (from latest only) ---
+  const dailySuccessIntervalForIndications: number = 10;
+  const minDailySuccessInterval: number = 20;
+  let maxDailySuccessStreak = 0;
+  const jobsWithDailySuccessStreak: Record<number, string[]> = {};
+  jobsWithRuns.forEach((j) => {
+    const daily = getDailyStatus(j.jobRuns);
+    let streak = 0;
+    for (const d of daily) {
+      const status = d.run ? getNormalizedStatus(d.run.status, d.run.conclusion) : 'no_runs';
+      if (status === 'success' || status === 'running') streak++;
+      else break;
+    }
+    if (streak >= minDailySuccessInterval) {
+      if (!jobsWithDailySuccessStreak[streak]) jobsWithDailySuccessStreak[streak] = [];
+      jobsWithDailySuccessStreak[streak].push(getJobId(j));
+      if (streak > maxDailySuccessStreak) maxDailySuccessStreak = streak;
+    }
+  });
+  // Group jobs by intervals
+  const dailySuccessStreakIntervalGroups: Record<number, string[]> = {};
+  Object.keys(jobsWithDailySuccessStreak).forEach(s => {
+    const streak = parseInt(s);
+    if (streak >= minDailySuccessInterval) {
+      const interval = Math.max(minDailySuccessInterval, Math.floor(streak / dailySuccessIntervalForIndications) * dailySuccessIntervalForIndications);
+      if (!dailySuccessStreakIntervalGroups[interval]) dailySuccessStreakIntervalGroups[interval] = [];
+      dailySuccessStreakIntervalGroups[interval].push(...jobsWithDailySuccessStreak[streak]);
+    }
+  });
+  // Only generate indication for the largest interval group (if any)
+  const dailySuccessIntervalKeys = Object.keys(dailySuccessStreakIntervalGroups).map(Number).filter(k => k >= 5);
+  if (dailySuccessIntervalKeys.length > 0) {
+    const maxInterval = Math.max(...dailySuccessIntervalKeys);
+    const jobIds = dailySuccessStreakIntervalGroups[maxInterval];
+    // const { severity, eventToMsg } = indicationsData.get('Daily Streaks Success')!;
+    indications.push({
+      type: 'Daily Streaks Success',
+      severity: 'success',
+      severityScore: 0, // no penalty for success
+      relevantJobs: jobIds,
+      message: jobIds.length === 1 ? `A job has succeeded for ${maxInterval} or more consecutive days` : `${jobIds.length} jobs have succeeded for ${maxInterval} or more consecutive days`,
     });
   }
-  // Only display the largest threshold indication for not run recently
-  const maxNotRunDays = notRunThresholds.filter(days => workflowsNotRunRecently[days] > 0).sort((a, b) => b - a)[0];
-  if (maxNotRunDays) {
-    const count = workflowsNotRunRecently[maxNotRunDays];
+
+  // --- Job Failed In Last Run ---
+  const failedLastRunJobs = jobsWithRuns.filter(j => j.jobRuns.length > 0 && ['failure', 'error'].includes(getNormalizedStatus(j.jobRuns[0].status, j.jobRuns[0].conclusion)));
+  if (failedLastRunJobs.length > 0) {
+    // const { severity, eventToMsg } = indicationsData.get('Job Failed In Last Run')!;
     indications.push({
-      type: 'warning',
-      message: count === 1
-        ? `1 workflow has not run in the last ${maxNotRunDays} days`
-        : `${count} workflows have not run in the last ${maxNotRunDays} days`
+      type: 'Job Failed In Last Run',
+      severity: 'warning',
+      severityScore: 2 * failedLastRunJobs.length, // moderate penalty
+      relevantJobs: failedLastRunJobs.map(getJobId),
+      message: failedLastRunJobs.length === 1
+        ? 'A job failed in the most recent run'
+        : `${failedLastRunJobs.length} jobs failed in the most recent run`,
     });
   }
-  // Only show the most significant (longest) failure and success streaks (run-based)
-  const maxFailureStreak = Object.keys(failureStreaks)
-    .map(Number)
-    .filter((n) => failureStreaks[n] > 0)
-    .sort((a, b) => b - a)[0];
-  if (maxFailureStreak) {
-    const count = failureStreaks[maxFailureStreak];
+
+  // --- All Jobs Failed ---
+  const allFailedJobs = jobsWithRuns.filter(j => j.jobRuns.every(run => getNormalizedStatus(run.status, run.conclusion) !== 'success'));
+  if (allFailedJobs.length > 0) {
+    // const { severity, eventToMsg } = indicationsData.get('All Jobs Failed')!;
     indications.push({
-      type: 'error',
-      message: count === 1
-        ? `A workflow has failed ${maxFailureStreak} or more times in a row`
-        : `${count} workflows have failed ${maxFailureStreak} or more times in a row`
+      type: 'All Jobs Failed',
+      severity: 'error',
+      severityScore: 10 * allFailedJobs.length, // very high penalty
+      relevantJobs: allFailedJobs.map(getJobId),
+      message: allFailedJobs.length === 1
+        ? 'A job has failed all runs'
+        : `${allFailedJobs.length} jobs have failed all runs`,
     });
   }
-  const maxSuccessStreak = Object.keys(successStreaks)
-    .map(Number)
-    .filter((n) => successStreaks[n] > 0)
-    .sort((a, b) => b - a)[0];
-  if (maxSuccessStreak) {
-    const count = successStreaks[maxSuccessStreak];
+
+  // --- All Jobs Succeeded ---
+  const allSucceededJobs = jobsWithRuns.filter(j => j.jobRuns.every(run => getNormalizedStatus(run.status, run.conclusion) === 'success'));
+  if (allSucceededJobs.length > 0) {
+    // const { severity, eventToMsg } = indicationsData.get('All Jobs Succeeded')!;
     indications.push({
-      type: 'success',
-      message: count === 1
-        ? `A workflow has succeeded ${maxSuccessStreak} or more times in a row`
-        : `${count} workflows have succeeded ${maxSuccessStreak} or more times in a row`
+      type: 'All Jobs Succeeded',
+      severity: 'success',
+      severityScore: 0,
+      relevantJobs: allSucceededJobs.map(getJobId),
+      message: allSucceededJobs.length === 1
+        ? 'A job has succeeded all runs'
+        : `${allSucceededJobs.length} jobs have succeeded all runs`,
     });
   }
-  // Show most significant daily streaks (day-based)
-  const maxDailyFailureStreak = Object.keys(dailyFailureStreaks)
-    .map(Number)
-    .filter((n) => dailyFailureStreaks[n] > 0)
-    .sort((a, b) => b - a)[0];
-  if (maxDailyFailureStreak) {
-    const count = dailyFailureStreaks[maxDailyFailureStreak];
-    indications.push({
-      type: 'error',
-      message: count === 1
-        ? `A workflow has failed for ${maxDailyFailureStreak} or more consecutive days`
-        : `${count} workflows have failed for ${maxDailyFailureStreak} or more consecutive days`
-    });
-  }
-  const maxDailySuccessStreak = Object.keys(dailySuccessStreaks)
-    .map(Number)
-    .filter((n) => dailySuccessStreaks[n] > 0)
-    .sort((a, b) => b - a)[0];
-  if (maxDailySuccessStreak) {
-    const count = dailySuccessStreaks[maxDailySuccessStreak];
-    indications.push({
-      type: 'success',
-      message: count === 1
-        ? `A workflow has succeeded for ${maxDailySuccessStreak} or more consecutive days`
-        : `${count} workflows have succeeded for ${maxDailySuccessStreak} or more consecutive days`
-    });
-  }
-  if (anyRecentFailure) {
-    indications.push({ type: 'warning', message: 'At least one workflow failed in the most recent run' });
-  }
-  if (totalFailures === 0 && totalSuccess > 0) {
-    indications.push({ type: 'success', message: 'All runs succeeded' });
-  }
-  if (totalFailures > 0 && totalSuccess === 0) {
-    indications.push({ type: 'error', message: 'All runs failed' });
-  }
+
   return indications;
 }
 
@@ -225,6 +492,21 @@ export function calculateRunTime(start: number, end: number): number | null {
   // Skip not valid run times: if run time is 0 negative, Infinity or more than 7 days (This is only estimated, as GitHub does not provide actual run times)
   return (isNaN(runTime) || runTime <= 0 || runTime === Infinity || runTime > 7 * 24 * 60 * 60 * 1000) ? null : runTime;
 }
+
+export function formatRelativeTime(dateString: string): string {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMinutes < 1) return 'just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return new Date(dateString).toLocaleDateString();
+  };
 
 export function formatRunTime(totalSeconds: number): string {
   if (isNaN(totalSeconds) || totalSeconds <= 0) return '';
@@ -275,3 +557,102 @@ export function getWorkflowAggregatedInfo(workflow: WorkflowStatus[]): {
   const successRate = totalRuns > 0 ? successCount / totalRuns : null;
   return { totalRuns: workflow.length, avgRunTime, successRate };
 }
+
+// export function getNewIndications(
+//   previousIndications: BaseIndication[],
+//   currentIndications: BaseIndication[]
+// ): IndicationEvent[] {
+//   const matchedIndications = new Map<string, [BaseIndication | undefined, BaseIndication | undefined]>();
+//   const events: IndicationEvent[] = [];
+//   // Create a map of previous indications by key
+//   previousIndications.forEach(indication => {
+//     matchedIndications.set(indication.getKey(), [indication, undefined]);
+//   });
+//   // Match current indications with previous ones
+//   currentIndications.forEach(indication => {
+//     const key = indication.getKey();
+//     if (matchedIndications.has(key)) {
+//       // eslint-disable-next-line @typescript-eslint/no-unused-vars
+//       const [previous, _] = matchedIndications.get(key)!;
+//       matchedIndications.set(key, [previous, indication]);
+//     } else {
+//       matchedIndications.set(key, [undefined, indication]); // New indication
+//     }
+//   });
+//   // Create events from matched indications
+//   matchedIndications.forEach(([previous, current]) => {
+//     if (!previous && current) {
+//       const event: IndicationEvent | null = current.getNewEvent();
+//       if (event) events.push(event);
+//     } else if (previous && !current) {
+//       const event: IndicationEvent | null = previous.getRemovedEvent();
+//       if (event) events.push(event);
+//     }
+//     else if (previous && current) {
+//       const indicationEvents = previous.getChangedEvent(current, true);
+//       if (indicationEvents.length > 0) {
+//         events.push(...indicationEvents);
+//       }
+//     }
+//     // If both are undefined, do nothing (unchanged)
+//   });
+//   return events;
+// }
+
+// function getEventsIfExists(previous: Indication | undefined, current: Indication | undefined): IndicationEvent[] {
+//   if (!previous || !current) {
+//     if (!previous && current) return [ // Only current exists
+//       {
+//         type: 'new',
+//         eventSeverity: getEventSeverity('new', current.severity),
+//         current: current,
+//         message: current.message,
+//       }
+//     ];
+//     if (previous && !current) return [ // Only previous exists
+//       {
+//         type: 'removed',
+//         eventSeverity: getEventSeverity('removed', previous.severity),
+//         previous: previous,
+//         message: (indicationsData.get(previous.type)?.eventToMsg.get('removed') as () => string)() || `Indication ${previous.type} has been removed`,
+//       }
+//     ];
+//     return []; // unchanged
+//   }
+//   // Both exist, compare relevantJobIds, if any of them removed = 'less', if any of them added = 'more'
+//   const events: IndicationEvent[] = [];
+//   const previousJobIds = new Set(previous.relevantJobs);
+//   const currentJobIds = new Set(current.relevantJobs);
+//   const removedJobs = Array.from(previousJobIds).filter(id => !currentJobIds.has(id));
+//   if (removedJobs.length > 0) {
+//     events.push({
+//       type: 'less',
+//       eventSeverity: getEventSeverity('less', previous.severity),
+//       previous: previous,
+//       message: (indicationsData.get(previous.type)?.eventToMsg.get('less') as (relevantJobCount: number) => string)(removedJobs.length) || `Indication ${previous.type} has fewer relevant jobs`
+//     });
+//   }
+//   const addedJobs = Array.from(currentJobIds).filter(id => !previousJobIds.has(id));
+//   if (addedJobs.length > 0) {
+//     events.push({
+//       type: 'more',
+//       eventSeverity: getEventSeverity('more', current.severity),
+//       current: current,
+//       message: (indicationsData.get(current.type)?.eventToMsg.get('more') as (relevantJobCount: number) => string)(addedJobs.length) || `Indication ${current.type} has more relevant jobs`
+//     });
+//   }
+//   return events;
+// }
+
+// function getEventSeverity(eventType: IndicationEventType, severity: Severity): Severity {
+//   switch (eventType) {
+//     case 'new':
+//     case 'more':
+//       return severity;
+//     case 'less':
+//     case 'removed':
+//       return severity === 'error' || severity === 'warning' ? 'success' : severity === 'success' ? 'warning' : severity;
+//     default:
+//       return 'info';
+//   }
+// }

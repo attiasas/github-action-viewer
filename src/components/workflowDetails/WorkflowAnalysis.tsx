@@ -21,14 +21,14 @@ const STATUS_COLORS: Record<string, string> = {
 
 
 export interface WorkflowAnalysisProps {
-  runs: Array<{ branch: string; workflowKey: string; workflow: WorkflowStatus[] }>;
+  jobs: Array<{ branch: string; workflowKey: string; jobRuns: WorkflowStatus[] }>;
 }
 
-const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
+const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ jobs }) => {
   // Calculate the max number of runs across all workflows
   const maxRunCount = React.useMemo(() => {
-    return runs.reduce((max, { workflow }) => Math.max(max, workflow.length), 1);
-  }, [runs]);
+    return jobs.reduce((max, { jobRuns }) => Math.max(max, jobRuns.length), 1);
+  }, [jobs]);
   // Slider state for limiting number of runs shown
   const [runLimit, setRunLimit] = React.useState(maxRunCount);
   // Visualization selector state (per entry)
@@ -63,16 +63,16 @@ const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
     return count;
   }
   // Sort runs by latest run status, then by most consecutive runs with same status (worst first)
-  const sortedRuns = [...runs].sort((a, b) => {
-    const aLatest = a.workflow[0];
-    const bLatest = b.workflow[0];
+  const sortedRuns = [...jobs].sort((a, b) => {
+    const aLatest = a.jobRuns[0];
+    const bLatest = b.jobRuns[0];
     const aStatus = getNormalizedStatus(aLatest?.status, aLatest?.conclusion);
     const bStatus = getNormalizedStatus(bLatest?.status, bLatest?.conclusion);
     const statusCompare = STATUS_RANK[aStatus] - STATUS_RANK[bStatus];
     if (statusCompare !== 0) return statusCompare;
     // If same status, compare consecutive count (more is worse)
-    const aConsec = countConsecutiveSameStatus(a.workflow);
-    const bConsec = countConsecutiveSameStatus(b.workflow);
+    const aConsec = countConsecutiveSameStatus(a.jobRuns);
+    const bConsec = countConsecutiveSameStatus(b.jobRuns);
     return bConsec - aConsec;
   });
   return (
@@ -99,8 +99,8 @@ const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
         {(() => {
           // Collect all statuses present in the filtered runs (with runLimit)
           const presentStatuses = new Set<string>();
-          runs.forEach(({ workflow }) => {
-            workflow.slice(0, runLimit).forEach(run => {
+          jobs.forEach(({ jobRuns }) => {
+            jobRuns.slice(0, runLimit).forEach(run => {
               presentStatuses.add(getNormalizedStatus(run.status, run.conclusion));
             });
           });
@@ -116,9 +116,9 @@ const WorkflowAnalysis: React.FC<WorkflowAnalysisProps> = ({ runs }) => {
         })()}
       </div>
       <div className="histogram-list">
-        {sortedRuns.map(({ branch, workflowKey, workflow }) => {
+        {sortedRuns.map(({ branch, workflowKey, jobRuns }) => {
           // Only show the latest N runs, where N = runLimit
-          const filteredWorkflow = workflow ? workflow.slice(0, runLimit) : [];
+          const filteredWorkflow = jobRuns ? jobRuns.slice(0, runLimit) : [];
           const wfName = filteredWorkflow && filteredWorkflow.length > 0 && filteredWorkflow[0].name;
           const hasNoRuns = !filteredWorkflow || filteredWorkflow.length === 0 || (filteredWorkflow.length === 1 && getNormalizedStatus(filteredWorkflow[0].status, filteredWorkflow[0].conclusion) === 'no_runs');
           if (hasNoRuns) {

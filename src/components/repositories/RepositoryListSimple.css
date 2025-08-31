@@ -1,5 +1,7 @@
 .repository-list {
   padding: 16px;
+  height: 100%;
+  width: 100%;
 }
 
 .repository-list.list-view {

@@ -24,7 +24,7 @@ const typeOrder: Record<string, number> = {
 };
 
 const WorkflowIndications: React.FC<WorkflowIndicationsProps> = ({ indications }) => {
-  const sorted = [...indications].sort((a, b) => (typeOrder[a.type] ?? 99) - (typeOrder[b.type] ?? 99));
+  const sorted = [...indications].sort((a, b) => (typeOrder[a.severity] ?? 99) - (typeOrder[b.severity] ?? 99));
 
   // Icon for each indication type
   const typeIcon: Record<string, React.ReactNode> = {
@@ -35,40 +35,31 @@ const WorkflowIndications: React.FC<WorkflowIndicationsProps> = ({ indications }
   };
 
   return (
-    <div className="workflow-analytics" style={{ boxShadow: 'var(--shadow-card, 0 2px 8px rgba(0,0,0,0.06))', borderRadius: 12, background: 'var(--bg-card, #fff)', padding: '1.5rem', margin: '2rem 0' }}>
+    <div className="workflow-analytics">
       <section className="analytics-indications">
-        <h3 style={{ marginBottom: '0.5rem', fontSize: '1.2rem', color: 'var(--accent-primary, #222)' }}>Indications</h3>
-        <ul style={{ paddingLeft: '1.2em', margin: 0 }}>
+        <h3>Indications</h3>
+        <ul>
           {sorted.map((ind, idx) => (
             <li
               key={idx}
-              className={typeToClass[ind.type] || 'indication-info'}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.7em',
-                fontWeight: 500,
-                fontSize: '1rem',
-                borderRadius: 8,
-                padding: '0.5em 1em',
-                marginBottom: '0.3em',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-                transition: 'background 0.2s, color 0.2s',
-                cursor: ind.url ? 'pointer' : 'default',
-                outline: 'none',
-              }}
+              className={typeToClass[ind.severity] || 'indication-info'}
               tabIndex={ind.url ? 0 : -1}
               title={ind.message}
               onClick={() => { if (ind.url) window.open(ind.url, '_blank', 'noopener'); }}
               onKeyDown={e => { if (ind.url && (e.key === 'Enter' || e.key === ' ')) window.open(ind.url, '_blank', 'noopener'); }}
             >
-              {typeIcon[ind.type]}
+              {typeIcon[ind.severity]}
               <span style={{ flex: 1 }}>{ind.message}</span>
               {ind.timestamp && (
-                <span style={{ fontSize: '0.92em', color: 'var(--text-tertiary, #aaa)', marginLeft: '0.7em' }}>{new Date(ind.timestamp).toLocaleString()}</span>
+                <span className="indication-timestamp">{new Date(ind.timestamp).toLocaleString()}</span>
               )}
               {ind.url && (
-                <span style={{ fontSize: '0.92em', color: 'var(--accent-info, #17a2b8)', marginLeft: '0.7em' }}>↗</span>
+                <span className="indication-link-icon" aria-label="External link" title="Open link">
+                  <svg width="1em" height="1em" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ verticalAlign: 'middle' }}>
+                    <path d="M14.5 3H17a1 1 0 0 1 1 1v2.5a1 1 0 1 1-2 0V6.41l-7.3 7.3a1 1 0 0 1-1.4-1.42l7.3-7.3H14.5a1 1 0 1 1 0-2z" fill="currentColor"/>
+                    <rect x="3" y="9" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                  </svg>
+                </span>
               )}
             </li>
           ))}
