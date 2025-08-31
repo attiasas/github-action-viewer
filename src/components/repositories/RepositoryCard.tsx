@@ -255,7 +255,7 @@ export default function RepositoryCard(props: RepositoryCardProps) {
   useEffect(() => {
     if (initialLoadRef.current) {
       initialLoadRef.current = false;
-      getRepositoryStats(false, false, true); // Initial load, no notifications
+      getRepositoryStats(true, false, true); // Initial load, no notifications
     } else if (statsRef.current) {
       setRefreshHistory(prev => {
         if (prev.length === 0) {

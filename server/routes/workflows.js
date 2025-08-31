@@ -2,7 +2,8 @@ import express from 'express';
 
 import { getUserWorkflowRunsCache } from '../cache/workflows.js';
 import { GetUserById, GetUserTrackedRepositoryData } from '../utils/database.js';
-import {FetchRepositoryWorkflows, FetchWorkflowRuns } from '../utils/github.js';
+import { FetchRepositoryWorkflows, FetchWorkflowRuns } from '../utils/github.js';
+import { getIndications, repositoryStatusToFlatArray } from '../utils/indications.js';
 
 // userId_serverId_repoId
 export const refreshingRepositories = new Set();
@@ -211,6 +212,31 @@ router.get('/status/:userId/:repoId', async (req, res) => {
         res.status(200).json(getRepositoryStatusFromCache(req.tracked, runsCacheStatus));
     } catch (error) {
         console.error(`❌ [${req.requestId}] Error fetching repository status:`, error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.get('/indications/:userId/:repoId', async (req, res) => {
+    const userIdIndications = req.params.userId;
+    const repoIdIndications = req.params.repoId;
+    const { filterBranch, filterWorkflow } = req.query;
+    console.log(`🔍 [${req.requestId}] Fetching indications for ${userIdIndications}/${repoIdIndications} (branch=${filterBranch}, workflow=${filterWorkflow})`);
+    // Get the user's workflow runs cache
+    const runsCacheIndications = getUserWorkflowRunsCache(userIdIndications);
+    try {
+        // Get repository status from cache
+        const repositoryStatus = getRepositoryStatusFromCache(req.tracked, runsCacheIndications);
+        
+        // Convert repository status to flat array for analysis
+        const flatWorkflowData = repositoryStatusToFlatArray(repositoryStatus, filterBranch, filterWorkflow);
+        
+        // Get indications
+        const indications = getIndications(flatWorkflowData);
+        
+        console.log(`✅ [${req.requestId}] Generated ${indications.length} indications`);
+        res.status(200).json({ indications });
+    } catch (error) {
+        console.error(`❌ [${req.requestId}] Error fetching indications:`, error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });

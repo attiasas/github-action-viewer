@@ -15,6 +15,17 @@ export interface Indication {
   message: string;
   url?: string;
   timestamp?: string;
+  // Additional metadata (specific to indication types)
+  jobCount?: number;
+  streak?: number;
+  days?: number;
+  daysSinceLastRun?: number;
+  totalRuns?: number;
+  lastRunDetails?: Array<{
+    jobId: string;
+    status: string;
+    timestamp?: string;
+  }>;
 }
 
 // export type IndicationEventType = 'new' | 'more' | 'less' | 'removed';

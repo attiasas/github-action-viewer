@@ -60,3 +60,6 @@ Thank you for your interest in contributing! We welcome all kinds of contributio
 ---
 
 Thank you for helping make GitHub Actions Viewer better!
+
+TODO:
+* Notification improvements -> detect new not working, refine detection and notification information (if bad reduce from 2 to 1 workflow it is good, right now looks bad...)
